@@ -1,5 +1,24 @@
 # Book Corpus NLP Analysis Pipeline — Pilot Snapshot
 
+**Authors**
+
+Paul Wong¹ · ORCID [0000-0001-6515-1860](https://orcid.org/0000-0001-6515-1860)
+Claude Sonnet 4.6 (Anthropic, claude.ai)²
+
+¹ School of Cybernetics, The Australian National University, Canberra, Australia
+² Large language model; no persistent identity, affiliation, or legal standing
+
+**Date:** 27 March 2026
+
+---
+
+## Contributor Roles
+
+Full CRediT taxonomy statement, session log, and note on AI authorship:
+→ [`docs/contributions.md`](docs/contributions.md)
+
+---
+
 A reproducible NLP pipeline for topic modelling, clustering, keyphrase
 extraction, summarisation, controlled vocabulary analysis, and visualisation
 applied to a cybernetics book corpus extracted from a Calibre library.
@@ -11,13 +30,42 @@ applied to a cybernetics book corpus extracted from a Calibre library.
 ## Folder Structure
 
 ```
-project-root/
-├── books_lang.csv              ← Calibre metadata (tab-separated)
-├── books_text_01.csv           ← OCR text files (25 total)
-│   …
-├── books_text_25.csv
+CyberneticsNLP/
+├── csv/                        ← Place Calibre CSV exports here (OneDrive synced)
+│   ├── books_lang.csv          ← Calibre metadata (tab-separated)
+│   └── books_text_*.csv        ← OCR text (25 files)
 │
-├── src/                        ← Pipeline scripts
+├── json/                       ← All JSON/JSONL outputs (auto-created, OneDrive synced)
+│   ├── books_clean.json        ← cleaned text corpus (written by 02/stream)
+│   ├── nlp_results.json        ← LDA/cluster results (written by 03)
+│   ├── summaries.json          ← abstractive summaries (written by generate_summaries_api)
+│   ├── index_terms.json        ← raw per-book index terms (written by 09)
+│   ├── index_vocab.json        ← raw vocabulary (written by 09)
+│   ├── index_analysis.json     ← canonical index vocab (written by 09b)
+│   ├── index_snippets.json     ← term context sentences (written by 09b)
+│   ├── topic_index_grounding.json  ← lift scores by topic (written by 12)
+│   ├── concept_density.json    ← concept density scatter data (written by 12)
+│   ├── concept_velocity.json   ← term migration across decades (written by 12)
+│   ├── entity_types_cache.json ← NER classification cache (written by 15)
+│   ├── entity_network.json     ← entity relational network (written by 14)
+│   └── ...                     ← other pipeline intermediates
+│
+├── data/
+│   └── outputs/                ← Generated HTML reports and Excel files (OneDrive synced)
+│       ├── book_nlp_analysis.html
+│       ├── book_nlp_analysis_chapters.html
+│       ├── book_nlp_timeseries.html
+│       ├── book_nlp_index_analysis.html
+│       ├── book_nlp_index_grounding.html
+│       ├── book_nlp_entity_network.html
+│       ├── book_nlp_embedding_comparison.html
+│       ├── book_nlp_weighted_comparison.html
+│       ├── book_nlp_results.xlsx
+│       └── book_nlp_chapters.xlsx
+│
+├── figures/                    ← matplotlib figures (auto-created, OneDrive synced)
+│
+├── src/                        ← Pipeline scripts (tracked in git)
 │   ├── parse_and_clean_stream.py   Step 0s: streaming clean (large corpora)
 │   ├── 01_parse_books.py           Step 1:  parse CSV → books_parsed.json
 │   ├── 02_clean_text.py            Step 2:  Hunspell clean → books_clean.json
@@ -31,44 +79,32 @@ project-root/
 │   ├── 06_build_report_chapters.py Step 6c: chapter-level HTML report
 │   ├── 07_build_excel.py           Step 7:  book-level Excel workbook
 │   ├── 07_build_excel_chapters.py  Step 7c: chapter-level Excel workbook
-│   ├── 08_build_timeseries.py      Step 8:  time series HTML report
 │   ├── 09_extract_index.py         Step 9:  index term extraction
-│   ├── 09b_build_index_analysis.py Step 9b: build index_analysis.json + snippets
+│   ├── 09b_build_index_analysis.py Step 9b: canonical vocab + person name merging
 │   ├── 10_build_index_report.py    Step 10: controlled vocabulary report
+│   ├── 12_index_grounding.py       Step 12: index-term topic labelling, density, velocity
+│   ├── 08_build_timeseries.py      Step 8:  time series HTML report (needs step 12)
+│   ├── 15_entity_classify.py       Step 15: NER classification cache (spaCy + Wikidata)
+│   ├── 14_entity_network.py        Step 14: entity relational network (needs step 15)
 │   ├── 11_embedding_comparison.py  Step 11: embedding method comparison (optional)
 │   ├── build_embed_report.py       Step 11b: rebuild comparison report from results JSON
 │   ├── 13_weighted_comparison.py   Step 13: compare unweighted vs weighted pipeline runs
-│   ├── 14_entity_network.py        Step 14: person–concept–location relational network
-│   ├── 12_index_grounding.py       Step 12: index-term topic labelling, density, velocity
 │   ├── embeddings.py               Embedding provider abstraction module
+│   ├── check_integrity.py          Session-start integrity checker
+│   ├── test_pipeline.py            Regression test suite (15 tests)
 │   └── run_all.sh                  End-to-end runner
 │
-├── data/
-│   ├── summaries.json          ← Abstractive summaries (shipped with package)
-│   └── outputs/                ← Generated reports and Excel files
-│
 ├── docs/
-│   ├── methodology.md
-│   ├── decisions.md
-│   └── chat_history.md
+│   ├── methodology.md          ← full technical methodology (1,600+ lines)
+│   ├── decisions.md            ← design decision log (900+ lines)
+│   ├── contributions.md        ← authorship, CRediT statement, session log
+│   ├── CHANGELOG.md            ← versioned change history
+│   ├── ROADMAP.md              ← planned work, open questions, phases
+│   └── chat_history.md         ← session notes
 │
+├── README.md
 ├── requirements.txt
-└── README.md
-
-# Intermediate files (generated in project root during pipeline run)
-books_parsed.json               written by 01, read by 02
-books_clean.json                written by 02/stream, read by 03, 04, 09
-nlp_results.json                written by 03, read by 04–08, 11, 12
-summaries.json                  written by generate_api/04, read by 03c–07c
-nlp_results_chapters.json       written by 03c, read by 05c–08
-index_terms.json                written by 09, read by 10, 12
-index_vocab.json                written by 09, read by 10
-index_analysis.json             written by 09b, read by 10, 08 (Chart 7), 11, 12
-index_snippets.json             written by 09b, read by 10
-topic_index_grounding.json      written by 12, read by reports
-concept_density.json            written by 12, read by reports
-concept_velocity.json           written by 12, read by 08 (Chart 7)
-nlp_results.json topic_names    written by 03 --name-topics, read by all report scripts
+└── .gitignore                  ← excludes csv/, json/, data/outputs/, figures/
 ```
 
 ---
@@ -97,7 +133,7 @@ pip install pyspellchecker>=0.7
 # Download from: https://github.com/LibreOffice/dictionaries
 ```
 
-### 2. Place input files in project root
+### 2. Place input files in csv/
 
 ```
 csv/books_lang.csv
@@ -118,10 +154,6 @@ done
 Then run downstream steps:
 
 ```bash
-# Place Calibre CSVs in csv/ before running:
-#   cp /path/to/books_lang.csv      csv/
-#   cp /path/to/books_text_*.csv    csv/
-
 # Book-level pipeline
 python3 src/03_nlp_pipeline.py              # standard (always run this first)
 python3 src/03_nlp_pipeline.py --name-topics  # + auto-name topics via API (~$0.01)
@@ -130,37 +162,37 @@ python3 src/05_visualize.py
 python3 src/06_build_report.py
 python3 src/07_build_excel.py
 
-# Chapter-level pipeline (uses summaries.json from 04)
+# Chapter-level pipeline (uses summaries.json from generate_summaries_api / 04)
 python3 src/03_nlp_pipeline_chapters.py
 python3 src/05_visualize_chapters.py
 python3 src/06_build_report_chapters.py
 python3 src/07_build_excel_chapters.py
 
-# Index extraction — must run before 10, 12, and 08
+# Index extraction and canonical vocabulary
 python3 src/09_extract_index.py
-python3 src/09b_build_index_analysis.py   # builds index_analysis.json + snippets
+python3 src/09b_build_index_analysis.py   # canonical vocab + person name merging
 python3 src/10_build_index_report.py
 
-# Index grounding — must run after 09+10, before 08
-# Produces: index_analysis.json, concept_velocity.json, concept_density.json
+# Index grounding — must run after 09b, before 08
 python3 src/12_index_grounding.py
 
 # Time series — must run after 12 (Chart 7 needs concept_velocity.json)
 python3 src/08_build_timeseries.py
+
+# Entity classification — run once, results cached in json/entity_types_cache.json
+# Requires: pip install spacy && python3 -m spacy download en_core_web_sm
+python3 src/15_entity_classify.py          # heuristics + spaCy + Wikidata
+python3 src/15_entity_classify.py --no-wikidata  # offline mode
+
+# Entity relational network — run after 09b, 12, and 15
+python3 src/14_entity_network.py --no-windows  # fast (book-level edges only)
+python3 src/14_entity_network.py               # + paragraph-window edges (~5 min)
 
 # Optional: abstractive summaries (rerun 03c onwards if you regenerate)
 # python3 src/generate_summaries_api.py --workers 4
 
 # Optional: embedding comparison
 # python3 src/11_embedding_comparison.py --no-voyage  # A+B+C
-
-# Entity relational network (run after 09b and 12)
-# python3 src/14_entity_network.py --no-windows   # fast
-# python3 src/14_entity_network.py                # + paragraph windows (~5 min)
-#
-# Outputs: data/outputs/book_nlp_entity_network.html
-# Node kinds: Person (blue) · Concept (green) · Organisation (purple) · Location (amber)
-# Layouts: Force-directed · Radial · Bipartite · Circular (selector in report UI)
 ```
 
 ### 3b. Run — standard path (small corpora, <~300 books)
@@ -180,7 +212,9 @@ python3 src/generate_summaries_api.py --workers 1  # sequential, ~112 min
 ```
 
 Fully resumable — safe to interrupt and restart. Estimated cost: ~$25–35
-for 675 books. When done, rerun from step 03_nlp_pipeline_chapters.py onwards
+for 675 books from scratch (only missing books are processed on reruns —
+if most summaries already exist, the incremental cost is a few cents).
+When done, rerun from step 03_nlp_pipeline_chapters.py onwards
 to use the new summaries.
 
 ---
@@ -188,37 +222,44 @@ to use the new summaries.
 ## Pipeline Overview
 
 ```
-books_lang.csv  +  books_text_*.csv
+csv/books_lang.csv  +  csv/books_text_*.csv
         │
         ├── STREAMING (recommended) ──── parse_and_clean_stream.py × 25
         └── STANDARD                ──── 01_parse_books.py → 02_clean_text.py
         │
-        ▼
+        ▼                              writes to json/
   03_nlp_pipeline.py          LDA (book-level, 7 topics)
   generate_summaries_api.py   Abstractive summaries via Anthropic API
   04_summarize.py             Extractive fallback summaries
   03_nlp_pipeline_chapters.py NMF (chapter-level, 6 topics)
   05_visualize.py / _chapters  Matplotlib figures
-  06_build_report.py / _chapters  Interactive HTML reports
-  07_build_excel.py / _chapters   Excel workbooks
-  09_extract_index.py         Step 9:  index term extraction
-  10_build_index_report.py    Step 10: controlled vocabulary report
-  12_index_grounding.py       Step 12: topic labelling, density, velocity  ← needs 09+10
-  08_build_timeseries.py      Step 8:  time series report                  ← needs 12
+  06_build_report.py / _chapters  Interactive HTML reports  → data/outputs/
+  07_build_excel.py / _chapters   Excel workbooks           → data/outputs/
+  09_extract_index.py         Index term extraction
+  09b_build_index_analysis.py Canonical vocab + person name merging
+  10_build_index_report.py    Controlled vocabulary report  → data/outputs/
+  12_index_grounding.py       Topic labelling, density, velocity  ← needs 09b
+  08_build_timeseries.py      Time series report            → data/outputs/  ← needs 12
+  15_entity_classify.py       NER classification cache (run once)
+  14_entity_network.py        Entity relational network     → data/outputs/  ← needs 15
 ```
 
 ---
 
 ## Output Files
 
+All reports are written to `data/outputs/`.
+
 | File | Description |
 |------|-------------|
 | `book_nlp_analysis.html` | Book-level interactive report — LDA topics, clusters, cosine similarity, keyphrases, summaries |
 | `book_nlp_analysis_chapters.html` | Chapter-level report — NMF topics, clusters, keyphrases, chapter summaries |
-| `book_nlp_timeseries.html` | Publication year analysis — 7 charts: publications/yr, LDA topics, NMF topics, clusters, scatter, cumulative, band prevalence + concept velocity (Chart 7 requires steps 09→12 first) |
+| `book_nlp_timeseries.html` | Publication year analysis — 7 charts: publications/yr, LDA topics, NMF topics, clusters, scatter, cumulative, band prevalence + concept velocity (Chart 7 requires steps 09b→12 first) |
 | `book_nlp_index_analysis.html` | Controlled vocabulary — index term frequency, time series, co-occurrence, topic distribution, term explorer |
 | `book_nlp_index_grounding.html` | Index grounding — topic labelling, concept density scatter, concept velocity across decades |
+| `book_nlp_entity_network.html` | Entity relational network — persons, concepts, organisations, locations; 4 layout algorithms; degree filter |
 | `book_nlp_embedding_comparison.html` | Embedding method comparison — LSA vs Sentence Transformers vs Voyage AI |
+| `book_nlp_weighted_comparison.html` | Side-by-side comparison of unweighted vs weighted pipeline runs |
 | `book_nlp_results.xlsx` | Book-level Excel (5 sheets) |
 | `book_nlp_chapters.xlsx` | Chapter-level Excel (4 sheets) |
 
@@ -270,8 +311,8 @@ on two files written by earlier pipeline steps:
 
 | Required file | Written by |
 |--------------|------------|
-| `nlp_results.json` | `03_nlp_pipeline.py` (first pass) |
-| `index_analysis.json` | `09b_build_index_analysis.py` |
+| `json/nlp_results.json` | `03_nlp_pipeline.py` (first pass) |
+| `json/index_analysis.json` | `09b_build_index_analysis.py` |
 
 **It cannot run on a clean start.** Run the full pipeline once first, then:
 
@@ -296,13 +337,19 @@ Or uncomment the pre-written block at the bottom of `src/run_all.sh`.
 
 ## New in This Snapshot
 
-- **Step 14 — Entity Network** (`14_entity_network.py`): force-directed person–concept–location relational network using PMI × reliability (book-level) and paragraph-window co-occurrence (local textual proximity)
+- **Step 15 — Entity Classification** (`15_entity_classify.py`): three-stage NER pipeline — heuristics → spaCy `en_core_web_sm` → Wikidata REST API. Produces `json/entity_types_cache.json`, cached permanently. Run once before step 14. Offline mode: `--no-wikidata`
+- **Step 14 — Entity Network** (`14_entity_network.py`): interactive entity relational network (persons, concepts, organisations, locations) using PMI × reliability (book-level edges). Four layout algorithms selectable in the report UI: Force-directed (Fruchterman-Reingold), Radial, Bipartite, Circular
+- **Index canonicalisation** (`09b_build_index_analysis.py`): person name merging (262 rules: `Wiener, N.` → `Wiener, Norbert`), accent normalisation, noise suppression (function-word fragments, ebook preambles, author affiliations)
 - **`--weighted` flag** (`03_nlp_pipeline.py`): index-term lift-weighted TF-IDF — boosts Signal terms (schismogenesis, autopoiesis) and dampens pervasive Anchor terms (feedback, system)
 - **Chart 7** (`08_build_timeseries.py`): band prevalence by decade + concept velocity — tracks how Anchor/Signal/Frontier term density evolves and how key terms migrate between topics over time
 - **Step 12 — Index Grounding** (`12_index_grounding.py`): topic labelling via lift scores, concept density scatter, concept velocity
 - **Recursive summarisation**: `--recursive` flag in `generate_summaries_api.py` for map-reduce book summaries
 - **Embedding abstraction**: `embeddings.py` — swap LSA / Sentence Transformers / Voyage AI with one line
 - **Embedding comparison**: `11_embedding_comparison.py` with `--no-voyage` and `--no-st` flags
+- **`check_integrity.py`**: session-start integrity checker — verifies all 20 required scripts and their key definitions
+- **`test_pipeline.py`**: regression test suite — 15 tests covering the full pipeline end-to-end
+
+---
 
 ## Requirements
 
@@ -402,11 +449,11 @@ for f in csv/books_text_*.csv; do python3 src/parse_and_clean_stream.py "$f"; do
 python3 -c "
 import json
 books = {}
-with open('books_clean.jsonl') as f:
+with open('json/books_clean.jsonl') as f:
     for line in f:
         if line.strip():
             r = json.loads(line); books[r['id']] = {k:v for k,v in r.items() if k!='id'}
-with open('books_clean.json','w') as f:
+with open('json/books_clean.json','w') as f:
     json.dump(books, f, ensure_ascii=False)
 print(f'Converted {len(books)} books')
 "
@@ -421,6 +468,17 @@ access, or host Plotly.js locally and update the `<script src="...">` tag.
 Re-run `generate_summaries_api.py` — it includes verbatim similarity checking
 and will retry books whose summaries exceed the 35% overlap threshold. If the
 problem persists, delete the affected entries from `summaries.jsonl` and rerun.
+
+### `entity_types_cache.json not found`
+Run step 15 first:
+```bash
+pip install spacy && python3 -m spacy download en_core_web_sm
+python3 src/15_entity_classify.py
+```
+Or run in offline mode (heuristics only, no spaCy or Wikidata required):
+```bash
+python3 src/15_entity_classify.py --no-wikidata
+```
 
 ---
 
