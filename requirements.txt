@@ -1,0 +1,84 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Python packages (install with: pip install -r requirements.txt)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Core NLP and ML
+scikit-learn==1.8.0
+numpy==2.4.2
+
+# Visualisation
+matplotlib==3.10.8
+seaborn==0.13.2
+
+# Excel output
+openpyxl==3.1.5
+pandas==3.0.1
+
+# ══════════════════════════════════════════════════════════════════════════════
+# System-level dependencies (NOT installed by pip)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# ── Hunspell English dictionary ───────────────────────────────────────────────
+# Used by: 02_clean_text.py (only)
+# NOT needed by: parse_and_clean_stream.py (use this for large corpora instead)
+#
+#   Linux (Debian/Ubuntu):
+#     sudo apt-get install hunspell-en-us
+#
+#   Linux (Fedora/RHEL):
+#     sudo dnf install hunspell-en
+#
+#   macOS (Homebrew):
+#     brew install hunspell
+#     # If the .dic file is not found automatically, symlink it:
+#     sudo mkdir -p /usr/local/share/hunspell
+#     sudo ln -s $(brew --prefix)/share/hunspell/en_US.dic \
+#                /usr/local/share/hunspell/en_US.dic
+#
+#   Windows:
+#     Download en_US.dic and en_US.aff from:
+#       https://github.com/LibreOffice/dictionaries/tree/master/en
+#     Place en_US.dic in the project data/ directory.
+#     The script will find it automatically.
+#
+# ── Python fallback (if Hunspell is unavailable) ──────────────────────────────
+# pyspellchecker works on all platforms with no system dependencies.
+# Slightly less precise than Hunspell but covers the same vocabulary range.
+#
+#   pip install pyspellchecker>=0.7
+#
+# ── Automatic degradation ─────────────────────────────────────────────────────
+# If neither Hunspell nor pyspellchecker is available, 02_clean_text.py runs
+# without word filtering and prints a clear warning with install instructions.
+# TF-IDF min_df=2 in the downstream pipeline handles most residual OCR noise.
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Optional Python packages (not required for core pipeline)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Spell-checking fallback (if Hunspell system package is unavailable):
+# pyspellchecker>=0.7
+
+# Topic coherence scoring (recommended for future model selection improvement):
+# gensim>=4.3          # C_V coherence via CoherenceModel
+# pyLDAvis>=3.4        # Interactive LDA visualisation
+
+# Semantic embedding comparison (11_embedding_comparison.py — method C):
+# sentence-transformers>=2.7   # all-MiniLM-L6-v2 local embeddings (CPU-friendly)
+#   Install: pip install sentence-transformers
+#   Requires PyTorch >= 2.4. Check: python3 -c "import torch; print(torch.__version__)"
+#   If PyTorch < 2.4, either upgrade: pip install torch --upgrade
+#   or pin:                           pip install "sentence-transformers==2.7.0"
+#   Model downloads automatically on first run (~90 MB)
+#
+# voyage-ai  (for 11_embedding_comparison.py Method D — Voyage AI embeddings)
+#   Voyage AI is separate from Anthropic. Get a free key at https://dash.voyageai.com/
+#   Set: export VOYAGE_API_KEY=pa-...
+#   No pip package needed — uses urllib directly
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Runtime environment
+# ══════════════════════════════════════════════════════════════════════════════
+# Python: 3.9+
+# Tested on: Python 3.11 / Ubuntu 24.04, Python 3.12 / macOS 14
+# Plotly.js (for interactive reports): loaded from CDN — internet required

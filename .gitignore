@@ -1,0 +1,18 @@
+# Large generated outputs — use OneDrive for sync
+json/
+csv/
+data/outputs/
+figures/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
