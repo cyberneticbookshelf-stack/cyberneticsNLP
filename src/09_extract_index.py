@@ -3,6 +3,16 @@
 
 Extract index terms from all books, save to index_terms.json.
 Structure: {book_id: {"terms": [...], "status": "ok"|"no_index"|"truncated"|"garbled"}}
+
+Data-quality fixes (v0.4.1):
+  - alpha_ratio threshold raised 0.45 → 0.60; hyphens and parentheses
+    explicitly permitted so terms like 'feedback (negative)' are not rejected.
+  - Foreign-language section headers (Bibliographie, Sachregister, Índice, etc.)
+    now filtered before the main entry path.
+  - All stored terms pass through _canonical_term(): single-word terms are
+    title-cased, multi-word phrases lowercased, preserving genuine title-case
+    proper nouns. Deduplication now operates on canonical forms so
+    'Cybernetics', 'cybernetics', 'CYBERNETICS' all resolve to 'Cybernetics'.
 """
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
@@ -44,11 +54,76 @@ FUNC_FRAGMENT_RE = re.compile(
     r'^(of|and|in|on|at|to|for|with|by|from|the|a|an)\b',
     re.IGNORECASE)
 
+# FIX: Foreign-language header filter.
+# Catches OCR'd section dividers from non-English indexes that survive as main
+# entries: French (Bibliographie, Références), German (Sachregister, Literatur),
+# Spanish (Índice), Italian, Dutch, and common all-caps variants.
+FOREIGN_HEADER_RE = re.compile(
+    r'^(?:'
+    r'bibliograph(?:ie|y|ies|ia)|r[eé]f[eé]rences?|literatur(?:verzeichnis)?|'
+    r'sachregister|namenregister|abk[uü]rzung(?:en)?|abbildung(?:en)?|'
+    r'[ií]ndice|registro|bijlage|literatuur|'
+    r'inhoudsopgave|afkortingen|'
+    r'table\s+des\s+mati[eè]res?|liste\s+des|verzeichnis|anhang|'
+    r'annexe?|ap[eé]ndice'
+    r')$',
+    re.IGNORECASE
+)
+
+# FIX: Index structural artifacts — the section header itself ('Index',
+# 'General Index', etc.) leaking through as a harvested term.
+# These are caught by INDEX_START at section-detection time but can still
+# appear as the first line of the extracted block in some book formats.
+INDEX_ARTIFACTS_RE = re.compile(
+    r'^(?:general\s+)?index(?:\s+of\s+(?:names?|subjects?|terms?))?$'
+    r'|^(?:subject|name|author|analytical|selective|combined)\s+index$',
+    re.IGNORECASE
+)
+
 # Accent normalisation map for canonical person names
 import unicodedata as _ud
 def _norm_term(t):
     """Normalise for deduplication: lowercase, strip accents."""
     return _ud.normalize('NFC', t.lower().strip())
+
+def _canonical_term(t: str) -> str:
+    """
+    Normalise an index term to a stable canonical form for storage.
+
+    Rules:
+    - Single-word terms: title-case  ('cybernetics' → 'Cybernetics',
+                                       'CYBERNETICS' → 'Cybernetics')
+    - Multi-word terms:  preserve if already well-formed title-case or proper
+      name (including lowercase particles: von, de, van, di, etc.);
+      otherwise lowercase ('GENERAL SYSTEMS THEORY' → 'general systems theory').
+
+    This gives consistent deduplication without losing genuine proper nouns
+    (e.g. 'Wiener', 'Shannon', 'von Neumann', 'General Systems Theory').
+    """
+    # Particles permitted lowercase inside a proper name
+    PARTICLES = {'von', 'van', 'de', 'di', 'du', 'der', 'den',
+                 'la', 'le', 'el', 'al', 'bin', 'bint'}
+
+    words = t.split()
+    if not words:
+        return t
+    if len(words) == 1:
+        w = words[0]
+        if w.isupper() and len(w) <= 5:   # keep short acronyms: DNA, AI
+            return w
+        return w.capitalize()
+
+    # A word is "well-formed" if it is title-case, a known particle, or
+    # a short all-caps acronym.
+    def _ok(w):
+        if w in PARTICLES: return True
+        if w.isupper() and len(w) <= 5: return True
+        return len(w) >= 1 and w[0].isupper() and w[1:].islower()
+
+    if all(_ok(w) for w in words):
+        return t   # already canonical — preserve as-is
+    return t.lower()
+
 
 def quality_score(lines):
     """Return fraction of lines that look like real index entries."""
@@ -82,10 +157,18 @@ def extract_index_terms(text, max_chars=60000):
         if PAGENUM_ONLY.match(ls): continue
         if PREAMBLE_RE.search(ls): continue
         if AUTHOR_AFFIL_RE.match(ls): continue
+        # FIX: Reject foreign-language section headers (Bibliographie, Sachregister, etc.)
+        if FOREIGN_HEADER_RE.match(ls): continue
+        # FIX: Reject index section header leaking as a term ('Index', 'General Index', etc.)
+        if INDEX_ARTIFACTS_RE.match(ls): continue
 
-        # Garbage check: require mostly alphabetic content
-        alpha_ratio = sum(c.isalpha() or c.isspace() or c in ',-\'' for c in ls) / len(ls)
-        if alpha_ratio < 0.45 and len(ls) > 8: continue
+        # Garbage check: require mostly alphabetic content.
+        # FIX: threshold raised from 0.45 → 0.60; hyphens and parentheses are
+        # explicitly permitted (legitimate in terms like 'feedback (negative)').
+        alpha_ratio = sum(
+            c.isalpha() or c.isspace() or c in ",-'()–-" for c in ls
+        ) / len(ls)
+        if alpha_ratio < 0.60 and len(ls) > 8: continue
         # Skip very long lines (probably running prose that leaked in)
         if len(ls) > 100: continue
 
@@ -95,7 +178,7 @@ def extract_index_terms(text, max_chars=60000):
             ref = STRIP_PAGES.sub('', see.group(1)).strip()
             ref = re.sub(r'\s+', ' ', ref)
             if ref and 3 <= len(ref) <= 80 and ref[0].isalpha():
-                terms.append(ref)
+                terms.append(_canonical_term(ref))
             continue
 
         # Sub-entry
@@ -106,7 +189,7 @@ def extract_index_terms(text, max_chars=60000):
             # Skip function-word fragments ('and cybernetics', 'of machines')
             if FUNC_FRAGMENT_RE.match(sub): continue
             if parent and sub and 2 <= len(sub) <= 70 and sub[0].isalpha():
-                terms.append(f"{parent} — {sub}")
+                terms.append(f"{parent} — {_canonical_term(sub)}")
             continue
 
         # Main entry
@@ -119,6 +202,7 @@ def extract_index_terms(text, max_chars=60000):
         if (term and len(term) >= 3 and len(term) <= 80
                 and term[0].isalpha()
                 and not PAGENUM_ONLY.match(term)):
+            term = _canonical_term(term)
             parent = term
             terms.append(term)
 

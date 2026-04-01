@@ -18,6 +18,17 @@ Cleans raw book text by:
      (76,741 words) supplemented with an academic/cybernetics domain
      whitelist (~500 terms).
 
+Data-quality fixes (v0.4.1):
+  - ASCII gate moved after whitelist check: accented terms present in the
+    domain whitelist (e.g. Wiener, Foerster, lebenswelt) are now preserved
+    rather than silently deleted.  Accent-stripped probes are tried before
+    the gate so 'naïve' → 'naive' lookup also works.  Purely non-Latin
+    tokens (Cyrillic, CJK, Arabic) are still dropped.
+  - Case normalisation: process_token now works on a lowercased probe for
+    all checks (alpha-ratio, dictionary lookup, consonant heuristic).
+    Mixed-case OCR artefacts such as 'CYBERNETics' or 'SYSTEMs' no longer
+    slip through the proper-noun shortcut in build_english_checker.
+
 Dictionary note:
   Oxford English Dictionary is not available in this offline environment.
   Hunspell en_US (/usr/share/hunspell/en_US.dic) is used instead — the
@@ -293,8 +304,9 @@ def build_english_checker(dictionary, whitelist):
         t = token.lower()
         if len(t) <= 2: return True
         if t in expanded: return True
-        # Title-case proper noun
-        if token[0].isupper() and t[1:].islower(): return True
+        # Title-case proper noun: ONLY first char upper, ALL remaining chars lower.
+        # Rejects mixed-case OCR artefacts like 'CYBERNETics' or 'SYSTEMs'.
+        if token[0].isupper() and token[1:].islower(): return True
         # Suffix stripping
         for suf in suffixes:
             if t.endswith(suf) and len(t) - len(suf) >= 3:
@@ -415,17 +427,62 @@ def apply_inline_patterns(text):
 # ── 3. Dictionary word filtering ─────────────────────────────────────────────
 
 def filter_non_english_tokens(text, is_english_fn):
+    import unicodedata as _ud
+
+    def _strip_accents(s):
+        """Decompose accented characters and drop the combining marks.
+        'Foerster' stays 'Foerster'; 'naïve' → 'naive'; 'über' → 'uber'.
+        This is used for dictionary lookup only — the original token is
+        returned to the caller so accent information is preserved in output.
+        """
+        return ''.join(
+            c for c in _ud.normalize('NFD', s)
+            if _ud.category(c) != 'Mn'
+        )
+
     def process_token(token):
         if re.match(r'^\d+$', token): return token
         if len(token) <= 2: return token
-        if not token.isascii(): return ''
-        alpha = sum(c.isalpha() for c in token)
-        if alpha < len(token) * 0.6: return ''
-        clean = re.sub(r'[^a-zA-Z\-]', '', token)
+
+        # ── Case normalisation ────────────────────────────────────────────
+        # Work on a lowercased probe for all checks; return original token
+        # if it passes, so casing in the source text is preserved.
+        probe = token.lower()
+
+        # ── Non-ASCII handling ────────────────────────────────────────────
+        # FIX: previously non-ASCII tokens were discarded here, before the
+        # whitelist was consulted. Now we:
+        #   1. Try the token as-is (catches whitelisted accented terms).
+        #   2. Try an accent-stripped version (catches 'naïve' → 'naive').
+        #   3. Only then gate on ASCII — purely non-Latin tokens are dropped.
+        if not token.isascii():
+            clean_probe = re.sub(r'[^a-zA-Z\-]', '', _strip_accents(probe))
+            if clean_probe and is_english_fn(clean_probe):
+                return token          # whitelist/dictionary hit — keep
+            # Non-Latin script (Cyrillic, CJK, Arabic, etc.) — drop
+            if not any(c.isascii() for c in token if c.isalpha()):
+                return ''
+            # Mixed: strip accents and continue to normal checks below
+            probe = _strip_accents(probe)
+            token = _strip_accents(token)  # de-accent for output too
+
+        # ── Alpha-ratio check (on lowercased probe) ───────────────────────
+        alpha = sum(c.isalpha() for c in probe)
+        if alpha < len(probe) * 0.6: return ''
+
+        clean = re.sub(r'[^a-zA-Z\-]', '', probe)
         if not clean: return ''
-        if is_english_fn(clean): return token
+        if is_english_fn(clean):
+            # Return the original token if it is already well-formed
+            # (all-lower or genuine title-case like 'Cybernetics').
+            # Return the lowercased clean form if the token is a mixed-case
+            # OCR artefact ('CYBERNETics' → 'cybernetics', 'SYSTEMs' → 'systems').
+            is_titlecase = token[0].isupper() and token[1:].islower()
+            is_lowercase  = token == token.lower()
+            return token if (is_lowercase or is_titlecase) else clean
+
         # OCR garbage heuristic: >85% consonants
-        vowels = sum(c in 'aeiouAEIOU' for c in clean)
+        vowels = sum(c in 'aeiou' for c in clean)
         if len(clean) > 4 and vowels / len(clean) < 0.12:
             return ''
         return ''

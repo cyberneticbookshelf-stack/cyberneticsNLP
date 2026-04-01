@@ -7,6 +7,15 @@ from sklearn.metrics import silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ── Stopwords (manual, since nltk unavailable) ──────────────────────────────
+# Data-quality fixes (v0.4.1):
+#   - Stopword list expanded with academic boilerplate terms (author, paper,
+#     journal, review, result, study, approach, proposed, based, show, etc.)
+#     that were inflating TF-IDF scores for generic academic prose.
+#   - tokenize() now joins hyphenated compounds before stripping punctuation
+#     ('self-organising' → 'selforganising') so they survive as single features
+#     rather than being split into short fragments that are then discarded.
+#   - sampled texts passed through _join_hyphens() before TF-IDF and LDA
+#     vectorisation to keep the pre-processing consistent with tokenize().
 
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
@@ -32,9 +41,14 @@ would wouldn't you you'd you'll you're you've your yours yourself yourselves
 also may thus hence therefore however moreover furthermore indeed whereas
 whether although though since upon within without toward towards one two
 three four five six seven eight nine ten use used using well just like even
-many much first second third new old p pp pp cited ibid et al chapter book
-fig figure table see also note notes pp chapter chapters vol volume edition
+many much first second third new old p pp cited ibid et al chapter book
+fig figure table see also note notes chapter chapters vol volume edition
 ed eds press university oxford cambridge london new york
+author authors paper papers journal journals review reviews
+research study studies approach proposed based show shown
+result results finding findings suggest suggests suggested
+present presented discuss discussed discuss analysis analyse
+across following given thus within despite recent
 """.split())
 
 # ── CLI flags ────────────────────────────────────────────────────────────────
@@ -49,6 +63,56 @@ if '--topics' in sys.argv:
         print(f'  [--topics] fixed at {_FIXED_TOPICS}')
     except (IndexError, ValueError):
         print('  [--topics] usage: --topics N  (integer)')
+
+# --min-chars N: exclude books with fewer than N chars of clean text.
+# Useful for filtering source-extraction failures (empty or near-empty books)
+# without permanently removing them from books_clean.json.
+# Default: 0 (no filtering). Recommended: 10000 when known bad books exist.
+# Example: python3 src/03_nlp_pipeline.py --min-chars 10000
+_MIN_CHARS = 0
+if '--min-chars' in sys.argv:
+    try:
+        _MIN_CHARS = int(sys.argv[sys.argv.index('--min-chars') + 1])
+        print(f'  [--min-chars] excluding books with < {_MIN_CHARS:,} chars clean text')
+    except (IndexError, ValueError):
+        print('  [--min-chars] usage: --min-chars N  (integer)')
+
+# --lemmatize: apply spaCy lemmatisation to sampled texts before vectorisation.
+# Collapses inflected forms to base forms ('systems' → 'system',
+# 'organising' → 'organise') while preserving readability — unlike stemming
+# which produces uninterpretable truncations ('cybernetics' → 'cybernet').
+# Requires spaCy en_core_web_sm: python -m spacy download en_core_web_sm
+# Adds ~2-5 min processing time for 675 books at 60k chars/book.
+LEMMATIZE = '--lemmatize' in sys.argv
+if LEMMATIZE:
+    try:
+        import spacy as _spacy
+        _nlp = _spacy.load('en_core_web_sm', disable=['parser', 'ner'])
+        print('  [--lemmatize] spaCy en_core_web_sm loaded — lemmatising texts')
+    except OSError:
+        print('  [--lemmatize] ERROR: en_core_web_sm not found.')
+        print('  Run: python -m spacy download en_core_web_sm')
+        import sys as _sys; _sys.exit(1)
+    except ImportError:
+        print('  [--lemmatize] ERROR: spaCy not installed.')
+        print('  Run: pip install spacy && python -m spacy download en_core_web_sm')
+        import sys as _sys; _sys.exit(1)
+
+# --seeds N: run LDA N times with different random seeds and compute topic
+# stability scores (mean Jaccard similarity of top-10 words across runs,
+# aligned via the Hungarian algorithm). Writes topic_stability.json.
+# Only meaningful when used with --topics to fix k.
+# Example: python3 src/03_nlp_pipeline.py --topics 20 --seeds 5 --lemmatize
+_N_SEEDS = 1
+if '--seeds' in sys.argv:
+    try:
+        _N_SEEDS = max(2, int(sys.argv[sys.argv.index('--seeds') + 1]))
+        print(f'  [--seeds] running {_N_SEEDS} LDA seeds for stability analysis')
+        if _FIXED_TOPICS is None:
+            print('  [--seeds] WARNING: --seeds is most useful with --topics N '
+                  'to fix k; auto-selection may choose different k per seed')
+    except (IndexError, ValueError):
+        print('  [--seeds] usage: --seeds N  (integer ≥ 2)')
 
 # ── Index-term weight builder ─────────────────────────────────────────────────
 def build_index_weights(feature_names, index_analysis_path=str(JSON_DIR / 'index_analysis.json'),
@@ -125,6 +189,11 @@ def build_index_weights(feature_names, index_analysis_path=str(JSON_DIR / 'index
 
 def tokenize(text):
     text = text.lower()
+    # FIX: join hyphenated compounds before stripping punctuation so that
+    # 'self-organising' → 'selforganising' rather than 'self' + 'organising'
+    # (both fragments are too short or too generic to be useful features).
+    # The joined form is then treated as a single token by TF-IDF.
+    text = re.sub(r'([a-z])-([a-z])', r'\1\2', text)
     text = re.sub(r'[^a-z\s]', ' ', text)
     tokens = [w for w in text.split() if len(w) > 3 and w not in STOPWORDS]
     return tokens
@@ -143,6 +212,19 @@ with open(str(JSON_DIR / 'books_clean.json')) as f:
     books = json.load(f)
 
 book_ids   = list(books.keys())
+
+# Apply --min-chars filter if set
+if _MIN_CHARS > 0:
+    before = len(book_ids)
+    book_ids = [b for b in book_ids if len(books[b]['clean_text']) >= _MIN_CHARS]
+    excluded = before - len(book_ids)
+    print(f"  [--min-chars] excluded {excluded} books < {_MIN_CHARS:,} chars "
+          f"({before} → {len(book_ids)})")
+    if excluded > 0:
+        excl_ids = [b for b in books if len(books[b]['clean_text']) < _MIN_CHARS]
+        for bid in excl_ids:
+            print(f"    excluded: [{bid}] {books[bid]['title'][:60]}")
+
 titles     = [books[b]['title'] for b in book_ids]
 authors    = [books[b]['author'] for b in book_ids]
 
@@ -161,9 +243,43 @@ def sample_book(text):
 
 texts = [sample_book(books[b]['clean_text']) for b in book_ids]
 
+# ── Lemmatisation (--lemmatize) ───────────────────────────────────────────────
+def _lemmatise_text(text, nlp, batch_size=50):
+    """
+    Lemmatise a text string using spaCy.
+    Processes in 10k-char chunks to avoid spaCy's max_length limit.
+    Returns a string of space-joined lemmas, filtering punctuation and
+    whitespace tokens. Preserves the token stream for TF-IDF input.
+    """
+    chunks = [text[i:i+10000] for i in range(0, len(text), 10000)]
+    lemmas = []
+    for doc in nlp.pipe(chunks, batch_size=batch_size):
+        lemmas.extend(
+            token.lemma_.lower()
+            for token in doc
+            if not token.is_punct and not token.is_space and len(token.lemma_) > 1
+        )
+    return ' '.join(lemmas)
+
+if LEMMATIZE:
+    print(f"  Lemmatising {len(texts)} texts (this may take a few minutes)...")
+    texts = [_lemmatise_text(t, _nlp) for i, t in enumerate(texts, 1)
+             if not print(f"    {i}/{len(texts)}", end='\r') or True]
+    print()
+
 print(f"Processing {len(texts)} books...")
 
 # ── 1. TF-IDF Vectorisation ──────────────────────────────────────────────────
+# FIX: token_pattern updated from [a-zA-Z]{4,} to [a-zA-Z]{4,} — hyphens are
+# now pre-joined in sample_book text via a pre-processing step so the pattern
+# does not need to handle them; but we apply the same hyphen-join to the sampled
+# texts before vectorisation to ensure TF-IDF and tokenize() are consistent.
+def _join_hyphens(text):
+    """Join hyphenated compounds: 'self-organising' → 'selforganising'."""
+    return re.sub(r'([a-zA-Z])-([a-zA-Z])', r'\1\2', text)
+
+texts = [_join_hyphens(t) if not LEMMATIZE else t for t in texts]
+
 tfidf = TfidfVectorizer(max_features=3000, stop_words=list(STOPWORDS),
                         ngram_range=(1,2), min_df=2, max_df=0.95,
                         token_pattern=r'(?u)\b[a-zA-Z]{4,}\b')
@@ -252,6 +368,116 @@ if _FIXED_TOPICS is not None and _FIXED_TOPICS in perplexities:
 else:
     print(f"\nBest n_topics={best_n} (highest coherence={best_coh:.4f}, "
           f"perplexity={perplexities[best_n]:.1f})")
+
+# ── Topic stability analysis (--seeds) ───────────────────────────────────────
+def _jaccard(set_a, set_b):
+    """Jaccard similarity between two sets of words."""
+    a, b = set(set_a), set(set_b)
+    return len(a & b) / len(a | b) if (a | b) else 0.0
+
+def _align_topics(words_a, words_b):
+    """
+    Align topics from two runs using the Hungarian algorithm to maximise
+    total Jaccard similarity. Returns (row_ind, col_ind, similarity_matrix).
+    """
+    from scipy.optimize import linear_sum_assignment
+    n = len(words_a)
+    sim = np.array([[_jaccard(words_a[i], words_b[j]) for j in range(n)]
+                    for i in range(n)])
+    row_ind, col_ind = linear_sum_assignment(-sim)  # maximise
+    return row_ind, col_ind, sim
+
+def run_stability_analysis(n_topics, X_count, cv_vocab, n_seeds, n_top=10):
+    """
+    Run LDA n_seeds times, align topics across all pairs of runs using the
+    Hungarian algorithm, and compute per-topic mean Jaccard stability scores.
+
+    Returns:
+        seed_top_words  : list of n_seeds × n_topics × n_top word lists
+        stability_scores: list of n_topics floats (mean Jaccard across pairs)
+        canonical_words : top words from seed 0 (reference run), reordered
+                          to match the canonical topic ordering
+    """
+    SEEDS = [42, 7, 123, 256, 999, 17, 88, 314, 501, 777][:n_seeds]
+    print(f"\n[--seeds] Fitting {n_seeds} LDA runs at k={n_topics}...")
+
+    all_top_words = []
+    for i, seed in enumerate(SEEDS):
+        lda_s = LatentDirichletAllocation(
+            n_components=n_topics, max_iter=20, learning_method='online',
+            random_state=seed, learning_offset=50., doc_topic_prior=0.1)
+        lda_s.fit(X_count)
+        tw = []
+        for t in range(n_topics):
+            top_idx = lda_s.components_[t].argsort()[-n_top:][::-1]
+            tw.append([cv_vocab[idx] for idx in top_idx
+                       if ' ' not in cv_vocab[idx]][:n_top])
+        all_top_words.append(tw)
+        print(f"  seed {seed} done ({i+1}/{n_seeds})")
+
+    # Align all runs to run 0 as reference
+    from itertools import combinations as _comb
+    n_pairs   = 0
+    pair_sims = [[] for _ in range(n_topics)]  # per canonical topic
+
+    ref = all_top_words[0]
+    for i, j in _comb(range(n_seeds), 2):
+        wa, wb = all_top_words[i], all_top_words[j]
+        row_ind, col_ind, sim = _align_topics(wa, wb)
+        # Align j's topics to i's ordering, then align i to ref
+        _, ref_col, ref_sim = _align_topics(ref, wa)
+        for r_idx, a_idx in enumerate(ref_col):
+            # Find where a_idx maps in the i→j alignment
+            if a_idx in row_ind:
+                pos = list(row_ind).index(a_idx)
+                b_idx = col_ind[pos]
+                pair_sims[r_idx].append(sim[a_idx, b_idx])
+        n_pairs += 1
+
+    stability_scores = [float(np.mean(s)) if s else 0.0 for s in pair_sims]
+
+    # Canonical word lists: from reference run (seed 0), in ref topic order
+    canonical_words = ref
+
+    return all_top_words, stability_scores, canonical_words
+
+stability_results = None
+if _N_SEEDS >= 2:
+    all_seed_words, stability_scores, canonical_words = run_stability_analysis(
+        best_n, X_count, cv_vocab, _N_SEEDS)
+
+    print(f"\n[--seeds] Topic stability (mean Jaccard, {_N_SEEDS} seeds):")
+    print(f"  {'Topic':<8} {'Stability':>10}  {'Top words'}")
+    for t, (score, words) in enumerate(zip(stability_scores, canonical_words)):
+        bar = '█' * int(score * 20)
+        print(f"  T{t+1:<6} {score:>10.3f}  {bar}  {', '.join(words[:6])}")
+
+    mean_stab = float(np.mean(stability_scores))
+    print(f"\n  Mean stability: {mean_stab:.3f}  "
+          f"({'good' if mean_stab > 0.3 else 'moderate' if mean_stab > 0.15 else 'low'})")
+    print(f"  Stable topics (≥0.3):  "
+          f"{sum(1 for s in stability_scores if s >= 0.3)}/{best_n}")
+    print(f"  Unstable topics (<0.15): "
+          f"{sum(1 for s in stability_scores if s < 0.15)}/{best_n}")
+
+    stability_results = {
+        'n_topics':        best_n,
+        'n_seeds':         _N_SEEDS,
+        'seeds_used':      [42, 7, 123, 256, 999, 17, 88, 314, 501, 777][:_N_SEEDS],
+        'stability_scores': stability_scores,
+        'mean_stability':  mean_stab,
+        'canonical_words': canonical_words,
+        'all_seed_words':  all_seed_words,
+        'thresholds': {
+            'stable':   [t for t, s in enumerate(stability_scores) if s >= 0.3],
+            'moderate': [t for t, s in enumerate(stability_scores)
+                         if 0.15 <= s < 0.3],
+            'unstable': [t for t, s in enumerate(stability_scores) if s < 0.15],
+        }
+    }
+    with open(str(JSON_DIR / 'topic_stability.json'), 'w') as f:
+        json.dump(stability_results, f, indent=2)
+    print(f"  Saved topic_stability.json")
 
 # Get topic-word distributions for best model
 def get_top_words(model, feature_names, n_top=12):
@@ -402,6 +628,7 @@ results = {
     'pub_years': pub_years,
     'coords_2d': coords_2d,
     'topic_names': None,  # populated by --name-topics or carried from prev run
+    'stability': stability_results,  # None unless --seeds was used
 }
 
 # Carry forward topic_names from a previous run if n_topics matches

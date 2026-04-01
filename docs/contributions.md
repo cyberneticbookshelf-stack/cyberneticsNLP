@@ -4,7 +4,7 @@ This document tracks the evolving authorship and contribution record for the
 CyberneticsNLP pipeline and associated publications. It will be merged into
 the manuscript's authorship section at submission.
 
-Last updated: 27 March 2026
+Last updated: 31 March 2026
 
 ---
 
@@ -17,6 +17,21 @@ ORCID: [0000-0001-6515-1860](https://orcid.org/0000-0001-6515-1860)
 **Claude Sonnet 4.6** (Anthropic, claude.ai)
 Large language model; no persistent identity, institutional affiliation, or legal standing.
 Model string: `claude-sonnet-4-6`
+
+### Note on Claude instances and platforms
+
+All Claude Sonnet 4.6 contributions are attributed to a single author entry
+regardless of session or platform. The session log records the platform used
+in each session to support reproducibility:
+
+- **Chat** — Claude.ai chat interface (claude.ai). Used for interactive code
+  development, technical design, and analysis.
+- **Cowork** — Claude desktop Cowork mode. Used for file management,
+  documentation, project administration, and cross-session review.
+
+Each session is a stateless instance; Claude Sonnet 4.6 has no persistent
+memory between sessions. The session log and this document are the authoritative
+record of accumulated contributions.
 
 ---
 
@@ -35,11 +50,13 @@ Using the [NISO CRediT taxonomy](https://credit.niso.org/).
 | Visualisation | | ✦ Lead |
 | Validation & quality assurance | ✦ Lead | |
 | Documentation | ◆ Supporting | ✦ Lead |
+| Project administration | ✦ Lead | ◆ Supporting (knowledge management, session records) |
 | Supervision | ✦ Lead | |
-| Project administration | ✦ Lead | |
 | Funding acquisition | ✦ Lead | |
 
 ✦ Lead · ◆ Supporting
+
+*CRediT roles are reviewed and updated at each new CHANGELOG version.*
 
 ---
 
@@ -70,14 +87,16 @@ will be listed in the Acknowledgements section as:
 
 ## Session Log
 
-A record of collaborative sessions, linked to CHANGELOG entries.
+One entry per CHANGELOG version. Platform recorded for reproducibility.
+`Chat` = Claude.ai chat interface · `Cowork` = Claude desktop Cowork mode.
 
-| Date | Session focus | CHANGELOG version |
-|------|--------------|-------------------|
-| 2026-03-20 | Initial pipeline (steps 01–10), corpus ingestion, LDA/NMF | v0.1.0 |
-| 2026-03-21 | Index grounding, time series Chart 7, weighted pass, embedding comparison | v0.2.0 |
-| 2026-03-24 | Entity network (step 14), entity classifier (step 15 initial), integrity checker, regression tests | v0.3.0 |
-| 2026-03-27 | Entity classifier audit (121 corrections), 4 layout algorithms, index canonicalisation (09/09b), README rewrite, project structure (GitHub, OneDrive, CHANGELOG, ROADMAP) | v0.4.0 |
+| Date | Platform | Session focus | CHANGELOG version |
+|------|----------|--------------|-------------------|
+| 2026-03-20 | Chat | Initial pipeline (steps 01–10), corpus ingestion, LDA/NMF | v0.1.0 |
+| 2026-03-21 | Chat | Index grounding, time series Chart 7, weighted pass, embedding comparison | v0.2.0 |
+| 2026-03-24 | Chat | Entity network (step 14), entity classifier (step 15 initial), integrity checker, regression tests | v0.3.0 |
+| 2026-03-27 | Chat | Entity classifier audit (121 corrections), 4 layout algorithms, index canonicalisation (09/09b), README rewrite, project structure (GitHub, OneDrive, CHANGELOG, ROADMAP) | v0.4.0 |
+| 2026-03-31 | Cowork | Project review and knowledge management: full documentation review, Obsidian vault setup for project management, contribution tracking framework established | post-v0.4.0 |
 
 ---
 

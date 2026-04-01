@@ -1,6 +1,7 @@
 # Large generated outputs — use OneDrive for sync
 json/
 csv/
+data/inputs/
 data/outputs/
 figures/
 
