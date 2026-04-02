@@ -6,9 +6,55 @@ Dates are AEST (UTC+11).
 
 ---
 
-## [Unreleased]
+## [Unreleased] — post-v0.4.0 (targeting v0.4.1)
 
-See `docs/ROADMAP.md` for planned work.
+> Sessions: 31 March 2026 (Chat) + 1 April 2026 (Chat) + 2 April 2026 (Chat)
+> Status: awaiting k=9 pipeline run, topic validation, and contributions.md sign-off before version bump
+
+### Added (2 April 2026 — Chat)
+- `src/00_classify_book_styles.py` — book style classifier (monograph, anthology, textbook, popular, history_bio, handbook, proceedings, reader, report); reads `books_metadata_full.csv`
+- `src/00_fetch_worldcat_metadata.py` — WorldCat Open Library metadata fetcher (`--reclassify` flag for pipeline rebuild)
+- `src/00_fetch_anu_primo.py` — ANU Primo catalogue fetcher (726 books, ~12 min full run; 10-book test only so far)
+- `csv/books_metadata_full.csv` — 726 books, 20 columns including `inclusion_stratum`, `archive_id`, `in_title`, `in_description`, `in_tags`, per-field keyword flags; replaces `books_lang.csv`
+
+### Changed (2 April 2026 — Chat)
+- `03_nlp_pipeline.py` — target topic count updated: k=9 selected for next run (from coherence-sweep best k=11 vs legacy k=7)
+- Book style classifier: OCLC Classify removed (403-blocked); Open Library used instead; Primo `edited_book` mapped to anthology detection; platform contributors (ProQuest, EBSCO etc.) suppressed before contributor-based anthology inference; Wiley removed from publisher rules; `principles_of` confidence lowered — textbook count still pending confirmation after full rebuild
+
+### Changed (31 March + 1 April 2026 — Chat)
+- `01_parse_books.py` — added `preprocess_raw_text()`: strips control chars, symbol runs (3+ non-alphanumeric), page-number lines, repeated punctuation, all-caps headers
+- `02_clean_text.py` — fixed ASCII gate to whitelist accented terms; fixed case normalisation (`CYBERNETics` → `cybernetics`); tightened proper-noun shortcut in `build_english_checker`
+- `03_nlp_pipeline.py` — expanded stopword list (+20 academic boilerplate terms); hyphen-joining for compounds (`self-organising` → `selforganising`); added `--min-chars` filter flag
+- `09_extract_index.py` — raised `alpha_ratio` threshold 0.45 → 0.60; added `FOREIGN_HEADER_RE`; added `_canonical_term()`
+
+### Infrastructure
+- Full SCOWL en_US-large Hunspell dictionary (76,959 words) installed on AshbyX and NorbertX (⚠️ dictionary inconsistency between machines noted — monitor for reproducibility)
+- Full corpus re-clean completed: 675 books via `02_clean_text.py`
+- Corpus expanded: 675 → 726 books in Calibre; inclusion strata documented in `books_metadata_full.csv`
+
+### Analysis
+- LDA coherence sweep (k=2–12) post-data quality overhaul: best k=11 (coherence=0.0887, perplexity=1487.1); 5-seed run at k=11 completed (seeds: 42, 7, 123, 256, 999)
+- ⚠️ **k=9 pipeline run pending**: `python src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5`
+- ⚠️ **Topic validation pending**: `python src/09c_validate_topics.py --top 10 --md`
+- Current classifier state (partial rebuild, before full Primo fetch): monograph 475 (65.4%), anthology 88 (12.1%), textbook 59 (8.1%), popular 47 (6.5%), history_bio 27 (3.7%), handbook 13, proceedings 11, reader 5, report 2
+
+### Design decisions (2 April 2026)
+- Classifier to be redesigned as **multi-label scorer** — book types are not disjoint (Ashby's *Introduction to Cybernetics* is simultaneously monograph and textbook)
+- **Ground truth labelling (~150 books) is the prerequisite** for any further rule tuning — over-tuning risk identified (adding rules without held-out test set is methodologically equivalent to supervised learning without validation)
+- Corpus inclusion strata formalised: title-corroborated (183), title-only (55), curated-keyword (144), curated-pure (330), metadata-search (14)
+
+### Planned (agreed in Chat, not yet implemented)
+- Auto-populate LDA topic names via Claude API from top words + high-loading titles
+- Full Primo fetch (`python src/00_fetch_anu_primo.py`, ~12 min) → full classifier rebuild sequence
+
+### Documentation
+- `docs/memo_media_aware_nlp_epistemic_affordances.md` — updated: §13 (affordance as mixture), §14 (historical cybernetics narrative), §15 (NLP-as-affordance-at-scale); now 15 sections
+- `docs/memo_attribution_annotations.md` — new: attribution of ideas by section (PW/CS/Joint); AI-human collaboration pattern documented
+- `docs/draft_methods_corpus_construction.md` — new: draft methods §3.1–3.7 covering corpus overview, precision-recall trade-off, inclusion strata, cybernetics' recall problem, stratum as analytical covariate
+
+### Known issues (carried forward)
+- 6 books (IDs: 1416, 240, 1772, 1718, 1727, 1262): OCR/extraction failures; 1262 (Luhmann) caught by alpha-ratio filter
+- Current NLP run uses `--min-chars 10000`; full k=9 run on updated corpus pending
 
 ---
 

@@ -225,6 +225,27 @@ if _MIN_CHARS > 0:
         for bid in excl_ids:
             print(f"    excluded: [{bid}] {books[bid]['title'][:60]}")
 
+# Alpha-ratio filter: exclude books whose clean text is predominantly non-alphabetic.
+# Catches OCR-failure books that cleared the min-chars threshold with garbage content
+# (e.g. Luhmann's Ecological Communication [1262] — 27k chars of pure OCR noise).
+# Measured over the first 5,000 chars for speed; threshold 0.40 is conservative
+# enough to exclude noise while preserving all legitimate non-English fragments.
+MIN_ALPHA_RATIO = 0.40
+before = len(book_ids)
+def _alpha_ratio(text, sample=5000):
+    s = text[:sample]
+    if not s: return 0.0
+    return sum(c.isalpha() for c in s) / len(s)
+
+low_alpha = [b for b in book_ids if _alpha_ratio(books[b]['clean_text']) < MIN_ALPHA_RATIO]
+if low_alpha:
+    book_ids = [b for b in book_ids if b not in set(low_alpha)]
+    print(f"  [alpha-ratio] excluded {len(low_alpha)} books with <{MIN_ALPHA_RATIO:.0%} "
+          f"alphabetic content ({before} → {len(book_ids)})")
+    for bid in low_alpha:
+        ratio = _alpha_ratio(books[bid]['clean_text'])
+        print(f"    excluded: [{bid}] {books[bid]['title'][:60]}  (alpha={ratio:.2f})")
+
 titles     = [books[b]['title'] for b in book_ids]
 authors    = [books[b]['author'] for b in book_ids]
 
@@ -330,9 +351,15 @@ def npmi_coherence(top_words, X_bin, df, vocab_idx, N, eps=1.0):
         scores.append(pmi / denom if denom != 0 else 0.0)
     return float(np.mean(scores))
 
-# Fit LDA for k = N_TOPICS_MIN..N_TOPICS_MAX, select by mean NPMI coherence
+# Fit LDA for k = N_TOPICS_MIN..N_TOPICS_MAX, select by mean NPMI coherence.
+# FIX: if --topics N is set and N > N_TOPICS_MAX, extend the sweep to include N
+# so perplexity/coherence are recorded for it and the override fires correctly.
 N_TOPICS_MIN = 2
 N_TOPICS_MAX = min(12, max(3, len(book_ids) // 2))
+if _FIXED_TOPICS is not None and _FIXED_TOPICS > N_TOPICS_MAX:
+    N_TOPICS_MAX = _FIXED_TOPICS
+    print(f"  [--topics] extending sweep to k={N_TOPICS_MAX} to include forced value")
+
 best_n, best_coh, best_lda = None, -np.inf, None
 perplexities, coherences = {}, {}
 
@@ -357,14 +384,17 @@ for n_topics in range(N_TOPICS_MIN, N_TOPICS_MAX + 1):
     if coh > best_coh:
         best_coh, best_n, best_lda = coh, n_topics, lda
 
-if _FIXED_TOPICS is not None and _FIXED_TOPICS in perplexities:
+# FIX: override condition no longer requires _FIXED_TOPICS in perplexities —
+# the sweep above now always includes it when --topics N is set.
+if _FIXED_TOPICS is not None:
     best_n = _FIXED_TOPICS
     best_lda = LatentDirichletAllocation(
         n_components=best_n, max_iter=20, learning_method='online',
         random_state=99, learning_offset=50., doc_topic_prior=0.1)
     best_lda.fit(X_count)
     best_coh = coherences.get(best_n, 0.0)
-    print(f'\n[--topics] Using forced n_topics={best_n}')
+    print(f'\n[--topics] Using forced n_topics={best_n} '
+          f'(coherence={best_coh:.4f}, perplexity={perplexities.get(best_n, 0):.1f})')
 else:
     print(f"\nBest n_topics={best_n} (highest coherence={best_coh:.4f}, "
           f"perplexity={perplexities[best_n]:.1f})")
