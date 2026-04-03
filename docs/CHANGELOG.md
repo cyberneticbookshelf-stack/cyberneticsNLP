@@ -159,3 +159,7 @@ Dates are AEST (UTC+11).
 - `10_build_index_report.py` — controlled vocabulary report
 - `run_all.sh` — end-to-end runner
 - Corpus: 675 books, 7,349 chapters, 1954–2025, random seed 99
+
+
+### Note on canonical topic solution (2026-04-03)
+`topic_stability.json` reflects the most recently run k. Canonical solution: **k=9** (validated 3 April 2026). After comparison runs, restore with `python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5`

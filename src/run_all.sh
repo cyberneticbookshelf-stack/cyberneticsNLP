@@ -69,12 +69,25 @@ else
     run 02_clean_text.py
 fi
 
+# ── CANONICAL TOPIC SOLUTION ─────────────────────────────────────────────────
+# Canonical k for this corpus: k=9 (validated 3 April 2026)
+# topic_stability.json always reflects the LAST k run — if you run a
+# comparison at a different k (e.g. k=10 to compare), you MUST re-run
+# at k=9 afterwards to restore the canonical solution before committing.
+#
+# To restore canonical k=9 after a comparison run:
+#   python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5
+#   python3 src/09c_validate_topics.py --top 10 --md
+#   python3 patch_topic_names.py   # re-apply agreed topic taxonomy
+#
+# The run_all.sh uses --topics 9 explicitly to enforce this:
+# ─────────────────────────────────────────────────────────────────────────────
 # Standard LDA run (unweighted — always runs first)
 # NOTE: --weighted requires index_analysis.json + a prior nlp_results.json
 #       and cannot run on a clean start. See the optional second-pass
 #       section at the bottom of this script.
 # ── Book-level topics ────────────────────────────────────────────────────────
-run 03_nlp_pipeline.py
+python3 "$SCRIPT_DIR/03_nlp_pipeline.py" --min-chars 10000 --lemmatize --topics 9 --seeds 5
 run 04_summarize.py
 run 05_visualize.py
 run 06_build_report.py
