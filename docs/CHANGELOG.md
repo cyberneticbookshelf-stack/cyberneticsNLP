@@ -8,7 +8,7 @@ Dates are AEST (UTC+11).
 
 ## [Unreleased] — post-v0.4.0 (targeting v0.4.1)
 
-> Sessions: 31 March 2026 (Chat) + 1 April 2026 (Chat) + 2 April 2026 (Chat)
+> Sessions: 31 March 2026 (Chat) + 1 April 2026 (Chat) + 2 April 2026 (Chat) + 3 April 2026 (Cowork)
 > Status: awaiting k=9 pipeline run, topic validation, and contributions.md sign-off before version bump
 
 ### Added (2 April 2026 — Chat)
@@ -52,8 +52,22 @@ Dates are AEST (UTC+11).
 - `docs/memo_attribution_annotations.md` — new: attribution of ideas by section (PW/CS/Joint); AI-human collaboration pattern documented
 - `docs/draft_methods_corpus_construction.md` — new: draft methods §3.1–3.7 covering corpus overview, precision-recall trade-off, inclusion strata, cybernetics' recall problem, stratum as analytical covariate
 
+### Fixed (3 April 2026 — Cowork)
+- **KI-01 partially resolved**: 6 known OCR-failure books (IDs: 240, 1262, 1416, 1718, 1727, 1772) successfully reindexed via Calibre and re-cleaned via `parse_and_clean_stream.py`. All 6 pass alpha_ratio ≥ 0.60 in jsonl:
+  - 240 Sociocybernetics: alpha=0.748, 278,587 chars
+  - 1262 Ecological Communication (Luhmann): alpha=0.799, 252,666 chars ← previously below threshold
+  - 1416 Information, Mechanism and Meaning: alpha=0.788, 235,675 chars
+  - 1718 Cybernetic Engineering: alpha=0.747, 123,402 chars
+  - 1727 The Foundations of Cybernetics: alpha=0.769, 294,871 chars
+  - 1772 Progress in Biocybernetics Vol.1: alpha=0.736, 227,008 chars
+- ID 1840 (Cybernation and Social Change) also found to be stale — fixed in same pass
+- 4 additional previously-unprocessed books also cleaned (IDs: 1791, 1794, 1799, 1800) — from books_text_21.csv
+- All remaining CSV files streamed; `books_clean.jsonl` now complete at 695 books
+- `books_clean.json` **regenerated from scratch** from `books_clean.jsonl`: 695 books, `clean_text` key (was `text`), 169MB (was 758MB). Old file backed up as `books_clean.json.bak3`
+- ⚠️ **KI-01 not fully resolved**: step 03 run revealed 6 further alpha-ratio failures (IDs: 205, 265, 413, 597, 1261, 1918) — all show good alpha in jsonl (0.71–0.80) suggesting either additional OCR issues in source or OneDrive sync lag. Under investigation in Chat.
+
 ### Known issues (carried forward)
-- 6 books (IDs: 1416, 240, 1772, 1718, 1727, 1262): OCR/extraction failures; 1262 (Luhmann) caught by alpha-ratio filter
+- ⚠️ IDs 205, 265, 413, 597, 1261, 1918: pipeline reports alpha < 0.40 despite good values in jsonl — sync/OCR investigation pending (Chat)
 - Current NLP run uses `--min-chars 10000`; full k=9 run on updated corpus pending
 
 ---

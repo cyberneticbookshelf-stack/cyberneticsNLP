@@ -14,6 +14,40 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STREAM=0
 for arg in "$@"; do [ "$arg" = "--stream" ] && STREAM=1; done
 
+# ══════════════════════════════════════════════════════════════════════════════
+# PRE-PROCESSING: Book style enrichment pipeline (run once before main pipeline)
+# ══════════════════════════════════════════════════════════════════════════════
+# These scripts enrich book metadata from Calibre and external APIs.
+# They are NOT part of the main NLP pipeline and should NOT be run automatically
+# in run_all.sh — they have external API dependencies, caching logic, and
+# require csv/books_metadata_full.csv (exported from Calibre metadata.db).
+#
+# Run order (from project root):
+#
+#   Step 0a — Heuristic style classification (title/author/publisher signals):
+#     python3 src/00_classify_book_styles.py
+#
+#   Step 0b — Google Books + Open Library enrichment (caches to json/external_metadata_cache.json):
+#     python3 src/00_fetch_worldcat_metadata.py          # fetch all (first run, ~10 min)
+#     python3 src/00_fetch_worldcat_metadata.py --reclassify  # re-run from cache
+#
+#   Step 0c — ANU Primo catalogue enrichment (caches to json/anu_primo_cache.json):
+#     python3 src/00_fetch_anu_primo.py                  # fetch all (first run, ~12 min)
+#     python3 src/00_fetch_anu_primo.py --reclassify     # re-run from cache
+#
+#   Step 0d — Final enriched classification (reads all three enrichment layers):
+#     python3 src/00_fetch_worldcat_metadata.py --reclassify
+#     python3 src/00_fetch_anu_primo.py --reclassify
+#     python3 src/00_classify_book_styles.py --stats
+#
+# Output: json/book_styles.json — used as covariate in downstream analysis
+#
+# Note: book types are not disjoint (a book can be monograph AND textbook).
+# The classifier produces a single best-guess label as a working approximation.
+# Ground truth labelling of ~150 books is planned to validate and improve accuracy.
+# See docs/memo_media_aware_nlp_epistemic_affordances.md §13 for methodology.
+# ══════════════════════════════════════════════════════════════════════════════
+
 echo "=== Book Corpus NLP Pipeline ==="
 echo "Starting: $(date)"
 echo "Mode: $([ $STREAM -eq 1 ] && echo 'streaming (large corpus)' || echo 'standard')"
@@ -74,7 +108,15 @@ run 11_embedding_comparison.py --no-voyage           # A+B+C (needs PyTorch)
 # After running 11, rebuild the analysis report:
 run build_embed_report.py
 
-# ── Entity relations (optional, needs 09b first) ─────────────────────────────
+# ── Entity relations (needs 09b + 12 first) ──────────────────────────────────
+# Step 15 must run before 14 — builds entity_types_cache.json
+# Run 15 once; subsequent runs skip already-classified entities (cached).
+# Step 14 --no-windows is fast (~30s); omit flag for paragraph-window edges (~5 min)
+run 15_entity_classify.py
+python3 "$SCRIPT_DIR/14_entity_network.py" --no-windows   # fast book-level only
+# python3 "$SCRIPT_DIR/14_entity_network.py"              # + paragraph windows
+
+# ── Entity relations (original comment preserved) ─────────────────────────────
 
 echo ""
 echo "=== Pipeline complete: $(date) ==="

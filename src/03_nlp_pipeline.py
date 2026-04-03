@@ -228,14 +228,33 @@ if _MIN_CHARS > 0:
 # Alpha-ratio filter: exclude books whose clean text is predominantly non-alphabetic.
 # Catches OCR-failure books that cleared the min-chars threshold with garbage content
 # (e.g. Luhmann's Ecological Communication [1262] — 27k chars of pure OCR noise).
-# Measured over the first 5,000 chars for speed; threshold 0.40 is conservative
-# enough to exclude noise while preserving all legitimate non-English fragments.
+#
+# Sampling strategy: skip the first 10% of the text (front matter — copyright
+# pages, series information, publisher metadata, Cyrillic OCR fragments from
+# translated works) and draw three evenly-spaced 5,000-char windows from the
+# remaining body. Average alpha across windows for a robust estimate.
+# This fixes false exclusions for [205], [265], [413], [597], [1261], [1918]
+# whose front matter dragged the first-5000-char sample below threshold despite
+# good body text (alpha 0.75+ over full text).
 MIN_ALPHA_RATIO = 0.40
 before = len(book_ids)
-def _alpha_ratio(text, sample=5000):
-    s = text[:sample]
-    if not s: return 0.0
-    return sum(c.isalpha() for c in s) / len(s)
+def _alpha_ratio(text, sample=5000, n_windows=3):
+    n = len(text)
+    if n < sample: return sum(c.isalpha() for c in text) / n if n else 0.0
+    # Skip first 10% — front matter is unreliable
+    start = max(sample, n // 10)
+    body  = text[start:]
+    if len(body) < sample:
+        s = body
+        return sum(c.isalpha() for c in s) / len(s)
+    # Draw n evenly-spaced windows across the body
+    step = (len(body) - sample) // max(n_windows - 1, 1)
+    ratios = []
+    for i in range(n_windows):
+        offset = i * step
+        window = body[offset:offset + sample]
+        ratios.append(sum(c.isalpha() for c in window) / len(window))
+    return sum(ratios) / len(ratios)
 
 low_alpha = [b for b in book_ids if _alpha_ratio(books[b]['clean_text']) < MIN_ALPHA_RATIO]
 if low_alpha:

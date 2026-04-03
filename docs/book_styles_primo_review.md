@@ -1,6 +1,6 @@
 # Book Style Classification — Primo Enriched
 
-**Date:** 2026-04-02  
+**Date:** 2026-04-03  
 **Corpus:** 726 books  
 **Primo instance:** 61ANU_INST:ANU  
 
@@ -8,13 +8,13 @@
 
 | Style | Count | % |
 |---|---|---|
-| monograph | 475 | 65.4% |
-| anthology | 88 | 12.1% |
-| textbook | 59 | 8.1% |
-| popular | 47 | 6.5% |
-| history_bio | 27 | 3.7% |
-| handbook | 12 | 1.7% |
-| proceedings | 11 | 1.5% |
+| monograph | 506 | 69.7% |
+| anthology | 87 | 12.0% |
+| textbook | 41 | 5.6% |
+| popular | 37 | 5.1% |
+| history_bio | 28 | 3.9% |
+| handbook | 13 | 1.8% |
+| proceedings | 7 | 1.0% |
 | reader | 5 | 0.7% |
 | report | 2 | 0.3% |
 
@@ -31,13 +31,13 @@
 | 292 | Human 4.0: From Biology to Cybernetic | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 316 | Discourses in Action: What Language Enables U | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 326 | Cybernetics: The Macy Conferences 1946-1953 : | monograph | **anthology** | book | primo:type_book, primo:type_book |
-| 349 | Cultures of the Future | proceedings | **anthology** | conference_proceeding | primo:type_conference_proceeding, primo:type_book |
+| 349 | Cultures of the Future | monograph | **anthology** | conference_proceeding | primo:type_conference_proceeding, primo:type_book |
 | 359 | Context and Complexity: Cultivating Contextua | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 381 | Art, Cybernetics and Pedagogy in Post-War Bri | monograph | **textbook** | book | primo:type_book, primo:type_book |
 | 392 | Alleys of Your Mind: Augmented Intelligence a | monograph | **anthology** | web_resource | primo:type_web_resource_suppressed, primo:contributors_no_creator |
 | 399 | A Cybernetic Approach to the Assessment of Ch | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 402 | Unconscious Intelligence in Cybernetic Psycho | monograph | **anthology** | book | primo:type_book, primo:type_book |
-| 418 | Cybernetics and Systems: Social and Business  | proceedings | **anthology** | book | primo:type_book, primo:type_book |
+| 418 | Cybernetics and Systems: Social and Business  | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 436 | From Energy to Information: Representation in | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 444 | Cybernetics, Theory and Applications | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 597 | Between an Animal and a Machine: Stanislaw Le | monograph | **anthology** | book | primo:type_book, primo:type_book |
@@ -53,11 +53,11 @@
 | 1034 | Radical Constructivism in Mathematics Educati | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1124 | Resilience in the Anthropocene: Governance an | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1204 | Systems Biology: Philosophical Foundations | monograph | **anthology** | book | primo:type_book, primo:type_book |
+| 1236 | Perspectives on Behavioral Self-Regulation | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1246 | Trust and Power | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1263 | Autopoiesis in Organization Theory and Practi | monograph | **anthology** | web_resource | primo:type_web_resource_suppressed, primo:contributors_no_creator |
 | 1278 | Evolution "On Purpose": Teleonomy in Living S | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1292 | Jakob Von Uexküll and Philosophy: Life, Envir | monograph | **anthology** | book | primo:type_book, primo:type_book |
-| 1339 | Handbook of Personality and Self-Regulation | handbook | **anthology** | web_resource | primo:type_web_resource_suppressed, primo:contributors_no_creator |
 | 1391 | Gaia in Turmoil: Climate Change, Biodepletion | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1435 | Artificial Intelligence in Accounting | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1558 | Cybernetic Avatar | monograph | **anthology** | book | primo:type_book, primo:type_book |
@@ -70,7 +70,7 @@
 | 1789 | Theories of Distinction: Redescribing the Des | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1890 | Complexity Sciences: Theoretical and Empirica | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1918 | A More Developed Sign: Interpreting the Work  | monograph | **anthology** | web_resource | primo:type_web_resource_suppressed, primo:contributors_no_creator |
-| 1920 | Verhaltensdesign: Technologische und ästhetis | proceedings | **anthology** | web_resource | primo:type_web_resource_suppressed, primo:contributors_no_creator |
+| 1920 | Verhaltensdesign: Technologische und ästhetis | monograph | **anthology** | web_resource | primo:type_web_resource_suppressed, primo:contributors_no_creator |
 | 1941 | Organization Studies and Posthumanism: Toward | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1946 | Interactive Design: Towards a Responsive Envi | monograph | **anthology** | book | primo:type_book, primo:type_book |
 | 1951 | Sensing and Making Sense: Photosensitivity an | monograph | **report** | dissertation | primo:type_dissertation→report, primo:type_dissertation→report |
@@ -90,22 +90,22 @@
 | 1895 | The Origins of Life | 1957 | **monograph** | low |  | not_found |
 | 1839 | Communication, Organization, and Science | 1958 | **monograph** | low |  | not_found |
 | 178 | What Is Cybernetics? | 1959 | **monograph** | low |  | not_found |
-| 375 | Cybernetics and Management | 1959 | **textbook** | medium |  | not_found |
+| 375 | Cybernetics and Management | 1959 | **monograph** | low |  | not_found |
 | 1848 | Automation, Cybernetics, and Society | 1959 | **monograph** | low |  | no_isbn |
 | 1113 | Design for a Brain | 1960 | **monograph** | medium | web_resource | found |
-| 1177 | An Introduction to Information Theory: Symbol | 1961 | **textbook** | high | book | found |
+| 1177 | An Introduction to Information Theory: Symbol | 1961 | **textbook** | medium | book | found |
 | 1827 | Random Wavelets and Cybernetic Systems | 1962 | **monograph** | low |  | no_isbn |
-| 1863 | Intelligent Machines: An Introduction to Cybe | 1962 | **textbook** | high |  | no_isbn |
+| 1863 | Intelligent Machines: An Introduction to Cybe | 1962 | **textbook** | medium |  | no_isbn |
 | 1700 | The Nerves of Government: Models of Political | 1963 | **monograph** | low |  | no_isbn |
 | 1773 | Nerve, Brain and Memory Models | 1963 | **monograph** | low | book_chapter | found |
 | 1898 | Cybernetics | 1963 | **monograph** | low |  | no_isbn |
 | 1518 | Industrial Dynamics | 1964 | **monograph** | low |  | not_found |
 | 1772 | Progress in Biocybernetics: Volume 1 | 1964 | **anthology** | high |  | no_isbn |
-| 1828 | Man, Memory, and Machines: An Introduction to | 1964 | **textbook** | high |  | no_isbn |
+| 1828 | Man, Memory, and Machines: An Introduction to | 1964 | **textbook** | medium |  | no_isbn |
 | 1840 | Cybernation and Social Change | 1964 | **monograph** | low |  | no_isbn |
 | 1894 | The Communication Systems of the Body | 1964 | **popular** | medium |  | no_isbn |
 | 329 | Cybernetics of the Nervous System | 1965 | **monograph** | low | article | found |
-| 446 | Embodiments of Mind | 1965 | **anthology** | medium |  | not_found |
+| 446 | Embodiments of Mind | 1965 | **monograph** | low |  | not_found |
 | 1771 | Progress in Biocybernetics: Volume 2 | 1965 | **anthology** | high |  | no_isbn |
 | 1808 | Cybernetic Medicine | 1965 | **monograph** | low |  | not_found |
 | 1820 | Cybernetics and Biology | 1965 | **monograph** | low |  | no_isbn |
@@ -114,13 +114,13 @@
 | 1868 | Biological Rhythm Research | 1965 | **monograph** | low |  | no_isbn |
 | 415 | God & Golem, Inc.: A Comment on Certain Point | 1966 | **monograph** | low | book | found |
 | 1613 | Cybernetic Principles of Learning and Educati | 1966 | **textbook** | medium |  | not_found |
-| 1634 | Decision and Control: The Meaning of Operatio | 1966 | **textbook** | medium |  | not_found |
+| 1634 | Decision and Control: The Meaning of Operatio | 1966 | **monograph** | low |  | not_found |
 | 1749 | Russian-English dictionary and reader in the  | 1966 | **reader** | medium |  | no_isbn |
 | 1811 | Cybernetic Modelling | 1966 | **monograph** | low |  | no_isbn |
 | 1824 | Great Ideas in Information Theory, Language a | 1966 | **monograph** | low |  | not_found |
-| 1832 | Introduction to Cybernetics | 1966 | **textbook** | high |  | no_isbn |
+| 1832 | Introduction to Cybernetics | 1966 | **textbook** | medium |  | no_isbn |
 | 1897 | Structure, Form, Movement | 1966 | **monograph** | low |  | not_found |
-| 663 | Introduction to Medical Cybernetics: By v. V. | 1967 | **textbook** | high |  | no_isbn |
+| 663 | Introduction to Medical Cybernetics: By v. V. | 1967 | **textbook** | medium |  | no_isbn |
 | 1455 | Whole Earth Catalog Access to Tools | 1967 | **monograph** | low |  | no_isbn |
 | 1717 | The Science of Art: The Cybernetics of Creati | 1967 | **monograph** | low |  | no_isbn |
 | 1719 | Philosophy and Cybernetics | 1967 | **monograph** | low |  | not_found |
@@ -139,11 +139,11 @@
 | 1816 | Cybernetics Simplified | 1969 | **monograph** | low |  | not_found |
 | 1993 | Market Cybernetic Processes | 1969 | **monograph** | low |  | no_isbn |
 | 208 | The Origins of Feedback Control | 1970 | **monograph** | low |  | not_found |
-| 283 | Introduction to Economic Cybernetics | 1970 | **textbook** | high |  | not_found |
+| 283 | Introduction to Economic Cybernetics | 1970 | **textbook** | medium |  | not_found |
 | 1227 | You Are a Computer: Cybernetics in Everyday L | 1970 | **monograph** | low |  | not_found |
 | 1817 | Cybernetics in Management | 1970 | **monograph** | low |  | not_found |
 | 1825 | Subduing the Cosmos: Cybernetics and Man's Fu | 1970 | **monograph** | low |  | not_found |
-| 1838 | The Science of Mental Cybernetics | 1970 | **popular** | medium |  | not_found |
+| 1838 | The Science of Mental Cybernetics | 1970 | **monograph** | low |  | not_found |
 | 1845 | Politics and Government: How People Decide Th | 1970 | **monograph** | low |  | no_isbn |
 | 1846 | Kybernetics of Mind and Brain | 1970 | **monograph** | low |  | not_found |
 | 290 | Information and Control in the Living Organis | 1971 | **monograph** | low | book | found |
@@ -154,11 +154,11 @@
 | 1966 | The Age of Information: An Interdisciplinary  | 1971 | **monograph** | low |  | not_found |
 | 281 | Mathematical Structure of Finite Random Cyber | 1972 | **monograph** | medium |  | not_found |
 | 284 | Laws of Form | 1972 | **monograph** | low |  | not_found |
-| 568 | The Metaphorical Brain: An Introduction to Cy | 1972 | **textbook** | high | book | found |
+| 568 | The Metaphorical Brain: An Introduction to Cy | 1972 | **textbook** | medium | book | found |
 | 1806 | Cybernetic Aspects of Language | 1972 | **monograph** | low |  | not_found |
 | 1807 | Cybernetic Creativity | 1972 | **monograph** | low |  | not_found |
 | 1843 | Theory and World Politics | 1972 | **monograph** | low |  | not_found |
-| 1884 | Urban Dynamics: Extensions and Reflections | 1972 | **proceedings** | medium | book | found |
+| 1884 | Urban Dynamics: Extensions and Reflections | 1972 | **monograph** | low | book | found |
 | 1962 | Grundbegriffe der Kybernetik: eine Einf | 1972 | **monograph** | low |  | not_found |
 | 1122 | Birth & Death & Cybernation | 1973 | **monograph** | low |  | not_found |
 | 1718 | Cybernetic Engineering | 1973 | **monograph** | low |  | not_found |
@@ -167,14 +167,14 @@
 | 1990 | Ecclesial Cybernetics: A Study of Democracy i | 1973 | **monograph** | low |  | no_isbn |
 | 191 | Cybernetics a to Z | 1974 | **monograph** | low |  | not_found |
 | 430 | II Cybernetic Frontiers | 1974 | **popular** | medium |  | not_found |
-| 435 | Communication and Organizational Control: Cyb | 1974 | **textbook** | medium |  | not_found |
+| 435 | Communication and Organizational Control: Cyb | 1974 | **monograph** | low |  | not_found |
 | 573 | The Cybernetic Revolution | 1974 | **monograph** | low |  | not_found |
 | 1019 | The Cyberiad; Fables for the Cybernetic Age | 1974 | **monograph** | low |  | not_found |
 | 1271 | The Way Things Work Book of the Computer: An  | 1974 | **handbook** | high |  | not_found |
 | 1517 | The Cybernetic Theory of Development Mathemat | 1974 | **monograph** | low |  | not_found |
-| 1823 | The Anatomy of Business: An Introduction to B | 1974 | **textbook** | high |  | not_found |
+| 1823 | The Anatomy of Business: An Introduction to B | 1974 | **textbook** | medium |  | not_found |
 | 1864 | How to Use the Magic of Self-Cybernetics | 1974 | **popular** | medium |  | not_found |
-| 1992 | The Anatomy of Business: An Introduction to B | 1974 | **textbook** | high |  | not_found |
+| 1992 | The Anatomy of Business: An Introduction to B | 1974 | **textbook** | medium |  | not_found |
 | 183 | The Cybernetics of Human Learning and Perform | 1975 | **monograph** | low |  | not_found |
 | 355 | Conversation, Cognition and Learning: A Cyber | 1975 | **monograph** | low |  | not_found |
 | 1834 | The Intelligent Universe: A Cybernetic Philos | 1975 | **monograph** | low |  | no_isbn |
@@ -195,21 +195,21 @@
 | 1727 | The Foundations of Cybernetics | 1977 | **monograph** | low |  | not_found |
 | 1742 | Systems Thinking: Concepts and Notions | 1977 | **monograph** | low | book | found |
 | 1779 | About Bateson: Essays on Gregory Bateson | 1977 | **anthology** | high |  | not_found |
-| 1851 | On the Texture of Brains: An Introduction to  | 1977 | **textbook** | high |  | not_found |
+| 1851 | On the Texture of Brains: An Introduction to  | 1977 | **textbook** | medium |  | not_found |
 | 1961 | Socialisme et cybernétique | 1977 | **monograph** | low |  | not_found |
 | 349 | Cultures of the Future | 1978 | **anthology** | high | conference_proceeding | found |
 | 351 | Current Topics in Cybernetics and Systems: Pr | 1978 | **proceedings** | high |  | not_found |
 | 1119 | Living Systems | 1978 | **textbook** | medium | book | found |
 | 1381 | Sociocybernetics. An Actor-Oriented Social Sy | 1978 | **anthology** | high | book | found |
 | 1382 | Sociocybernetics: An Actor-Oriented Social Sy | 1978 | **anthology** | high | book | found |
-| 1784 | The Rise of Systems Theory: An Ideological An | 1978 | **textbook** | medium |  | not_found |
+| 1784 | The Rise of Systems Theory: An Ideological An | 1978 | **monograph** | low |  | not_found |
 | 1802 | Applied Cybernetics: Its Relevance in Operati | 1978 | **monograph** | low |  | not_found |
 | 1836 | The Stable Society: Its Structure and Control | 1978 | **monograph** | low |  | not_found |
 | 261 | Philosophical Foundations of Cybernetics | 1979 | **monograph** | low | book | found |
 | 277 | Mind and Nature: A Necessary Unity | 1979 | **monograph** | low |  | not_found |
-| 672 | The Heart of Enterprise | 1979 | **textbook** | medium | book | found |
+| 672 | The Heart of Enterprise | 1979 | **monograph** | low | book | found |
 | 1302 | Principles of Biological Autonomy | 1979 | **textbook** | medium |  | not_found |
-| 1842 | Communication and Control in Society | 1979 | **proceedings** | medium |  | not_found |
+| 1842 | Communication and Control in Society | 1979 | **monograph** | low |  | not_found |
 | 1886 | Urban Dynamics | 1979 | **monograph** | low |  | not_found |
 | 188 | John Von Neumann and Norbert Wiener: From Mat | 1980 | **monograph** | low | book | found |
 | 376 | Autopoiesis and Cognition: The Realization of | 1980 | **monograph** | low | book | found |
@@ -225,7 +225,7 @@
 | 325 | Cybernetics Within Us | 1982 | **monograph** | low |  | not_found |
 | 370 | Biological Foundations of Linguistic Communic | 1982 | **monograph** | low | book | found |
 | 1114 | Gregory Bateson: The Legacy of a Scientist | 1982 | **history_bio** | high |  | not_found |
-| 1998 | Systems Theory and Family Therapy: A Primer | 1982 | **textbook** | medium |  | not_found |
+| 1998 | Systems Theory and Family Therapy: A Primer | 1982 | **monograph** | low |  | not_found |
 | 228 | The Cybernetic Foundation Mathematics | 1983 | **monograph** | low |  | no_isbn |
 | 428 | A Cybernetic Approach to Colour Perception | 1983 | **monograph** | low |  | not_found |
 | 444 | Cybernetics, Theory and Applications | 1983 | **anthology** | medium | book | found |
@@ -235,12 +235,12 @@
 | 184 | Observing Systems | 1984 | **monograph** | low | book | found |
 | 569 | The Science of History: A Cybernetic Approach | 1984 | **monograph** | low |  | not_found |
 | 1501 | With a Daughter's Eye: A Memoir of Margaret M | 1984 | **history_bio** | high | book | found |
-| 673 | Diagnosing the System for Organizations | 1985 | **textbook** | medium | book | found |
+| 673 | Diagnosing the System for Organizations | 1985 | **monograph** | low | book | found |
 | 679 | Whole Earth Software Catalog 1986 | 1985 | **popular** | medium |  | not_found |
 | 1264 | Cybernetics, Science, and Society; Ethics, Ae | 1985 | **monograph** | low |  | not_found |
 | 1810 | Cybernetic Music | 1985 | **monograph** | low |  | not_found |
 | 1988 | Basic and Applied General Systems Research: A | 1985 | **report** | high |  | not_found |
-| 239 | Subjectivity, Information, Systems: Introduct | 1986 | **textbook** | high |  | not_found |
+| 239 | Subjectivity, Information, Systems: Introduct | 1986 | **textbook** | medium |  | not_found |
 | 260 | Power, Autonomy, Utopia: New Approaches Towar | 1986 | **anthology** | high | book | found |
 | 439 | Beyond Mechanization: Work and Technology in  | 1986 | **monograph** | low |  | not_found |
 | 670 | Pebbles to Computers: The Thread | 1986 | **monograph** | low |  | not_found |
@@ -253,14 +253,14 @@
 | 1123 | Art in the Science Dominated World: Science,  | 1987 | **monograph** | low |  | not_found |
 | 389 | Angels Fear: Towards an Epistemology of the S | 1988 | **popular** | medium |  | not_found |
 | 214 | The Human Use of Human Beings: Cybernetics an | 1989 | **monograph** | low |  | not_found |
-| 576 | Freedom From Stress: Most People Deal With Sy | 1989 | **popular** | medium |  | not_found |
+| 576 | Freedom From Stress: Most People Deal With Sy | 1989 | **monograph** | low |  | not_found |
 | 1195 | Living Control Systems: Selected Papers of Wi | 1989 | **reader** | high |  | not_found |
 | 1262 | Ecological Communication | 1989 | **monograph** | low | book | found |
 | 1786 | The Individual, Communication, and Society: E | 1989 | **anthology** | high | book | found |
 | 1805 | Computers, Automation, and Cybernetics at the | 1989 | **monograph** | low |  | not_found |
 | 187 | Norbert Wiener, 1894-1964 | 1990 | **anthology** | medium | book | found |
 | 250 | Self-Steering and Cognition in Complex System | 1990 | **monograph** | low |  | not_found |
-| 1196 | Introduction to Modern Psychology: The Contro | 1990 | **textbook** | high |  | not_found |
+| 1196 | Introduction to Modern Psychology: The Contro | 1990 | **textbook** | medium |  | not_found |
 | 1214 | The Age of Intelligent Machines | 1990 | **monograph** | low | book | found |
 | 1260 | Essays on Self-Reference | 1990 | **anthology** | high | book | found |
 | 1768 | Biological Feedback | 1990 | **monograph** | low | book | found |
@@ -270,7 +270,7 @@
 | 275 | New Perspectives on Cybernetics: Self-Organiz | 1991 | **anthology** | medium | book | found |
 | 314 | Feedback Thought in Social Science and System | 1991 | **monograph** | low | book | found |
 | 379 | A Sacred Unity: Further Steps to an Ecology o | 1991 | **monograph** | low |  | not_found |
-| 437 | How Colleges Work: The Cybernetics of Academi | 1991 | **textbook** | medium |  | not_found |
+| 437 | How Colleges Work: The Cybernetics of Academi | 1991 | **monograph** | low |  | not_found |
 | 681 | Life Itself: A Comprehensive Inquiry Into the | 1991 | **monograph** | low | book | found |
 | 743 | Simians, Cyborgs and Women: The Reinvention o | 1991 | **monograph** | low | book | found |
 | 1034 | Radical Constructivism in Mathematics Educati | 1991 | **anthology** | medium | book | found |
@@ -283,14 +283,14 @@
 | 1829 | Organisational Fitness: Corporate Effectivene | 1993 | **monograph** | low |  | not_found |
 | 1875 | Systemic Psychotherapy With Families, Couples | 1993 | **monograph** | low |  | not_found |
 | 668 | Invention: The Care and Feeding of Ideas | 1994 | **monograph** | low |  | not_found |
-| 675 | Beyond Dispute: The Invention of Team Syntegr | 1994 | **textbook** | medium |  | not_found |
+| 675 | Beyond Dispute: The Invention of Team Syntegr | 1994 | **monograph** | low |  | not_found |
 | 770 | The Cybernetics of Prejudices in the Practice | 1994 | **monograph** | low | book | found |
-| 1181 | How Many Grapes Went Into the Wine: Stafford  | 1994 | **anthology** | medium |  | not_found |
+| 1181 | How Many Grapes Went Into the Wine: Stafford  | 1994 | **anthology** | high |  | not_found |
 | 1804 | Biological Psychology: A Cybernetic Science | 1994 | **monograph** | low |  | not_found |
 | 1849 | Cyberia: Life in the Trenches of Hyperspace | 1994 | **monograph** | low |  | not_found |
 | 1960 | Etica y cibernética: ensayos filosóficos | 1994 | **monograph** | low |  | not_found |
-| 193 | Brain of the Firm | 1995 | **textbook** | medium |  | not_found |
-| 259 | Platform for Change | 1995 | **textbook** | medium |  | not_found |
+| 193 | Brain of the Firm | 1995 | **monograph** | low |  | not_found |
+| 259 | Platform for Change | 1995 | **monograph** | low |  | not_found |
 | 570 | Reasoning Into Reality: A System-Cybernetics  | 1995 | **monograph** | low | book | found |
 | 677 | How Buildings Learn: What Happens After They' | 1995 | **popular** | medium |  | not_found |
 | 762 | Radical Constructivism: A Way of Knowing and  | 1995 | **monograph** | low | book | found |
@@ -308,9 +308,9 @@
 | 279 | Making Sense of Behavior: The Meaning of Cont | 1998 | **monograph** | low |  | not_found |
 | 1217 | The Age of Spiritual Machines | 1998 | **popular** | medium |  | not_found |
 | 1837 | Volleyball Cybernetics | 1998 | **monograph** | low |  | not_found |
-| 215 | The Evolution of Ethics: An Introduction to C | 1999 | **textbook** | high |  | not_found |
+| 215 | The Evolution of Ethics: An Introduction to C | 1999 | **textbook** | medium |  | not_found |
 | 291 | How We Became Posthuman: Virtual Bodies in Cy | 1999 | **monograph** | low | book | found |
-| 1236 | Perspectives on Behavioral Self-Regulation | 1999 | **popular** | high | book | found |
+| 1236 | Perspectives on Behavioral Self-Regulation | 1999 | **anthology** | medium | book | found |
 | 1299 | Fordern statt verwöhnen: die Erkenntnisse der | 1999 | **monograph** | low |  | not_found |
 | 1666 | Management Systems: A Viable Systems Approach | 1999 | **monograph** | low |  | not_found |
 | 1667 | How Brains Make Up Their Minds | 1999 | **monograph** | low |  | not_found |
@@ -328,7 +328,7 @@
 | 754 | The Modern Invention of Information: Discours | 2001 | **monograph** | low | book | found |
 | 1202 | On the Self-Regulation of Behavior | 2001 | **monograph** | low |  | not_found |
 | 1996 | Living Systems: Theory and Application | 2001 | **monograph** | low |  | not_found |
-| 172 | The Cyberiad: Stories | 2002 | **popular** | high |  | not_found |
+| 172 | The Cyberiad: Stories | 2002 | **monograph** | low |  | not_found |
 | 177 | Understanding Understanding: Essays on Cybern | 2002 | **anthology** | high |  | not_found |
 | 180 | The PSYCHOCYBERNETIC MODEL OF ART THERAPY: (2 | 2002 | **monograph** | low |  | not_found |
 | 186 | Marine Control Systems: Guidance, Navigation  | 2002 | **monograph** | low |  | not_found |
@@ -347,7 +347,7 @@
 | 771 | The Evolutionary Trajectory: The Growth of In | 2003 | **monograph** | low | book | found |
 | 1127 | Self-Organization in Biological Systems | 2003 | **monograph** | low | book | found |
 | 1182 | Stafford Beer: A Personal Memoir - Includes a | 2003 | **history_bio** | high |  | not_found |
-| 1198 | People as Living Things: The Psychology of Pe | 2003 | **popular** | high |  | not_found |
+| 1198 | People as Living Things: The Psychology of Pe | 2003 | **monograph** | low |  | not_found |
 | 1300 | Nature's Magic: Synergy in Evolution and the  | 2003 | **monograph** | low | review | found |
 | 1743 | Telematic Embrace: Visionary Theories of Art, | 2003 | **monograph** | low | book | found |
 | 1793 | Autopoietic Organization Theory: Drawing on N | 2003 | **monograph** | low |  | not_found |
@@ -381,7 +381,7 @@
 | 767 | Festschrift for Felix Geyer | 2006 | **anthology** | medium | book | found |
 | 1199 | The Method of Levels: How to Do Psychotherapy | 2006 | **popular** | medium |  | not_found |
 | 1385 | Self-Organization and Emergence in Life Scien | 2006 | **monograph** | medium |  | not_found |
-| 1615 | Organizations as Complex Systems: An Introduc | 2006 | **textbook** | high |  | not_found |
+| 1615 | Organizations as Complex Systems: An Introduc | 2006 | **textbook** | medium |  | not_found |
 | 1788 | Luhmann Explained: From Souls to Systems | 2006 | **monograph** | low |  | not_found |
 | 1893 | Digital Shock: Confronting the New Reality | 2006 | **monograph** | low |  | not_found |
 | 340 | Cybernetics and Design | 2007 | **monograph** | low |  | no_isbn |
@@ -407,9 +407,9 @@
 | 361 | Constructing Soviet Cultural Policy: Cybernet | 2008 | **monograph** | low |  | not_found |
 | 391 | A Legacy for Living Systems: Gregory Bateson  | 2008 | **monograph** | medium |  | not_found |
 | 680 | The Clock of the Long Now: Time and Responsib | 2008 | **popular** | medium |  | not_found |
-| 745 | Posthuman Metamorphosis: Narrative and System | 2008 | **popular** | medium | book | found |
+| 745 | Posthuman Metamorphosis: Narrative and System | 2008 | **monograph** | low | book | found |
 | 903 | Reviving the Living: Meaning Making in Living | 2008 | **monograph** | low |  | not_found |
-| 1197 | Management and Leadership: Insight for Effect | 2008 | **popular** | medium |  | not_found |
+| 1197 | Management and Leadership: Insight for Effect | 2008 | **monograph** | low |  | not_found |
 | 1402 | Systems Research for Behavioral Science: A So | 2008 | **monograph** | low | book | found |
 | 1663 | The Mechanical Mind in History | 2008 | **anthology** | medium | book | found |
 | 1685 | Biosemiotics: An Examination Into the Signs o | 2008 | **history_bio** | high |  | not_found |
@@ -437,17 +437,17 @@
 | 676 | Whole Earth Discipline: Why Dense Cities, Nuc | 2010 | **popular** | medium |  | not_found |
 | 1194 | Dialogue Concerning the Two Chief Approaches  | 2010 | **monograph** | low |  | not_found |
 | 1226 | Project: Soul Catcher: Secrets of Cyber and C | 2010 | **monograph** | low |  | not_found |
-| 1339 | Handbook of Personality and Self-Regulation | 2010 | **anthology** | medium | web_resource | found |
+| 1339 | Handbook of Personality and Self-Regulation | 2010 | **handbook** | high | web_resource | found |
 | 1384 | Cyberfiction: After the Future | 2010 | **monograph** | low | book | found |
 | 1391 | Gaia in Turmoil: Climate Change, Biodepletion | 2010 | **anthology** | medium | book | found |
 | 1498 | Composing a Further Life: The Age of Active W | 2010 | **popular** | medium |  | not_found |
 | 1748 | Organizations: Social Systems Conducting Expe | 2010 | **monograph** | medium |  | not_found |
-| 1873 | Introduction to the History of Communication: | 2010 | **textbook** | medium |  | not_found |
+| 1873 | Introduction to the History of Communication: | 2010 | **history_bio** | medium |  | not_found |
 | 1917 | Cyborgs in Latin America | 2010 | **monograph** | low | web_resource | found |
-| 1997 | Controlling Uncertainty: Decision Making and  | 2010 | **textbook** | medium |  | not_found |
+| 1997 | Controlling Uncertainty: Decision Making and  | 2010 | **monograph** | low |  | not_found |
 | 213 | The Information: A History, a Theory, a Flood | 2011 | **popular** | medium |  | not_found |
 | 230 | The Cybernetic Brain: Sketches of Another Fut | 2011 | **monograph** | low | book | found |
-| 256 | Process Control A Practical Approach | 2011 | **textbook** | medium | book | found |
+| 256 | Process Control A Practical Approach | 2011 | **monograph** | low | book | found |
 | 263 | Perspectives on Information | 2011 | **anthology** | medium | book | found |
 | 265 | Organizational Systems: Managing Complexity W | 2011 | **monograph** | medium |  | not_found |
 | 359 | Context and Complexity: Cultivating Contextua | 2011 | **anthology** | medium | book | found |
@@ -495,11 +495,11 @@
 | 350 | Culture Contact in Evenki Land: A Cybernetic  | 2013 | **monograph** | low | book | found |
 | 407 | The Certainty of Uncertainty: Dialogues Intro | 2013 | **monograph** | low | book | found |
 | 441 | The Cybernetic Society: Pergamon Unified Engi | 2013 | **monograph** | low |  | not_found |
-| 774 | Purposive Explanation in Psychology | 2013 | **popular** | medium | book | found |
+| 774 | Purposive Explanation in Psychology | 2013 | **monograph** | low | book | found |
 | 907 | Beiträge zur Grundlegung einer operationsfähi | 2013 | **monograph** | low |  | not_found |
 | 1022 | Summa Technologiae | 2013 | **monograph** | low | web_resource | found |
 | 1248 | Theory of Society, Volume 2 | 2013 | **anthology** | high | book | found |
-| 1256 | Introduction to Systems Theory | 2013 | **textbook** | high |  | not_found |
+| 1256 | Introduction to Systems Theory | 2013 | **textbook** | medium |  | not_found |
 | 1347 | The Transhumanist Reader: Classical and Conte | 2013 | **anthology** | medium | book | found |
 | 1563 | Self-Producing Systems: Implications and Appl | 2013 | **monograph** | medium |  | not_found |
 | 1698 | The Death of Jeffrey Stapleton: Exploring the | 2013 | **monograph** | low |  | not_found |
@@ -521,11 +521,11 @@
 | 222 | The Cybernetics Moment: Or Why We Call Our Ag | 2015 | **monograph** | low | book | found |
 | 257 | Principles of Neural Design | 2015 | **textbook** | medium | book | found |
 | 264 | Our Robots, Ourselves: Robotics and the Myths | 2015 | **popular** | medium |  | not_found |
-| 286 | An Introduction to Cybernetics | 2015 | **textbook** | high |  | not_found |
+| 286 | An Introduction to Cybernetics | 2015 | **textbook** | medium |  | not_found |
 | 301 | General System Theory: Foundations, Developme | 2015 | **monograph** | low |  | not_found |
 | 315 | Systems | 2015 | **monograph** | low | book | found |
 | 332 | Cybernetics: From Past to Future | 2015 | **monograph** | medium |  | not_found |
-| 356 | Controlling People: The Paradoxical Nature of | 2015 | **popular** | medium | book | found |
+| 356 | Controlling People: The Paradoxical Nature of | 2015 | **monograph** | low | book | found |
 | 358 | Control: Digitality as Cultural Logic | 2015 | **monograph** | low | book | found |
 | 365 | Cognitive Systems | 2015 | **monograph** | low |  | no_isbn |
 | 392 | Alleys of Your Mind: Augmented Intelligence a | 2015 | **anthology** | medium | web_resource | found |
@@ -576,12 +576,12 @@
 | 298 | Handbook of Research on Applied Cybernetics a | 2017 | **handbook** | high |  | not_found |
 | 299 | Harmonies of Disorder: Norbert Wiener: A Math | 2017 | **history_bio** | high |  | not_found |
 | 327 | Cybernetics, Warfare and Discourse: The Cyber | 2017 | **monograph** | medium |  | not_found |
-| 328 | Cybernetics: State of the Art | 2017 | **proceedings** | medium |  | not_found |
+| 328 | Cybernetics: State of the Art | 2017 | **monograph** | low |  | not_found |
 | 369 | Cinema, Trance and Cybernetics | 2017 | **monograph** | low | web_resource | found |
 | 408 | Runaway: Gregory Bateson, the Double Bind, an | 2017 | **history_bio** | high |  | not_found |
 | 412 | New Horizons for Second-Order Cybernetics | 2017 | **monograph** | low |  | not_found |
 | 758 | Confronting the Machine: An Enquiry Into the  | 2017 | **anthology** | medium | book | found |
-| 1039 | Introduction to Anticipation Studies | 2017 | **textbook** | high |  | not_found |
+| 1039 | Introduction to Anticipation Studies | 2017 | **textbook** | medium |  | not_found |
 | 1044 | Intangible Life: Functorial Connections in Re | 2017 | **monograph** | medium |  | not_found |
 | 1085 | How the Mind Comes Into Being | 2017 | **monograph** | low |  | not_found |
 | 1089 | Unthought: The Power of the Cognitive Noncons | 2017 | **monograph** | low | web_resource | found |
@@ -590,13 +590,13 @@
 | 1504 | Border Security: Shores of Politics, Horizons | 2017 | **monograph** | low | web_resource | found |
 | 1753 | The Routledge Handbook of Soft Power | 2017 | **handbook** | high | book | found |
 | 1756 | Application of New Cybernetics in Physics | 2017 | **monograph** | low |  | not_found |
-| 1923 | Posthumanism and the Graphic Novel in Latin A | 2017 | **popular** | medium | book | found |
+| 1923 | Posthumanism and the Graphic Novel in Latin A | 2017 | **monograph** | low | book | found |
 | 174 | What Is Information? | 2018 | **monograph** | low | book | found |
 | 192 | Cybernetic Modeling for Bioreaction Engineeri | 2018 | **monograph** | low |  | not_found |
 | 272 | Norbert Wiener-A Life in Cybernetics: Ex-Prod | 2018 | **history_bio** | high | book | found |
 | 276 | Neural Network Modeling: Statistical Mechanic | 2018 | **monograph** | low |  | not_found |
 | 306 | Flatline Constructs: Gothic Materialism and C | 2018 | **monograph** | low |  | not_found |
-| 362 | Content Analysis: An Introduction to Its Meth | 2018 | **textbook** | high | book | found |
+| 362 | Content Analysis: An Introduction to Its Meth | 2018 | **textbook** | medium | book | found |
 | 371 | Beyond machines of loving grace: Hacker cultu | 2018 | **anthology** | high |  | not_found |
 | 403 | The Soft Machine: Cybernetic Fiction | 2018 | **monograph** | low |  | not_found |
 | 405 | The Opening of the Cybernetic Frontier: Citie | 2018 | **monograph** | low |  | not_found |
@@ -679,21 +679,21 @@
 | 322 | Deconstructing Health Inequity: A Perceptual  | 2021 | **monograph** | medium |  | not_found |
 | 333 | Cybernetics for the Social Sciences | 2021 | **monograph** | low | book | found |
 | 363 | Concerning Stephen Willats and the Social Fun | 2021 | **monograph** | low | book | found |
-| 422 | An Introduction to Cybernetic Synergy: Improv | 2021 | **textbook** | high | book | found |
+| 422 | An Introduction to Cybernetic Synergy: Improv | 2021 | **textbook** | medium | book | found |
 | 765 | Narratives of Scale in the Anthropocene: Imag | 2021 | **monograph** | low | book | found |
 | 1020 | Dialogues | 2021 | **monograph** | low |  | not_found |
 | 1131 | Handbook of Systems Sciences | 2021 | **handbook** | high | book | found |
 | 1191 | A Foundational Explanation of Human Behavior: | 2021 | **popular** | medium |  | not_found |
 | 1205 | Life Out of Balance: Homeostasis and Adaptati | 2021 | **monograph** | low | book | found |
 | 1225 | Adolescent Risk Behavior and Self-Regulation: | 2021 | **monograph** | medium |  | not_found |
-| 1259 | Unlocking Luhmann: A Keyword Introduction to  | 2021 | **textbook** | high | book | found |
+| 1259 | Unlocking Luhmann: A Keyword Introduction to  | 2021 | **textbook** | medium | book | found |
 | 1269 | Cybernetics Without Mathematics | 2021 | **monograph** | low |  | not_found |
 | 1304 | When Brains Meet Buildings | 2021 | **monograph** | low | book | found |
 | 1377 | Agricultural Cybernetics | 2021 | **monograph** | medium |  | not_found |
-| 1378 | Introduction to Cybersemiotics: A Transdiscip | 2021 | **textbook** | high |  | not_found |
+| 1378 | Introduction to Cybersemiotics: A Transdiscip | 2021 | **textbook** | medium |  | not_found |
 | 1665 | A Configuration Approach to Mindset Agency Th | 2021 | **monograph** | low | book | found |
 | 1735 | Artificial Intelligence, Interaction, Perform | 2021 | **monograph** | low |  | not_found |
-| 1761 | Introduction to Systems Philosophy: Toward a  | 2021 | **textbook** | high |  | not_found |
+| 1761 | Introduction to Systems Philosophy: Toward a  | 2021 | **textbook** | medium |  | not_found |
 | 1951 | Sensing and Making Sense: Photosensitivity an | 2021 | **report** | high | dissertation | found |
 | 2010 | Embodiment of the Everyday Cyborg: Technologi | 2021 | **monograph** | low | book | found |
 | 190 | Information: A Reader | 2022 | **reader** | high | book | found |
@@ -705,10 +705,10 @@
 | 342 | Cybernetics 2.0: A General Theory of Adaptivi | 2022 | **monograph** | medium |  | not_found |
 | 366 | Complex Systems: Spanning Control and Computa | 2022 | **monograph** | medium |  | not_found |
 | 421 | Cybernetic Architectures: Informational Think | 2022 | **monograph** | low | book | found |
-| 620 | Cyber-Physical Systems: Theory, Methodology,  | 2022 | **textbook** | medium | book | found |
-| 759 | Introduction to Safety Science: People, Organ | 2022 | **textbook** | high | book | found |
+| 620 | Cyber-Physical Systems: Theory, Methodology,  | 2022 | **monograph** | low | book | found |
+| 759 | Introduction to Safety Science: People, Organ | 2022 | **textbook** | medium | book | found |
 | 760 | Sustainable Self-Governance in Businesses and | 2022 | **monograph** | low | book | found |
-| 917 | Seconde cybernétique et complexité: Rencontre | 2022 | **proceedings** | medium |  | not_found |
+| 917 | Seconde cybernétique et complexité: Rencontre | 2022 | **monograph** | low |  | not_found |
 | 1017 | Ingenious Principles of Nature: Do We Reckon  | 2022 | **textbook** | medium |  | not_found |
 | 1049 | Beyond Identities: Human Becomings in Weirdin | 2022 | **monograph** | medium |  | not_found |
 | 1117 | Epigenetics and Anticipation | 2022 | **monograph** | medium |  | not_found |
@@ -723,7 +723,7 @@
 | 1456 | The Informational Logic of Human Rights: Netw | 2022 | **monograph** | low |  | not_found |
 | 1457 | Order in Chaos - Cybernetics of Brand Managem | 2022 | **monograph** | medium |  | not_found |
 | 1581 | Whole Earth: The Many Lives of Stewart Brand | 2022 | **history_bio** | medium |  | not_found |
-| 1601 | Designing Intelligent Construction Projects | 2022 | **textbook** | medium | book | found |
+| 1601 | Designing Intelligent Construction Projects | 2022 | **monograph** | low | book | found |
 | 1609 | Repair: When and How to Improve Broken Object | 2022 | **popular** | medium |  | not_found |
 | 1738 | Climatic Media: Transpacific Experiments in A | 2022 | **monograph** | low | book | found |
 | 1757 | Architecture in Digital Culture: Machines, Ne | 2022 | **monograph** | low | book | found |
@@ -734,10 +734,10 @@
 | 1922 | The Dark Posthuman: Dehumanization, Technolog | 2022 | **monograph** | low | book | found |
 | 2002 | Norbert Wiener - a Mathematician Among Engine | 2022 | **anthology** | medium |  | not_found |
 | 105 | The Experience Machine: How Our Minds Predict | 2023 | **monograph** | low |  | not_found |
-| 346 | Cybernetical Intelligence: Engineering Cybern | 2023 | **textbook** | medium | book | found |
+| 346 | Cybernetical Intelligence: Engineering Cybern | 2023 | **monograph** | low | book | found |
 | 347 | Cybernetic Aesthetics: Modernist Networks of  | 2023 | **monograph** | low |  | not_found |
 | 368 | Code: From Information Theory to French Theor | 2023 | **monograph** | low | book | found |
-| 378 | A Transdisciplinary Introduction to the World | 2023 | **textbook** | high |  | not_found |
+| 378 | A Transdisciplinary Introduction to the World | 2023 | **textbook** | medium |  | not_found |
 | 1041 | The Eye of the Master: A Social History of Ar | 2023 | **history_bio** | high |  | not_found |
 | 1179 | Cybernetics and the Origin of Information | 2023 | **anthology** | medium | book | found |
 | 1272 | Balkan Cyberia: Cold War Computing, Bulgarian | 2023 | **monograph** | low | book | found |
@@ -764,7 +764,7 @@
 | 1452 | Cybernetics of Art: Reason and the Rainbow | 2024 | **monograph** | low |  | not_found |
 | 1454 | Cybernetics and the Constructed Environment:  | 2024 | **monograph** | low | book | found |
 | 1502 | Truth Is the Invention of a Liar: Conversatio | 2024 | **monograph** | low |  | not_found |
-| 1505 | Critical Systems Thinking: A Practitioner's G | 2024 | **textbook** | medium | book | found |
+| 1505 | Critical Systems Thinking: A Practitioner's G | 2024 | **monograph** | low | book | found |
 | 1525 | The Singularity Is Nearer: When We Merge With | 2024 | **popular** | medium | book | found |
 | 1558 | Cybernetic Avatar | 2024 | **anthology** | medium | book | found |
 | 1607 | Music, the Avant-Garde, and Counterculture: I | 2024 | **textbook** | medium | book | found |

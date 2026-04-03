@@ -8,7 +8,7 @@ Claude Sonnet 4.6 (Anthropic, claude.ai)²
 ¹ School of Cybernetics, The Australian National University, Canberra, Australia
 ² Large language model; no persistent identity, affiliation, or legal standing
 
-**Date:** 27 March 2026
+**Date:** 3 April 2026
 
 ---
 
@@ -23,7 +23,7 @@ A reproducible NLP pipeline for topic modelling, clustering, keyphrase
 extraction, summarisation, controlled vocabulary analysis, and visualisation
 applied to a cybernetics book corpus extracted from a Calibre library.
 
-**Corpus:** 675 books · 7,349 chapters · 1954–2025
+**Corpus:** 695 books · 1954–2025
 
 ---
 
@@ -32,7 +32,7 @@ applied to a cybernetics book corpus extracted from a Calibre library.
 ```
 CyberneticsNLP/
 ├── csv/                        ← Place Calibre CSV exports here (OneDrive synced)
-│   ├── books_lang.csv          ← Calibre metadata (tab-separated)
+│   ├── books_metadata_full.csv ← Calibre metadata, 20 cols incl. inclusion_stratum (tab-separated)
 │   └── books_text_*.csv        ← OCR text (25 files)
 │
 ├── json/                       ← All JSON/JSONL outputs (auto-created, OneDrive synced)
@@ -90,6 +90,9 @@ CyberneticsNLP/
 │   ├── build_embed_report.py       Step 11b: rebuild comparison report from results JSON
 │   ├── 13_weighted_comparison.py   Step 13: compare unweighted vs weighted pipeline runs
 │   ├── embeddings.py               Embedding provider abstraction module
+│   ├── 00_classify_book_styles.py  Step 0a: heuristic book style classification
+│   ├── 00_fetch_worldcat_metadata.py Step 0b: Google Books + Open Library enrichment
+│   ├── 00_fetch_anu_primo.py        Step 0c: ANU Primo catalogue enrichment
 │   ├── check_integrity.py          Session-start integrity checker
 │   ├── test_pipeline.py            Regression test suite (15 tests)
 │   └── run_all.sh                  End-to-end runner
@@ -178,6 +181,15 @@ python3 src/12_index_grounding.py
 
 # Time series — must run after 12 (Chart 7 needs concept_velocity.json)
 python3 src/08_build_timeseries.py
+
+# Book style enrichment — run once before main pipeline
+# Requires csv/books_metadata_full.csv (exported from Calibre via metadata.db)
+python3 src/00_classify_book_styles.py                    # heuristic baseline
+python3 src/00_fetch_worldcat_metadata.py                 # Google Books + OL (~10 min)
+python3 src/00_fetch_anu_primo.py                         # ANU Primo (~12 min)
+python3 src/00_fetch_worldcat_metadata.py --reclassify    # apply enrichment
+python3 src/00_fetch_anu_primo.py --reclassify            # apply Primo signals
+python3 src/00_classify_book_styles.py --stats            # final distribution
 
 # Entity classification — run once, results cached in json/entity_types_cache.json
 # Requires: pip install spacy && python3 -m spacy download en_core_web_sm

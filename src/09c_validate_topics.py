@@ -214,7 +214,7 @@ if WRITE_MD:
         f"",
         f"| Metric | Value |",
         f"|---|---|",
-        f"| Mean stability | {mean_stability:.3f if mean_stability else 'n/a'} |",
+        f"| Mean stability | {str(round(mean_stability, 3)) if mean_stability is not None else 'n/a'} |",
         f"| Dead topics | {n_dead}/{n_topics} |",
         f"| Stable (≥0.3) | {n_stable}/{n_topics} |",
         f"| Moderate (0.15–0.3) | {n_moderate}/{n_topics} |",
