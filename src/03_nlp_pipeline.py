@@ -628,7 +628,7 @@ def name_topics_via_api(top_words, n_topics,
         ground = grounding.get(t, [])
         prompt = (
             f"You are labelling topic clusters from a cybernetics book corpus "
-            f"(675 books, 1954-2025).\n\n"
+            f"(695 books, 1954-2025).\n\n"
             f"Topic {t+1} of {n_topics}:\n"
             f"  Top LDA words: {', '.join(words)}\n"
             f"  Highest-lift index terms: "

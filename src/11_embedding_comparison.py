@@ -3,7 +3,7 @@
 
 11_embedding_comparison.py
 ──────────────────────────────────────────────────────────────────────────────
-Compares four embedding approaches for the 675-book corpus and produces an
+Compares four embedding approaches for the 695-book corpus and produces an
 interactive HTML report with side-by-side clustering and similarity metrics.
 
 Methods compared
@@ -93,10 +93,15 @@ pub_years   = R.get('pub_years', [None]*len(book_ids))
 lda_topics  = R['dominant_topics']
 
 _LDA_BASE = [
-    'Human & Social Experience', 'Mathematical & Formal Systems',
-    'General Systems Theory', 'History & Philosophy of Cybernetics',
-    '2nd-Order Cybernetics & Bateson', 'Control Theory & Engineering',
-    'Popular & Applied Cybernetics',
+    'Management Cybernetics',
+    'Second-Order Cybernetics Applied to Social Systems',
+    'Dynamical Systems, Homeostasis & Biological Regulation',
+    'Psychological Cybernetics',
+    'Non-Anglophone Engineering Cybernetics',
+    'Mathematical Foundations of Cybernetics',
+    'Cultural Cybernetics, Posthumanism & Digital Media',
+    'Applied Cybernetics & Computers in Society',
+    'Residual / Outlier Cluster',
 ]
 _ntop = R['n_topics']
 LDA_NAMES = (R.get('topic_names') or (_LDA_BASE + [f'Topic {i+1}' for i in range(len(_LDA_BASE), _ntop)]))[:_ntop]

@@ -179,7 +179,7 @@ if "C" not in avail:
         '<code>pip install sentence-transformers</code></li>')
 if "D" not in avail:
     _next.append('<li><strong>Run Method D</strong> (Voyage AI) — ' 
-        'free key at dash.voyageai.com, costs ~$0.01 for 675 books</li>')
+        'free key at dash.voyageai.com, costs ~$0.01 for 695 books</li>')
 _next.append('<li><strong>Fix the empty-summary books</strong> — rerun ' 
     f'<code>generate_summaries_api.py</code> for IDs {', '.join(sorted(zero_bids))}</li>')
 _next.append('<li><strong>Try <code>--k 7</code></strong> to fix cluster count ' 
@@ -251,7 +251,7 @@ tr:last-child td{{border-bottom:none}}
 <body>
 <div class="header">
   <h1>📐 Embedding Method Comparison — Analysis Report</h1>
-  <p>TF-IDF + LSA vs Sentence Transformers vs Voyage AI · 675 books · Full metric analysis</p>
+  <p>TF-IDF + LSA vs Sentence Transformers vs Voyage AI · 695 books · Full metric analysis</p>
 </div>
 <nav>
   <a href="#status">Status</a>

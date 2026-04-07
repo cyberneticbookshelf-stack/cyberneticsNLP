@@ -88,6 +88,10 @@ fi
 #       section at the bottom of this script.
 # ── Book-level topics ────────────────────────────────────────────────────────
 python3 "$SCRIPT_DIR/03_nlp_pipeline.py" --min-chars 10000 --lemmatize --topics 9 --seeds 5
+# Validate topics and apply agreed taxonomy names immediately after LDA
+# so all downstream reports use named topics rather than Topic 1, Topic 2 etc.
+python3 "$SCRIPT_DIR/09c_validate_topics.py" --top 10 --md
+python3 "$SCRIPT_DIR/patch_topic_names.py"
 run 04_summarize.py
 run 05_visualize.py
 run 06_build_report.py
@@ -129,7 +133,6 @@ run 15_entity_classify.py
 python3 "$SCRIPT_DIR/14_entity_network.py" --no-windows   # fast book-level only
 # python3 "$SCRIPT_DIR/14_entity_network.py"              # + paragraph windows
 
-# ── Entity relations (original comment preserved) ─────────────────────────────
 
 echo ""
 echo "=== Pipeline complete: $(date) ==="

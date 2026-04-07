@@ -96,7 +96,9 @@ _BASE_CH = [
     'History & Philosophy of Cybernetics',
     'Management & Organisational Cybernetics',
     'Control Theory & Engineering',
-    'Topic 7', 'Topic 8', 'Topic 9']
+    'Applied Cybernetics & Technology',
+    'Biological & Cognitive Systems',
+]
 TOPIC_NAMES_CH = (_BASE_CH + [f'Topic {i+1}' for i in range(9,25)])[:n_topics_ch]
 
 # ── Helper: filter to valid years ─────────────────────────────────────────────
@@ -128,10 +130,17 @@ chart1 = json.dumps({
     'hover': bar_hover,
 })
 
-_LDA_BASE = ['Human & Social Experience', 'Mathematical & Formal Systems',
-             'General Systems Theory', 'History & Philosophy of Cybernetics',
-             '2nd-Order Cybernetics & Bateson', 'Control Theory & Engineering',
-             'Popular & Applied Cybernetics']
+_LDA_BASE = [
+    'Management Cybernetics',
+    'Second-Order Cybernetics Applied to Social Systems',
+    'Dynamical Systems, Homeostasis & Biological Regulation',
+    'Psychological Cybernetics',
+    'Non-Anglophone Engineering Cybernetics',
+    'Mathematical Foundations of Cybernetics',
+    'Cultural Cybernetics, Posthumanism & Digital Media',
+    'Applied Cybernetics & Computers in Society',
+    'Residual / Outlier Cluster',
+]
 LDA_NAMES = (R.get('topic_names') or (_LDA_BASE + [f'Topic {i+1}' for i in range(len(_LDA_BASE), n_topics)]))[:n_topics]
 
 # ── Chart 2 data: LDA topic mix by year (stacked area, book-level) ────────────

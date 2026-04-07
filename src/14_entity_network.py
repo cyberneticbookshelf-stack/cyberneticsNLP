@@ -68,10 +68,15 @@ N          = len(BC)
 n_topics   = R['n_topics']
 
 _LDA_BASE = [
-    'Human & Social Experience', 'Mathematical & Formal Systems',
-    'General Systems Theory', 'History & Philosophy of Cybernetics',
-    '2nd-Order Cybernetics & Bateson', 'Control Theory & Engineering',
-    'Popular & Applied Cybernetics',
+    'Management Cybernetics',
+    'Second-Order Cybernetics Applied to Social Systems',
+    'Dynamical Systems, Homeostasis & Biological Regulation',
+    'Psychological Cybernetics',
+    'Non-Anglophone Engineering Cybernetics',
+    'Mathematical Foundations of Cybernetics',
+    'Cultural Cybernetics, Posthumanism & Digital Media',
+    'Applied Cybernetics & Computers in Society',
+    'Residual / Outlier Cluster',
 ]
 LDA_NAMES = (R.get('topic_names') or
              (_LDA_BASE + [f'Topic {i+1}' for i in range(len(_LDA_BASE), n_topics)]))[:n_topics]
