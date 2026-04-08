@@ -240,7 +240,7 @@ csv/books_lang.csv  +  csv/books_text_*.csv
         └── STANDARD                ──── 01_parse_books.py → 02_clean_text.py
         │
         ▼                              writes to json/
-  03_nlp_pipeline.py          LDA (book-level, 7 topics)
+  03_nlp_pipeline.py          LDA (book-level, k=9 canonical)
   generate_summaries_api.py   Abstractive summaries via Anthropic API
   04_summarize.py             Extractive fallback summaries
   03_nlp_pipeline_chapters.py NMF (chapter-level, 6 topics)
@@ -279,17 +279,23 @@ All reports are written to `data/outputs/`.
 
 ## Topic Solutions
 
-### Book-level (LDA, 7 topics)
+### Book-level (LDA, k=9 — canonical, 3 April 2026)
 
-| # | Name | Characteristic terms |
-|---|------|---------------------|
-| T1 | Human & Social Experience | human, media, technology, social, cybernetic |
-| T2 | Mathematical & Formal Systems | wiener, machine, mathematical, computer, language |
-| T3 | General Systems Theory | systems, cybernetics, social, management, design |
-| T4 | History & Philosophy of Cybernetics | science, human, theory, life, knowledge, philosophy |
-| T5 | 2nd-Order Cybernetics & Bateson | bateson, communication, living, order, self, reality |
-| T6 | Control Theory & Engineering | control, systems, behavior, feedback, model, function |
-| T7 | Popular & Applied Cybernetics | people, world, human, life, make, years, think |
+695 books · `--min-chars 10000 --lemmatize --topics 9 --seeds 5` · 7/9 stable · 0 dead · mean stability=0.382
+
+| # | Name |
+|---|------|
+| T1 | Management Cybernetics |
+| T2 | Second-Order Cybernetics Applied to Social Systems |
+| T3 | Dynamical Systems, Homeostasis & Biological Regulation |
+| T4 | Psychological Cybernetics |
+| T5 | Non-Anglophone Engineering Cybernetics |
+| T6 | Mathematical Foundations of Cybernetics |
+| T7 | Cultural Cybernetics, Posthumanism & Digital Media |
+| T8 | Applied Cybernetics & Computers in Society |
+| T9 | Residual / Outlier Cluster |
+
+Full topic validation: `json/topic_validation.json` · run `src/09c_validate_topics.py --top 10 --md` to regenerate.
 
 ### Chapter-level (NMF, 6 topics)
 

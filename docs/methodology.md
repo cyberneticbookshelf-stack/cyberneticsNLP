@@ -1632,3 +1632,286 @@ The reduction is modest because most noise was already below the n_books ≥ 3
 threshold. The person merges matter more for signal quality than vocab size:
 they concentrate 1,214 scattered book-term citations into their correct
 canonical entries, increasing PMI scores for those persons.
+
+---
+
+## Alpha-ratio computation — updated method (front-matter sampling)
+
+*Updated 3 April 2026 — replaces original first-5000-char method*
+
+### Purpose
+
+The alpha-ratio filter excludes books whose clean text is predominantly
+non-alphabetic — catching OCR-failure books that cleared the minimum character
+threshold with garbage content (e.g. [1262] *Ecological Communication* at
+alpha≈0.04 before OCR reindex, acting as an LDA probability sink).
+
+### Original method (deprecated)
+
+The first 5,000 characters of `clean_text` were sampled. Alpha ratio was
+computed as the proportion of alphabetic characters. Threshold: 0.40.
+
+**Problem:** Front matter (publisher metadata, series information, copyright
+notices, Cyrillic OCR fragments in translated works) appears in the first
+5,000 characters and is not representative of a book's intellectual content.
+Six books with good body text (alpha 0.71–0.78 over full text) were
+incorrectly excluded because front matter dragged the sample below threshold.
+
+### Updated method
+
+```python
+def _alpha_ratio(text, sample=5000, n_windows=3):
+    n = len(text)
+    if n < sample:
+        return sum(c.isalpha() for c in text) / n if n else 0.0
+    # Skip first 10% — front matter is unreliable
+    start = max(sample, n // 10)
+    body  = text[start:]
+    if len(body) < sample:
+        return sum(c.isalpha() for c in body) / len(body)
+    # Draw n_windows evenly-spaced windows across the body
+    step = (len(body) - sample) // max(n_windows - 1, 1)
+    ratios = []
+    for i in range(n_windows):
+        window = body[i * step : i * step + sample]
+        ratios.append(sum(c.isalpha() for c in window) / len(window))
+    return sum(ratios) / len(ratios)
+```
+
+**Key changes:**
+- Skip first 10% of text (or at least the first `sample` characters) to
+  avoid front-matter contamination
+- Sample 3 evenly-spaced windows from the body rather than one window from
+  the start
+- Average across windows for a robust estimate
+
+**Threshold:** 0.40 (unchanged). The fix raises the sampling start point,
+not the threshold. Books with genuinely garbled OCR throughout still fail.
+
+**Books recovered:** [205] *The Phenomenon of Science*, [265] *Organizational
+Systems (VSM)*, [413] *Neocybernetics in Biological Systems*, [597] *Between
+an Animal and a Machine*, [1261] *Social Systems*, [1918] *A More Developed
+Sign* — all had clean body text (alpha 0.71–0.78) but contaminated front matter.
+
+---
+
+## LDA topic count selection — canonical k=9 (695-book corpus)
+
+*Added 3 April 2026*
+
+### Stopping criterion hierarchy
+
+Three criteria applied in dependency order:
+
+**1. Coherence sweep** identifies the region of feasible k. NPMI coherence
+over top-10 words per topic, k=2–12. Provides a rough indication of meaningful
+structure; not a sufficient criterion alone — coherence can increase with k
+due to topic fragmentation without interpretive gain.
+
+**2. Dead-topic count** bounds the ceiling of k. A dead topic has a
+near-uniform word distribution, arising structurally when k exceeds the
+corpus's data capacity. Dead-topic count is less sensitive to random seed
+than stability scores, giving it higher epistemic standing as a stopping
+criterion.
+
+**3. Stability scores** characterise consistency within the fixed seed set.
+Mean Jaccard overlap of top-N word sets across all pairs of the 5-seed run,
+aligned by Hungarian algorithm. Stability scores are seed-set-relative (see
+below).
+
+### k=9 selection
+
+Post-overhaul sweep (695 books, seeds 42/7/123/256/999):
+
+| k | Coherence | Dead topics | Stable (≥0.3) | Mean stability |
+|---|---|---|---|---|
+| 9 | 0.0668 | 0 | 7/9 (78%) | 0.382 |
+| 10 | 0.0721 | 0 | 6/10 (60%) | 0.383 |
+
+k=9 selected: zero dead topics; 78% stable topics (vs k=10's 60%); two
+unstable topics interpretable rather than noise (T3 vocabulary overlaps
+multiple traditions; T9 is documented residual). k=10 redistributed
+instability across more topics without resolving T9.
+
+### Epistemic status of stability scores
+
+Stability scores are **seed-set-relative**. "T1 is stable across seeds
+42, 7, 123, 256, 999 at k=9" is the valid claim; "T1 is a stable topic for
+this corpus" overclaims. A different seed set might produce different rankings.
+Multiple distinct stable solutions may coexist at a given k — fixed seeds
+provide one sample from a potentially multi-modal solution space.
+
+The dead-topic criterion has higher epistemic standing: degenerate distributions
+arise structurally from over-specification regardless of initialisation.
+
+### Canonical solution and restoration
+
+`topic_stability.json` always reflects the most recently run k. After any
+comparison run at a different k, restore with:
+
+```bash
+python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5
+python3 src/09c_validate_topics.py --top 10 --md
+python3 patch_topic_names.py   # re-apply agreed topic taxonomy
+```
+
+`run_all.sh` calls `03_nlp_pipeline.py --topics 9 --seeds 5` explicitly to
+enforce the canonical solution.
+
+---
+
+## Publication type exclusion policy
+
+*Added 3 April 2026*
+
+### The implicit monograph assumption
+
+Every analytical step in the pipeline embodies an implicit model of what a
+book is: a single-author, thematically coherent text with end-of-book
+references and a unified back-of-book index. This was never stated explicitly.
+It is approximately correct for monographs (65.4% of the classified corpus)
+and systematically wrong for other types in predictable, consequential ways.
+
+### Violations by publication type
+
+**Conference proceedings — excluded**
+
+| Assumption | Violation |
+|---|---|
+| Thematic coherence | Proceedings deliberately aggregate diverse contributions; low LDA coherence is an epistemic practice, not a model failure |
+| Reference location (end of book) | References at end of each paper; end-of-book extraction captures only the last paper's citations |
+| Unified back-of-book index | No unified index typically present |
+| Document unit = book | A proceedings volume is a container for N independent papers; treating it as one LDA document is a category error |
+
+**Handbooks — excluded**
+
+| Assumption | Violation |
+|---|---|
+| Thematic coherence | Chapters by different authors on different subtopics; positional sampling may capture entirely unrelated content |
+| Reference location | Often at chapter ends, not volume end |
+| Index authority | Aggregates community vocabulary, not one author's concept architecture |
+
+**Readers — excluded**
+
+| Assumption | Violation |
+|---|---|
+| Original authorial voice | Curates existing texts; no single author whose intellectual signal the pipeline extracts |
+| Unified concept map | Index covers reprinted texts whose vocabulary the editor did not produce |
+
+**Anthologies — retained with caveats**
+
+Structurally more similar to monographs; editorial framing may provide
+coherent intellectual argument. Retained but expected low coherence tolerated
+and documented. Vocabulary dilution from multiple authors is a known bias.
+
+### Corpus impact
+
+After 4 manual reclassifications (verified=True in book_styles.json):
+- [267] proceedings → history_bio (memoir of conference, not proceedings)
+- [1195], [1774] reader → monograph (Powers' own collected papers)
+- [1271] handbook → popular (popular science, misclassified)
+
+Final: 22 books excluded (3.0%), 704 retained (97.0%). Excluded books are
+disproportionately `curated_pure` stratum (68% of exclusions vs 45.5% of
+corpus) — the exclusion policy and precision-recall stratification identify
+overlapping populations of methodologically marginal inclusions.
+
+### Temporal dimension
+
+The exclusion decision is type × era, not type-only. Pre-digital (pre-1990)
+proceedings and handbooks may be typeset as quasi-monographs — inspect
+individually. Post-1990: exclude without individual inspection.
+
+| | Pre-digital (~pre-1990) | Early digital (~1990–2010) | Born-digital (~2010+) |
+|---|---|---|---|
+| Proceedings | ⚠ Inspect individually | ✗ Exclude | ✗ Exclude |
+| Handbook | ⚠ Inspect individually | ✗ Exclude | ✗ Exclude |
+| Reader | ✗ Exclude | ✗ Exclude | ✗ Exclude |
+
+### Implementation status
+
+`book_styles.json` records classifications and reclassifications. Exclusion
+filter in `03_nlp_pipeline.py` NOT yet implemented — pending signal inventory
+audit and document unit decision (moratorium in effect).
+
+---
+
+## Signal inventory framework
+
+*Added 3 April 2026*
+
+### Motivation
+
+The book style classification effort initially aimed to assign categorical
+labels and validate against ground truth. Two observations disrupted this:
+
+1. **Book types are not disjoint.** Ashby's *Introduction to Cybernetics* is
+   simultaneously a monograph and a textbook. Categorical ground truth
+   presupposes a structure the phenomenon does not have.
+
+2. **The relevant question changes.** The pipeline cares not about what *type*
+   a book is but which *pipeline assumptions* it violates. This question is
+   answerable without categorical commitment and directly relevant to pipeline
+   behaviour.
+
+### Signal dimensions
+
+For each book, record observable structural signals that directly determine
+pipeline behaviour:
+
+| Signal | Type | Observable from | Pipeline implication |
+|---|---|---|---|
+| `index_present` | binary | index_terms.json status | Include/exclude from index-term analysis |
+| `reference_location` | 3-way: end/chapter/none | Text inspection (planned) | Reference extraction strategy |
+| `author_count` | count | Calibre authors field | Vocabulary dilution flag for TF-IDF |
+| `has_editor` | binary | Calibre/text first 400 chars | Anthology inference; vocabulary mixing |
+| `publication_era` | 3-way: pre/early/born-digital | pubdate field | Index quality covariate |
+| `chapter_count` | count | Text structure (planned) | Document unit decision |
+
+### Schema
+
+Each signal in `book_styles.json` has three fields: value, confidence
+(0.0–1.0), and source (provenance). Source priority:
+`manual` > `calibre:google` > `calibre:amazon` > `text_extraction` > `classifier`
+
+```json
+{
+  "BOOK_ID": {
+    "schema_version": 1,
+    "index_present": true,
+    "index_present_confidence": 0.95,
+    "index_present_source": "text_extraction",
+    "has_editor": false,
+    "has_editor_confidence": 0.85,
+    "has_editor_source": "calibre:google",
+    "publication_era": "early_digital",
+    "publication_era_confidence": 1.0,
+    "publication_era_source": "calibre:pubdate"
+  }
+}
+```
+
+**Three-state model:** true / false / null (unknown). Null propagates
+gracefully — unknown signals use default assumption and are flagged in output.
+
+### Validation approach
+
+Signal observations replace categorical ground truth for pipeline validation:
+- "Do books the classifier labels as monographs tend to have `index_present=true`?"
+- "Do books with `has_editor=true` tend to have lower LDA topic coherence?"
+
+These questions are directly relevant to pipeline behaviour and do not require
+categorical commitment. They replace "is the classifier correct?" which is
+incoherent given non-disjoint types.
+
+### Relation to Calibre labels
+
+159 books already labeled in Calibre (`custom_column_5`) with multi-label
+combinations — consistent with binary relevance and confirming non-disjoint
+structure in practice. Signal inventory complements categorical labels: labels
+serve interpretive and communication purposes; signals drive pipeline behaviour.
+
+### Implementation status
+
+Planned. Schema agreed. Moratorium on NLP pipeline code applies. Document unit
+decision must be formally recorded before implementation begins.

@@ -984,3 +984,529 @@ sent to spaCy (Stage 2) and Wikidata (Stage 3) for further disambiguation when
 those tools are available. Without them, all unmatched terms default to
 `concept` — this is conservative and correct for most index vocabulary, which
 is predominantly intellectual concepts rather than named entities.
+
+---
+
+## Why use the SCOWL en_US-large dictionary (76,959 words) rather than the standard hunspell-en-us package?
+
+The standard `hunspell-en-us` system package on Debian/Ubuntu contains approximately
+50,000 words. The SCOWL `en_US-large` dictionary contains 76,959 words.
+
+The difference matters because cybernetics as a discipline has a specialised
+technical vocabulary — terms like `autopoiesis`, `homeostasis`, `affordance`,
+`equifinality`, `teleonomy`, `synaptic`, `morphogenesis`, and `allostasis`
+appear frequently in the corpus but are absent from the smaller dictionary.
+When the standard package is used, `02_clean_text.py`'s Hunspell word filter
+incorrectly rejects these valid technical terms as non-words, causing them to
+be stripped from the cleaned text before topic modelling.
+
+This is particularly damaging because these are precisely the high-discriminating
+terms that distinguish cybernetics topics from each other. Over-filtering at this
+stage silently degrades topic model quality without any diagnostic error.
+
+**Reproducibility requirement:** Both AshbyX and NorbertX must use the same
+dictionary file. A word present in one machine's dictionary and absent in the
+other's would produce systematically different cleaned corpora, making results
+irreproducible across machines. The `requirements.txt` includes a verification
+command (`wc -l en_US.dic` expecting ~76,959) to confirm the correct dictionary
+is installed on any new machine.
+
+The `requirements.txt` file specifies installation paths for Linux, macOS, and
+Windows, and documents a project-local `data/en_US.dic` drop-in path for locked
+environments. See also: the `pyspellchecker` fallback decision above, which
+handles environments where Hunspell itself is unavailable.
+
+---
+
+## Why regenerate `books_clean.json` from scratch rather than patching it?
+
+During the 3 April 2026 pipeline run, `03_nlp_pipeline.py` failed to load
+`books_clean.json` because the script expected a `"clean_text"` key per book
+record, but the existing file used a `"text"` key. This key mismatch had been
+present silently since the streaming infrastructure was rearchitected: the JSONL
+streamer (`parse_and_clean_stream.py`) writes `"clean_text"`, but `books_clean.json`
+had been generated in an earlier pass that wrote `"text"`.
+
+Two repair options were considered:
+
+**A. In-place key rename (patch):** Read each line of `books_clean.json`, rename
+`"text"` → `"clean_text"`, write out a corrected file. This is technically correct
+but requires loading and rewriting the full file (169 MB in streaming form,
+previously 758 MB). The 758 MB legacy file would have caused OOM failures in
+the sandbox; the streaming read avoids this but still requires careful handling
+of the large output write.
+
+**B. Full regeneration from `books_clean.jsonl`:** The authoritative source of
+truth is `books_clean.jsonl`, which already used the correct `"clean_text"` key
+and was fully re-streamed to 695 books in the same session. Regenerating
+`books_clean.json` from `books_clean.jsonl` guarantees:
+- Correct key (`clean_text`)
+- All 695 books (vs the legacy file's 675)
+- No stale entries from pre-reindex OCR failures
+- Consistent encoding throughout
+
+Regeneration was chosen. The `books_clean.json` conversion helper at the bottom
+of `parse_and_clean_stream.py` was used: it reads `books_clean.jsonl`
+line-by-line (avoiding full-file memory load) and writes the dict-format
+`books_clean.json`. The legacy file was backed up as `books_clean.json.bak3`
+before being replaced. File size dropped from 758 MB to 169 MB because the
+legacy file had stored full raw text under `"text"` while the new file stores
+only the cleaned text under `"clean_text"`.
+
+**Lesson:** The JSONL file (`books_clean.jsonl`) is the authoritative streaming
+source; `books_clean.json` is a derived artefact for downstream scripts that
+cannot read JSONL. Any future re-streaming should be followed immediately by
+regeneration of `books_clean.json` from the updated JSONL to keep both files
+in sync.
+
+---
+
+## Why per-step pipeline flags rather than a global include/exclude boolean?
+
+The initial exclusion design stored a single boolean per book — include in
+pipeline or exclude. This is too coarse because different pipeline steps have
+different assumptions, and a book that violates one step's assumptions may be
+valuable input for another.
+
+The clearest example: a **glossary** or **concept companion** (e.g. a
+festschrift organised alphabetically around concept keywords) should be excluded
+from LDA topic modelling (no unified authorial argument) but is *high value* for
+the index extraction pipeline — its chapter titles are a hand-curated controlled
+vocabulary, more reliable than back-of-book index terms extracted by heuristic.
+Similarly, a **bibliography** is useless for index extraction but potentially
+valuable for future citation network analysis. A **proceedings** volume is
+excluded from LDA but its index terms and entity mentions are still valid for
+the entity network pipeline.
+
+The implementation therefore stores a vector of per-step flags rather than a
+single boolean. Each pipeline script queries the dimensions relevant to its own
+assumptions, ignoring the rest.
+
+---
+
+## Why a multi-dimensional signal vector rather than a publication type label?
+
+Publication types are not mutually exclusive — a book can be simultaneously a
+monograph and a textbook, or collected works and a monograph. With 5+ base
+labels and non-disjoint combinations, the theoretical label space is 2⁵ = 32
+combinations, of which 7 distinct combinations appear in the current 160-book
+labeled set. Forcing a single type label misrepresents this structure.
+
+More fundamentally, the publication type labels are readouts of underlying
+independent dimensions:
+
+- **`single_author`** — single authorial voice vs. assembled contributions
+- **`unified_argument`** — sustained cumulative argument vs. independent pieces
+- **`lookup_format`** — alphabetical/reference structure vs. narrative structure
+- **`pedagogical`** — instructional framing vs. research/scholarly framing
+- **`assembled_contributions`** — chapters independently authored vs. single author
+
+Each pipeline step cares about a specific subset of these dimensions, not the
+type label. LDA cares about `unified_argument` and `assembled_contributions`;
+index extraction cares about `lookup_format`; the entity network is largely
+agnostic to all of them. Storing dimensions directly avoids the translation step
+from type label to pipeline-relevant property.
+
+The schema is **extensible**: new dimensions can be added as the collection grows
+or new pipeline steps are introduced. Existing books default to `null` for new
+dimensions (not yet assessed), which is explicitly distinct from `false`
+(assessed as absent). A `schema_version` field per book tracks which generation
+of signals has been assessed, so assessments can be revisited when the signal
+inventory evolves.
+
+---
+
+## Why three states (true / false / null) rather than two (true / false)?
+
+A two-state model conflates "this signal is absent" with "this signal has not
+been assessed." When a new dimension is added to the schema, all existing books
+would default to `false` — wrongly claiming they have been checked and found
+lacking. `null` explicitly records the epistemic state "unknown", allowing
+pipeline steps to handle it appropriately (skip the book, treat as a soft
+exclusion, or flag for manual review) rather than acting on a false negative.
+
+---
+
+## Why carry confidence and source fields on every signal?
+
+Signals in the vector are derived from sources of very different reliability:
+
+| Source | Example | Typical confidence |
+|--------|---------|-------------------|
+| Human curation | Paul's 160 labeled books | 1.0 — ground truth |
+| Structured metadata | Author count from Calibre | ~0.95 — deterministic |
+| Text extraction (strong) | "Edited by\n[Name]" in first 400 chars | ~0.85 |
+| Text extraction (weak) | "edited by" in running body text | ~0.55 |
+| Classifier inference | Predicting `assembled_contributions` | Model probability |
+
+Storing confidence alongside each signal value allows downstream consumers to
+threshold by reliability — using only high-confidence signals for classifier
+training, flagging medium-confidence predictions for human review, and leaving
+low-confidence signals as `null` pending further assessment.
+
+The source field (e.g. `manual`, `calibre:google`, `calibre:amazon`,
+`text_extraction`, `classifier`) records *why* a signal has the confidence it
+does, and identifies which signals are appropriate as classifier training labels
+(manual only) vs. predictions to be validated before promotion to ground truth.
+
+Example schema entry:
+
+```json
+{
+  "1829": {
+    "schema_version": 1,
+    "single_author": false,
+    "single_author_confidence": 0.95,
+    "single_author_source": "calibre:google",
+    "has_editor": true,
+    "has_editor_confidence": 0.87,
+    "has_editor_source": "text_extraction",
+    "unified_argument": null,
+    "unified_argument_confidence": null,
+    "unified_argument_source": null
+  }
+}
+```
+
+---
+
+## Why use Calibre identifier types to assess metadata source reliability?
+
+Calibre's metadata download facility queries external APIs (Google Books,
+Amazon, Goodreads, and user-configured sources) and stores each source's
+identifier for the book in the `identifiers` table (`type` = `google`,
+`amazon`, `goodreads`, etc.). The presence of an identifier type shows which
+source was consulted during metadata retrieval.
+
+Different sources have different reliability profiles for academic books:
+Google Books is generally more reliable for academic monographs and edited
+volumes; Amazon is more reliable for popular titles but less precise about
+editorial roles; Goodreads community metadata is variable in quality.
+
+This means the `source` field in the signal vector can encode which Calibre
+metadata source contributed a given signal (e.g. `calibre:google+amazon` for
+a book where both identifiers are present), informing the confidence assigned
+to metadata-derived dimensions.
+
+**Limitation:** Calibre stores the *merged* metadata result without recording
+which source provided which individual field. The identifier types show which
+sources were queried, not which source "won" for each field. Per-field
+provenance would require re-querying the APIs directly.
+
+---
+
+## Why `has_editor` as an explicit signal dimension?
+
+The presence of editor attribution at the front of a book is one of the
+strongest observable signals for `assembled_contributions` — an edited volume
+is by definition assembled rather than authored by a single voice. However,
+Calibre's metadata schema stores no author role distinction: the
+`books_authors_link` table has no role field, and none of the author name
+entries in the corpus carry `(ed.)` annotations.
+
+The signal must therefore be extracted from book text. Scanning the first
+~400 characters of clean text for standalone "Edited by [Name]" patterns
+(distinct from "edited by" in running body prose or "Series editor" credits)
+recovers the signal for most books where the title page OCR is clean, with
+confidence ~0.85 when the pattern occurs on its own line in the title page
+region. Books where the title page is garbled or the editor credit appears
+later in the front matter will miss the signal (returning `null`) rather than
+falsely reporting `false`.
+
+---
+
+## Why multi-label (binary relevance) classification rather than multi-class?
+
+Publication type labels are non-disjoint — a book can simultaneously be a
+monograph and a textbook, collected works and a monograph, etc. A multi-class
+classifier that assigns exactly one label per book cannot represent this.
+
+Binary relevance trains one independent binary classifier per dimension
+(is_monograph, is_textbook, is_anthology, etc.), each outputting a probability
+score. A book receives a label set by thresholding each classifier independently.
+This correctly models the non-disjoint structure and allows each classifier to
+be trained, evaluated, and improved independently.
+
+**Confidence tiers for predictions:**
+- > 0.90 — auto-accept; add to training set for next iteration
+- 0.65–0.90 — flag for human review
+- < 0.65 — leave as `null`; not confident enough to assert
+
+**Active learning:** rather than reviewing unlabeled books randomly, prioritise
+those where classifier confidence is nearest 0.5 (maximum uncertainty). These
+cases yield the most information per review and improve the model fastest.
+
+**Small-class caveat:** minority classes (textbook: 10 examples, collected
+works: 6, proceedings: 6, journal special issue: 1) produce poorly calibrated
+probability scores. Treat their outputs as rankings rather than true
+probabilities until training sets grow to ≥ 30 examples per class.
+
+---
+
+## Why "journal special issue" as a distinct label from "anthology" or "proceedings"?
+
+A journal special issue sits between proceedings and anthology in the pipeline
+space. Like proceedings it is assembled and multi-author; like anthology it
+typically features longer, more developed contributions than conference papers.
+It is distinguished by structural signals that neither anthology nor proceedings
+share: ISSN/journal identifiers in Calibre metadata, volume/issue numbering,
+uniform article formatting with individual abstracts, and guest editor
+attribution rather than book editor attribution.
+
+The distinction matters for downstream analysis beyond the pipeline exclusion
+decision — journal special issues represent a specific mode of knowledge
+circulation in cybernetics (the journal *Kybernetes*, for example, ran many
+themed issues that function as de facto edited volumes) and may warrant separate
+treatment in bibliometric analysis.
+
+For current pipeline purposes: exclude from LDA (assembled, multi-author);
+treat equivalently to proceedings. Revisit if journal-level analysis is added.
+
+---
+
+## Why split "reference" into glossary/dictionary vs. bibliography subtypes?
+
+The label "reference" covers structurally distinct book types with opposite
+pipeline utility profiles:
+
+**Glossary / dictionary / concept companion** — alphabetically organised entries
+defining or meditating on concepts. *High value* for the index extraction
+pipeline: the entry headings are a hand-curated controlled vocabulary, more
+reliable than heuristically extracted back-of-book index terms. Exclude from
+LDA; include in index/entity pipelines with elevated weight.
+
+**Bibliography** — a structured list of citations to other works. *Low value*
+for index extraction (no concept terms, only author/title strings); potentially
+valuable for future citation network analysis. Exclude from LDA and index
+pipelines.
+
+The single-label "reference" cannot distinguish these. Books should be
+sub-typed as `reference:glossary` or `reference:bibliography` in
+`book_styles.json` so each pipeline step can query the relevant sub-type.
+
+Three corpus examples illustrate the distinction:
+
+| ID | Title | Labels | Subtype | Index pipeline |
+|----|-------|--------|---------|----------------|
+| 1914 | *Bateson's Alphabet* | monograph, reference | concept companion | High value — chapter titles are curated Bateson vocabulary |
+| 1918 | *A More Developed Sign* | anthology, reference | concept companion | High value — ~70 concept keywords as chapter titles |
+| 1988 | *GSR Bibliography 1977–84* (Trappl et al.) | reference | bibliography | Low value for index; potential citation analysis value |
+
+**Note on IDs 1914 and 1918:** Both are alphabetically organised around
+concept keywords — *Bateson's Alphabet* as a single-author monograph, *A More
+Developed Sign* as a multi-author festschrift for Jesper Hoffmeyer. Both carry
+"reference" as a secondary label alongside their primary structural type.
+Their chapter titles constitute hand-curated controlled vocabularies directly
+relevant to the cybernetics corpus and should be treated as high-priority input
+for index extraction, weighted similarly to glossary entries.
+
+---
+
+## Why normalise label strings before parsing (sort alphabetically)?
+
+Multi-label entries are stored as comma-separated strings in Calibre's
+`custom_column_5` field. Entry order is not guaranteed — "monograph, textbook"
+and "textbook, monograph" are semantically identical but would be treated as
+different keys by naive string comparison.
+
+Normalisation rule: split on comma, strip whitespace from each part, sort
+alphabetically, rejoin. Applied consistently at read time, this ensures label
+set identity is order-independent. The current 160-book labeled set happens to
+be consistently ordered (alphabetical), but the normalisation is required for
+robustness as the labeled set grows.
+
+---
+
+## Why k=9 as the canonical LDA topic count?
+
+**Date:** 3 April 2026 | **Session:** Chat
+
+Topic count selection uses three criteria applied in dependency order:
+
+**1. Coherence sweep** identifies the feasible region. Run over k=2–12 on the
+695-book post-overhaul corpus (seeds 42, 7, 123, 256, 999). Provides a rough
+indication of meaningful structure but is insufficient alone — coherence can
+increase with k due to topic fragmentation without interpretive gain.
+
+**2. Dead-topic count** bounds the ceiling of k. A dead topic has a near-uniform
+word distribution — arising structurally when k exceeds the corpus's data
+capacity, not from initialisation. Zero dead topics at k=9 confirms the data
+capacity is not exceeded. This criterion has higher epistemic standing than
+stability scores because it is less seed-dependent.
+
+**3. Stability scores** characterise solution consistency within the fixed seed
+set. Computed as mean Jaccard overlap of top-N word sets across all seed pairs,
+aligned by Hungarian algorithm.
+
+Post-overhaul results at relevant k values:
+
+| k | Coherence | Dead topics | Stable (≥0.3) | Mean stability |
+|---|---|---|---|---|
+| 9 | 0.0668 | 0 | 7/9 (78%) | 0.382 |
+| 10 | 0.0721 | 0 | 6/10 (60%) | 0.383 |
+
+k=9 selected because: zero dead topics; 78% stable topics vs k=10's 60%; two
+unstable topics (T3, T9) are interpretable, not noise. k=10 redistributed
+instability across more topics without resolving the T9 residual.
+
+**Epistemic caveat:** stability scores are seed-set-relative. "T1 is stable
+across seeds 42, 7, 123, 256, 999 at k=9" is the valid claim. A different
+seed set might rank topics differently.
+
+**Canonical solution restoration:** `topic_stability.json` always reflects the
+most recently run k. After any comparison run, restore with:
+```
+python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5
+python3 src/09c_validate_topics.py --top 10 --md
+python3 patch_topic_names.py
+```
+`run_all.sh` now calls `03_nlp_pipeline.py --topics 9 --seeds 5` explicitly.
+
+---
+
+## Why the alpha-ratio front-matter fix?
+
+**Date:** 3 April 2026 | **Session:** Chat
+
+**Problem:** Six books with good body text (alpha 0.71–0.78 over full text)
+were excluded by the alpha-ratio filter because their first 5,000 characters
+contained front matter: publisher metadata, series information, copyright
+notices, and in one case ([205] *The Phenomenon of Science*) Cyrillic OCR
+fragments from the Russian original. The original `_alpha_ratio()` sampled
+the first 5,000 characters unconditionally.
+
+**Root cause:** Front matter is structurally present at the start of every
+book and is not representative of intellectual content. The filter was designed
+to catch books with genuinely garbled OCR throughout (e.g. [1262] at alpha=0.04
+before reindex); sampling from the start conflated this with front-matter
+contamination.
+
+**Fix:** Skip the first 10% of text (or at least the first sample window) and
+average 3 evenly-spaced windows from the body. Threshold unchanged at 0.40 —
+the fix raises the sampling start point, not the threshold. Books with
+genuinely garbled OCR throughout still fail.
+
+**Books recovered:** [205], [265], [413], [597], [1261], [1918] — all body
+text alpha 0.71–0.78 under the corrected function.
+
+---
+
+## Why exclude proceedings/handbooks/readers from LDA?
+
+**Date:** 3 April 2026 | **Session:** Chat
+
+The pipeline embodies an implicit monograph assumption: all books treated as
+single-author, thematically coherent, with end-of-book references and a unified
+back-of-book index. This assumption was never stated explicitly. It is
+approximately correct for monographs (65.4% of the classified corpus) and
+systematically wrong for other types in predictable and consequential ways.
+
+**Conference proceedings — excluded:**
+- Thematic coherence fails: proceedings deliberately aggregate diverse
+  contributions; low LDA coherence is an epistemic practice, not a model failure
+- Reference location fails: references at end of each paper, not volume end;
+  end-of-book extraction captures only the last paper's citations
+- Index fails: no unified index
+- Document unit fails: proceedings is a container for N independent papers;
+  treating it as one LDA document is a category error
+
+**Handbooks — excluded:**
+- Positional sampling (early/mid/end) catches entirely unrelated chapters by
+  different authors on different subtopics
+- References often at chapter ends; index aggregates community vocabulary rather
+  than one author's concept architecture
+
+**Readers — excluded:**
+- No original authorial voice; curation of existing texts without original
+  intellectual contribution; no unified concept map
+
+**Anthologies — retained with caveats:**
+Structurally closer to monographs; editorial framing may be coherent. Retained
+but expected low coherence tolerated and documented. T2 (Luhmann) has 11
+anthology books — largest concentration; noted in paper.
+
+**Corpus impact (after 4 manual reclassifications):**
+- 22 definite exclusions (3.0%): 12 handbooks, 6 proceedings, 3 readers,
+  1 confirmed proceedings [351]
+- 704 books retained (97.0%)
+- Excluded books are disproportionately `curated_pure` stratum (68% vs 45.5%
+  of corpus) — exclusion policy and precision-recall stratification identify
+  overlapping populations of methodologically marginal inclusions
+
+**Implementation status:** `book_styles.json` records classifications and
+reclassifications (verified=True). Exclusion filter in `03_nlp_pipeline.py`
+not yet implemented — pending signal inventory audit and document unit decision.
+
+---
+
+## Why signal inventory rather than categorical ground truth?
+
+**Date:** 3 April 2026 | **Session:** Chat
+
+The plan to validate the classifier against ~150 labeled books was challenged
+by two observations:
+
+1. **Book types are not disjoint.** Ashby's *Introduction to Cybernetics* is
+   simultaneously a research monograph and a textbook. Single-label ground truth
+   presupposes a categorical structure that does not exist in the phenomenon.
+   The relevant question changes: not "what type is this book?" but "which
+   pipeline assumptions does this book violate?"
+
+2. **Observable structural signals are more tractable and directly relevant.**
+   Binary signals (index present/absent, reference location, author count,
+   publication era) are verifiable, auditable, and directly drive pipeline
+   behaviour decisions without categorical commitment.
+
+**Signal inventory dimensions (initial set):**
+
+| Signal | Type | Observable from | Pipeline implication |
+|---|---|---|---|
+| `index_present` | binary | index_terms.json status | Include/exclude from index-term analysis |
+| `reference_location` | 3-way: end/chapter/none | Text inspection | Reference extraction strategy |
+| `author_count` | count | Calibre authors | Vocabulary dilution flag |
+| `has_editor` | binary | Calibre/text first 400 chars | Anthology inference |
+| `publication_era` | 3-way: pre/early/born-digital | pubdate | Index quality covariate |
+
+**Schema:** Each signal has three fields in `book_styles.json`: value,
+confidence (0–1), and source (manual > calibre:google > text_extraction >
+classifier). Three-state model: true/false/null. Null propagates gracefully
+— unknown signals use default assumption and are flagged in output.
+
+**Relation to Calibre labels:** 159 books already labeled in Calibre
+(`custom_column_5`) with multi-label combinations — consistent with binary
+relevance approach and confirming the non-disjoint structure in practice.
+Signal inventory complements rather than replaces categorical labels: labels
+serve interpretive purposes; signals drive pipeline behaviour.
+
+**Implementation status:** Planned. Schema agreed. Moratorium on NLP pipeline
+code applies. Implementation is next sprint after document unit decision is
+formally recorded.
+
+---
+
+## Why multi-seed stability testing?
+
+**Date:** 3 April 2026 | **Session:** Chat
+
+LDA's EM algorithm finds local optima in a non-convex objective. Different
+random initialisations can converge to genuinely different solutions that are
+equally valid mathematically. A single-seed run cannot distinguish a stable
+topic structure from a seed-dependent artefact.
+
+**5 fixed seeds** (42, 7, 123, 256, 999) are used for all production LDA runs:
+- Fixed seeds ensure reproducibility — the same seeds on the same corpus always
+  produce the same stability scores
+- 5 seeds provides sufficient coverage to distinguish clearly stable (Jaccard
+  ≥ 0.5) from clearly unstable (< 0.15) topics for this corpus size
+- Runtime: ~2–3 minutes at k=9; 20 seeds would cost ~8–12 minutes for
+  marginal coverage gain
+
+**Stability scores are seed-set-relative.** "T1 is stable across seeds
+42, 7, 123, 256, 999" is valid; "T1 is a stable topic for this corpus"
+overclaims. A different seed set might produce different rankings.
+
+**Dead-topic count has higher epistemic standing** than stability scores as
+a stopping criterion precisely because it is less seed-dependent — degenerate
+distributions arise structurally from over-specification regardless of
+initialisation. The two criteria play complementary roles: stability
+characterises solution quality; dead-topic count bounds k's ceiling.
