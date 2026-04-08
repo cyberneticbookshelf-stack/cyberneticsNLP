@@ -13,7 +13,7 @@ Static PNG figures kept for NMF error curve, K-Means elbow, and stacked bar.
 
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
-CSV_DIR  = _pl.Path('csv')    # input CSVs:  csv/books_lang.csv, csv/books_text_*.csv
+CSV_DIR  = _pl.Path('csv')    # input CSVs:  csv/books_metadata_full.csv, csv/books_text_*.csv
 JSON_DIR = _pl.Path('json')   # all JSON/JSONL files
 JSON_DIR.mkdir(exist_ok=True)
 

@@ -22,24 +22,35 @@ pandas==3.0.1
 # Used by: 02_clean_text.py (only)
 # NOT needed by: parse_and_clean_stream.py (use this for large corpora instead)
 #
-#   Linux (Debian/Ubuntu):
-#     sudo apt-get install hunspell-en-us
+# ⚠️  IMPORTANT: use the SCOWL en_US-large dictionary (76,959 words), NOT the
+#     standard system hunspell-en-us package (~50k words). The smaller package
+#     incorrectly rejects many valid cybernetics terms (e.g. autopoiesis,
+#     homeostasis, affordance) and causes over-filtering of technical vocabulary.
+#     Both AshbyX and NorbertX must use the same dictionary file to ensure
+#     reproducibility across machines.
 #
-#   Linux (Fedora/RHEL):
-#     sudo dnf install hunspell-en
+#   Linux (Debian/Ubuntu) — SCOWL en_US-large:
+#     sudo apt-get install hunspell
+#     # Download SCOWL en_US-large .dic and .aff:
+#     #   https://github.com/LibreOffice/dictionaries/tree/master/en
+#     # OR generate via SCOWL (http://wordlist.aspell.net/):
+#     #   make en_US-large.dic  (requires SCOWL source)
+#     # Place en_US.dic and en_US.aff in /usr/share/hunspell/ (replacing defaults)
+#     # Verify word count: wc -l /usr/share/hunspell/en_US.dic  # expect ~76,959
 #
-#   macOS (Homebrew):
+#   macOS (Homebrew) — SCOWL en_US-large:
 #     brew install hunspell
-#     # If the .dic file is not found automatically, symlink it:
+#     # Download SCOWL en_US-large .dic and .aff from LibreOffice dictionaries
 #     sudo mkdir -p /usr/local/share/hunspell
-#     sudo ln -s $(brew --prefix)/share/hunspell/en_US.dic \
-#                /usr/local/share/hunspell/en_US.dic
+#     sudo cp en_US.dic en_US.aff /usr/local/share/hunspell/
+#     # Verify: wc -l /usr/local/share/hunspell/en_US.dic  # expect ~76,959
 #
 #   Windows:
-#     Download en_US.dic and en_US.aff from:
+#     Download SCOWL en_US-large en_US.dic and en_US.aff from:
 #       https://github.com/LibreOffice/dictionaries/tree/master/en
 #     Place en_US.dic in the project data/ directory.
 #     The script will find it automatically.
+#     Verify word count: find /c /v "" data\en_US.dic  # expect ~76,959 lines
 #
 # ── Python fallback (if Hunspell is unavailable) ──────────────────────────────
 # pyspellchecker works on all platforms with no system dependencies.

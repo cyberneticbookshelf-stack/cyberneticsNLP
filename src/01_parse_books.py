@@ -6,7 +6,7 @@
 Step 1 of the Book NLP Pipeline.
 
 Auto-detects every books_text_*.csv in the current directory, merges them
-into a single collection, and joins with metadata from books_lang.csv.
+into a single collection, and joins with metadata from books_metadata_full.csv.
 Duplicate book IDs resolved by keeping the FIRST occurrence (alphabetical order).
 
 A lightweight preprocess_raw_text() pass is applied to each book's raw text
@@ -30,13 +30,13 @@ NOTE FOR LARGE CORPORA (>~300 books):
           python3 src/parse_and_clean_stream.py "$f"
       done
 
-Input:  books_lang.csv (tab-sep), books_text_*.csv (CSV, auto-detected)
+Input:  books_metadata_full.csv (tab-sep), books_text_*.csv (CSV, auto-detected)
 Output: books_parsed.json
 """
 
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
-CSV_DIR  = _pl.Path('csv')    # input CSVs:  csv/books_lang.csv, csv/books_text_*.csv
+CSV_DIR  = _pl.Path('csv')    # input CSVs:  csv/books_metadata_full.csv, csv/books_text_*.csv
 JSON_DIR = _pl.Path('json')   # all JSON/JSONL files
 JSON_DIR.mkdir(exist_ok=True)
 
@@ -90,7 +90,12 @@ def preprocess_raw_text(text: str) -> str:
 
 valid_book_ids = set()
 books_meta = {}
-with open(str(CSV_DIR / 'books_lang.csv'), encoding='utf-8') as f:
+meta_path = CSV_DIR / 'books_metadata_full.csv'
+if not meta_path.exists():
+    raise FileNotFoundError(
+        f"{meta_path} not found.\n"
+        "Run: python3 src/00_export_calibre.py")
+with open(str(meta_path), encoding='utf-8') as f:
     for row in csv.DictReader(f, delimiter='\t'):
         bid = row['id'].strip()
         raw = row['author_sort'].strip()

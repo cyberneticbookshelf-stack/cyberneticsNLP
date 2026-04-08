@@ -8,7 +8,7 @@ Claude Sonnet 4.6 (Anthropic, claude.ai)²
 ¹ School of Cybernetics, The Australian National University, Canberra, Australia
 ² Large language model; no persistent identity, affiliation, or legal standing
 
-**Date:** 3 April 2026
+**Date:** 8 April 2026
 
 ---
 
@@ -93,16 +93,25 @@ CyberneticsNLP/
 │   ├── 00_classify_book_styles.py  Step 0a: heuristic book style classification
 │   ├── 00_fetch_worldcat_metadata.py Step 0b: Google Books + Open Library enrichment
 │   ├── 00_fetch_anu_primo.py        Step 0c: ANU Primo catalogue enrichment
+│   ├── 09c_validate_topics.py      Topic validation report (coherence, stability, top terms)
+│   ├── patch_topic_names.py        One-off: write agreed topic names to JSON files
+│   ├── heuristic_features.py       Monograph classifier: 10 structural text heuristics
+│   ├── train_monograph_classifier.py  Monograph binary classifier (logistic regression)
 │   ├── check_integrity.py          Session-start integrity checker
 │   ├── test_pipeline.py            Regression test suite (15 tests)
 │   └── run_all.sh                  End-to-end runner
 │
 ├── docs/
-│   ├── methodology.md          ← full technical methodology (1,600+ lines)
-│   ├── decisions.md            ← design decision log (900+ lines)
+│   ├── methodology.md          ← full technical methodology (2,000+ lines)
+│   ├── decisions.md            ← design decision log (1,600+ lines)
 │   ├── contributions.md        ← authorship, CRediT statement, session log
 │   ├── CHANGELOG.md            ← versioned change history
 │   ├── ROADMAP.md              ← planned work, open questions, phases
+│   ├── book_styles.md          ← book style classification summary (heuristic baseline)
+│   ├── book_styles_primo_review.md ← Primo-enriched classification review
+│   ├── draft_methods_corpus_construction.md ← draft paper methods §3
+│   ├── memo_media_aware_nlp_epistemic_affordances.md ← theoretical framework (17 sections)
+│   ├── memo_attribution_annotations.md ← attribution annotations for theory memo
 │   └── chat_history.md         ← session notes
 │
 ├── README.md
@@ -139,7 +148,7 @@ pip install pyspellchecker>=0.7
 ### 2. Place input files in csv/
 
 ```
-csv/books_lang.csv
+csv/books_metadata_full.csv
 csv/books_text_*.csv
 ```
 
@@ -224,7 +233,7 @@ python3 src/generate_summaries_api.py --workers 1  # sequential, ~112 min
 ```
 
 Fully resumable — safe to interrupt and restart. Estimated cost: ~$25–35
-for 675 books from scratch (only missing books are processed on reruns —
+for 695 books from scratch (only missing books are processed on reruns —
 if most summaries already exist, the incremental cost is a few cents).
 When done, rerun from step 03_nlp_pipeline_chapters.py onwards
 to use the new summaries.
@@ -234,16 +243,16 @@ to use the new summaries.
 ## Pipeline Overview
 
 ```
-csv/books_lang.csv  +  csv/books_text_*.csv
+csv/books_metadata_full.csv  +  csv/books_text_*.csv
         │
         ├── STREAMING (recommended) ──── parse_and_clean_stream.py × 25
         └── STANDARD                ──── 01_parse_books.py → 02_clean_text.py
         │
         ▼                              writes to json/
-  03_nlp_pipeline.py          LDA (book-level, 7 topics)
+  03_nlp_pipeline.py          LDA (book-level, k=9 canonical)
   generate_summaries_api.py   Abstractive summaries via Anthropic API
   04_summarize.py             Extractive fallback summaries
-  03_nlp_pipeline_chapters.py NMF (chapter-level, 6 topics)
+  03_nlp_pipeline_chapters.py NMF (chapter-level, 8 topics)
   05_visualize.py / _chapters  Matplotlib figures
   06_build_report.py / _chapters  Interactive HTML reports  → data/outputs/
   07_build_excel.py / _chapters   Excel workbooks           → data/outputs/
@@ -279,35 +288,45 @@ All reports are written to `data/outputs/`.
 
 ## Topic Solutions
 
-### Book-level (LDA, 7 topics)
+### Book-level (LDA, k=9 — canonical, 3 April 2026)
 
-| # | Name | Characteristic terms |
-|---|------|---------------------|
-| T1 | Human & Social Experience | human, media, technology, social, cybernetic |
-| T2 | Mathematical & Formal Systems | wiener, machine, mathematical, computer, language |
-| T3 | General Systems Theory | systems, cybernetics, social, management, design |
-| T4 | History & Philosophy of Cybernetics | science, human, theory, life, knowledge, philosophy |
-| T5 | 2nd-Order Cybernetics & Bateson | bateson, communication, living, order, self, reality |
-| T6 | Control Theory & Engineering | control, systems, behavior, feedback, model, function |
-| T7 | Popular & Applied Cybernetics | people, world, human, life, make, years, think |
+695 books · `--min-chars 10000 --lemmatize --topics 9 --seeds 5` · 7/9 stable · 0 dead · mean stability=0.382
 
-### Chapter-level (NMF, 6 topics)
+| # | Name |
+|---|------|
+| T1 | Management Cybernetics |
+| T2 | Second-Order Cybernetics Applied to Social Systems |
+| T3 | Dynamical Systems, Homeostasis & Biological Regulation |
+| T4 | Psychological Cybernetics |
+| T5 | Non-Anglophone Engineering Cybernetics |
+| T6 | Mathematical Foundations of Cybernetics |
+| T7 | Cultural Cybernetics, Posthumanism & Digital Media |
+| T8 | Applied Cybernetics & Computers in Society |
+| T9 | Residual / Outlier Cluster |
 
-| # | Name | Characteristic terms |
-|---|------|---------------------|
-| T1 | Human & Social Experience | argues, human, author, understanding, explores |
-| T2 | Mathematical & Formal Systems | mathematical, system, functions, models, demonstrates |
-| T3 | General Systems Theory | theory, cybernetics, systems, opening, sections |
-| T4 | Management & Organisational Cybernetics | organizational, management, decision making, model |
-| T5 | Control Theory & Engineering | control, feedback, control systems, mechanisms, loops |
-| T6 | Popular & Applied Cybernetics | examines, technological, analysis, human, technology |
+Full topic validation: `json/topic_validation.json` · run `src/09c_validate_topics.py --top 10 --md` to regenerate.
+
+### Chapter-level (NMF, 8 topics)
+
+| # | Name |
+|---|------|
+| T1 | Human & Social Experience |
+| T2 | Mathematical & Formal Systems |
+| T3 | General Systems Theory |
+| T4 | History & Philosophy of Cybernetics |
+| T5 | Management & Organisational Cybernetics |
+| T6 | Control Theory & Engineering |
+| T7 | Applied Cybernetics & Technology |
+| T8 | Biological & Cognitive Systems |
+
+*Note: chapter-level analysis is MVP infrastructure — not validated to the same standard as book-level LDA.*
 
 ---
 
 ## Input Data Format
 
-### `csv/books_lang.csv` (tab-separated)
-Columns: `id`, `title`, `pubdate`, `author_sort`, `lang_code`
+### `csv/books_metadata_full.csv` (tab-separated)
+Full Calibre metadata export: 726 books, 20 columns including `id`, `title`, `pubdate`, `author_sort`, `lang_code`, `inclusion_stratum`, `archive_id`, `in_title`, `in_description`, `in_tags`, and per-field keyword flags.
 
 ### `csv/books_text_*.csv` (CSV, two columns)
 Columns: `id`, `searchable_text`
@@ -347,19 +366,23 @@ Or uncomment the pre-written block at the bottom of `src/run_all.sh`.
 
 ---
 
-## New in This Snapshot
+## Recent changes
 
-- **Step 15 — Entity Classification** (`15_entity_classify.py`): three-stage NER pipeline — heuristics → spaCy `en_core_web_sm` → Wikidata REST API. Produces `json/entity_types_cache.json`, cached permanently. Run once before step 14. Offline mode: `--no-wikidata`
-- **Step 14 — Entity Network** (`14_entity_network.py`): interactive entity relational network (persons, concepts, organisations, locations) using PMI × reliability (book-level edges). Four layout algorithms selectable in the report UI: Force-directed (Fruchterman-Reingold), Radial, Bipartite, Circular
-- **Index canonicalisation** (`09b_build_index_analysis.py`): person name merging (262 rules: `Wiener, N.` → `Wiener, Norbert`), accent normalisation, noise suppression (function-word fragments, ebook preambles, author affiliations)
-- **`--weighted` flag** (`03_nlp_pipeline.py`): index-term lift-weighted TF-IDF — boosts Signal terms (schismogenesis, autopoiesis) and dampens pervasive Anchor terms (feedback, system)
-- **Chart 7** (`08_build_timeseries.py`): band prevalence by decade + concept velocity — tracks how Anchor/Signal/Frontier term density evolves and how key terms migrate between topics over time
-- **Step 12 — Index Grounding** (`12_index_grounding.py`): topic labelling via lift scores, concept density scatter, concept velocity
-- **Recursive summarisation**: `--recursive` flag in `generate_summaries_api.py` for map-reduce book summaries
-- **Embedding abstraction**: `embeddings.py` — swap LSA / Sentence Transformers / Voyage AI with one line
-- **Embedding comparison**: `11_embedding_comparison.py` with `--no-voyage` and `--no-st` flags
-- **`check_integrity.py`**: session-start integrity checker — verifies all 20 required scripts and their key definitions
-- **`test_pipeline.py`**: regression test suite — 15 tests covering the full pipeline end-to-end
+### v0.4.2 (8 April 2026)
+- **Monograph binary classifier** (`heuristic_features.py`, `train_monograph_classifier.py`): logistic regression on 33 features (23 metadata + 10 structural text heuristics); 197 expert labels; threshold=0.4; 5-fold CV precision=0.89, recall=0.68. Active learning cycle established.
+- **Report quality fixes**: all HTML reports cleaned — 675→695 corpus count, NMF chapter topic names written, LDA base label lists updated across all 8 scripts, NMF/LDA name confusion in `06_build_report_chapters.py` fixed.
+
+### v0.4.1 (3 April 2026)
+- **k=9 canonical**: 695 books, 7/9 stable, 0 dead, mean stability=0.382. Topic taxonomy locked.
+- **Book style pipeline** (`00_*` scripts): heuristic classifier + WorldCat/Open Library enrichment + ANU Primo enrichment. `books_metadata_full.csv` replaces `books_lang.csv`.
+- **Data quality**: alpha-ratio front-matter bias fix; all 6 OCR-failure books reindexed; full corpus re-clean at 695 books.
+
+### v0.4.0 (27 March 2026)
+- **Entity classification** (`15_entity_classify.py`): three-stage NER — heuristics → spaCy → Wikidata. 121 manual corrections.
+- **Entity network** (`14_entity_network.py`): 4 node kinds, 4 layout algorithms, degree filter, network statistics panel.
+- **Index canonicalisation**: 262 person-name merging rules, accent normalisation.
+
+Full history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 
 ---
 

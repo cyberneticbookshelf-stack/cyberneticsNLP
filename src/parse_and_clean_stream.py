@@ -27,14 +27,14 @@ Downstream scripts read books_clean.jsonl. If any script expects the old
 books_clean.json dict format, use the provided convert_jsonl_to_json.py
 helper (included at the bottom of this file as a comment).
 
-Input:   books_lang.csv  (metadata)
+Input:   books_metadata_full.csv  (metadata)
          books_text_XX.csv  (raw OCR text)
 Output:  books_clean.jsonl  (append-only JSON Lines)
 """
 
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
-CSV_DIR  = _pl.Path('csv')    # input CSVs:  csv/books_lang.csv, csv/books_text_*.csv
+CSV_DIR  = _pl.Path('csv')    # input CSVs:  csv/books_metadata_full.csv, csv/books_text_*.csv
 JSON_DIR = _pl.Path('json')   # all JSON/JSONL files
 JSON_DIR.mkdir(exist_ok=True)
 
@@ -46,7 +46,12 @@ CLEAN_CAP = 300_000
 
 # ── Load metadata ─────────────────────────────────────────────────────────────
 meta = {}
-with open(str(CSV_DIR / 'books_lang.csv'), encoding='utf-8', errors='replace') as f:
+meta_path = CSV_DIR / 'books_metadata_full.csv'
+if not meta_path.exists():
+    print(f"ERROR: {meta_path} not found.")
+    print("Run: python3 src/00_export_calibre.py")
+    sys.exit(1)
+with open(str(meta_path), encoding='utf-8', errors='replace') as f:
     for row in csv.DictReader(f, delimiter='\t'):
         bid = row['id'].strip()
         last, _, first = row['author_sort'].partition(',')

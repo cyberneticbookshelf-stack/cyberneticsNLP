@@ -262,8 +262,8 @@ try:
     print(f"  books_metadata_full.csv: {len(meta)} books")
 except FileNotFoundError:
     print(f"  WARNING: books_metadata_full.csv not found in csv/")
-    print(f"  Run: cp ~/Downloads/books_metadata_full.csv csv/")
-    print(f"  Falling back to books_clean.json + books_lang.csv")
+    print(f"  Run: python3 src/00_export_calibre.py")
+    print(f"  Falling back to books_clean.json only (reduced metadata)")
 
 # Fallback: books_clean.json for any books not in metadata CSV
 books_clean = {}
