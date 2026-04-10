@@ -93,3 +93,4 @@ pandas==3.0.1
 # Python: 3.9+
 # Tested on: Python 3.11 / Ubuntu 24.04, Python 3.12 / macOS 14
 # Plotly.js (for interactive reports): loaded from CDN — internet required
+langdetect>=1.0.9

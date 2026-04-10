@@ -34,11 +34,20 @@ Input:  books_metadata_full.csv (tab-sep), books_text_*.csv (CSV, auto-detected)
 Output: books_parsed.json
 
 Language filtering:
-  Books whose lang_code is set in Calibre AND is not English ('eng') are
-  excluded at parse time and never written to books_parsed.json.  Books
-  with no lang_code set pass through (safe default — metadata gaps should
-  not accidentally exclude valid books).  The set of excluded books is
-  printed so the exclusion can be reviewed.
+  Language is detected from the book's actual text content using langdetect.
+  A book is excluded if its top-detected language is not English with
+  confidence ≥ 0.7.  Books that are ambiguous or where detection fails
+  are included by default (metadata gap ≠ exclusion).
+
+  For edge cases (mixed-language books, parallel translations, OCR noise),
+  csv/lang_override.csv provides per-book overrides:
+    action=include  → force-include regardless of detected language
+    action=exclude  → force-exclude regardless of detected language
+  This file is optional and starts empty; add rows only when auto-detection
+  gets it wrong.
+
+  Requires: langdetect (pip install langdetect)
+  If langdetect is not installed, all books pass through with a warning.
 """
 
 # ── Directory layout ─────────────────────────────────────────────────────────
@@ -50,6 +59,42 @@ JSON_DIR.mkdir(exist_ok=True)
 
 import csv, datetime, glob, json, os, re
 csv.field_size_limit(10_000_000)
+
+# ── Language detection setup ──────────────────────────────────────────────────
+try:
+    from langdetect import detect_langs, DetectorFactory, LangDetectException
+    DetectorFactory.seed = 0   # reproducible results
+    _LANGDETECT_AVAILABLE = True
+except ImportError:
+    _LANGDETECT_AVAILABLE = False
+    print("WARNING: langdetect not installed — language filter disabled.")
+    print("         Run: pip install langdetect")
+
+# Minimum confidence for a non-English detection to trigger exclusion.
+# Books below this threshold are included (safe default for ambiguous/short texts).
+_LANG_CONF_THRESHOLD = 0.70
+
+
+def detect_book_language(text: str, sample_chars: int = 1000) -> tuple:
+    """
+    Detect the primary language of a book by sampling start, middle, and end.
+    Returns (lang_code, confidence) using ISO 639-1 codes ('en', 'de', 'fr', …).
+    Returns ('en', 0.0) if detection fails or langdetect is not available.
+    """
+    if not _LANGDETECT_AVAILABLE or len(text) < 50:
+        return ('en', 0.0)
+    n = len(text)
+    mid = n // 2
+    sample = (text[:sample_chars]
+              + ' ' + text[mid: mid + sample_chars]
+              + ' ' + text[max(0, n - sample_chars):])
+    try:
+        results = detect_langs(sample)
+        top = results[0]
+        return (top.lang, round(top.prob, 3))
+    except Exception:
+        return ('en', 0.0)
+
 
 # ── Lightweight raw-text preprocessing ───────────────────────────────────────
 # Applied before books_parsed.json is written.  Goal: remove the worst noise
@@ -95,23 +140,29 @@ def preprocess_raw_text(text: str) -> str:
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
 
-# English lang_code values used in Calibre (ISO 639-2)
-ENGLISH_CODES = {'eng'}
 
-# ── Load manual exclusion list (repo-tracked, Calibre-sync-independent) ───────
-# csv/lang_exclusions.csv lists books that are definitively non-English.
-# This overrides whatever lang_code is in books_metadata_full.csv, which is
-# unreliable when the Calibre library is shared across machines via OneDrive.
-_excl_path = CSV_DIR / 'lang_exclusions.csv'
-manual_exclusions = {}   # bid → lang_code
-if _excl_path.exists():
-    with open(str(_excl_path), encoding='utf-8') as _ef:
-        for _row in csv.DictReader(_ef):
-            manual_exclusions[_row['id'].strip()] = _row['lang_code'].strip()
+# ── Load lang_override.csv (optional per-book overrides) ─────────────────────
+# Columns: id, action (include|exclude), lang_code, note
+# 'include'  → force-keep regardless of detected language
+# 'exclude'  → force-drop regardless of detected language
+# File is optional; no rows needed for a clean corpus.
+_override_path = CSV_DIR / 'lang_override.csv'
+lang_override = {}   # bid → 'include' | 'exclude'
+if _override_path.exists():
+    with open(str(_override_path), encoding='utf-8') as _of:
+        for _row in csv.DictReader(_of):
+            _bid    = _row['id'].strip()
+            _action = _row.get('action', '').strip().lower()
+            if _bid and _action in ('include', 'exclude'):
+                lang_override[_bid] = _action
+    if lang_override:
+        print(f"lang_override.csv: {len(lang_override)} manual overrides loaded "
+              f"({sum(1 for v in lang_override.values() if v=='include')} include, "
+              f"{sum(1 for v in lang_override.values() if v=='exclude')} exclude)")
 
+# ── Load metadata ─────────────────────────────────────────────────────────────
 valid_book_ids = set()
 books_meta = {}
-lang_excluded = []   # (bid, title, lang_code) — for reporting
 meta_path = CSV_DIR / 'books_metadata_full.csv'
 if not meta_path.exists():
     raise FileNotFoundError(
@@ -119,17 +170,7 @@ if not meta_path.exists():
         "Run: python3 src/00_export_calibre.py")
 with open(str(meta_path), encoding='utf-8') as f:
     for row in csv.DictReader(f, delimiter='\t'):
-        bid       = row['id'].strip()
-        lang_code = row.get('lang_code', '').strip().lower()
-        # Manual exclusion list takes precedence over Calibre lang_code.
-        if bid in manual_exclusions:
-            lang_excluded.append((bid, row['title'].strip(), manual_exclusions[bid]))
-            continue
-        # Exclude books explicitly tagged as non-English in Calibre.
-        # Books with no lang_code set pass through (metadata gap ≠ exclusion).
-        if lang_code and lang_code not in ENGLISH_CODES:
-            lang_excluded.append((bid, row['title'].strip(), lang_code))
-            continue
+        bid = row['id'].strip()
         raw = row['author_sort'].strip()
         parts = raw.split(',', 1)
         author = (parts[1].strip() + ' ' + parts[0].strip()).strip() if len(parts)==2 else raw
@@ -137,31 +178,56 @@ with open(str(meta_path), encoding='utf-8') as f:
         books_meta[bid] = {'title': row['title'].strip(), 'author': author,
                            'pubdate': row['pubdate'].strip()[:4]}
 
-if lang_excluded:
-    n_manual = sum(1 for b,t,l in lang_excluded if b in manual_exclusions)
-    n_calibre = len(lang_excluded) - n_manual
-    print(f"Language filter: excluded {len(lang_excluded)} non-English books "
-          f"({n_manual} from exclusion list, {n_calibre} from Calibre lang_code):")
-    for bid, title, lang in sorted(lang_excluded, key=lambda x: x[2]):
-        src = 'list' if bid in manual_exclusions else 'calibre'
-        print(f"  [{bid}] ({lang},{src}) {title}")
-else:
-    print("Language filter: no non-English books found (or lang_code not set in Calibre)")
-
+# ── Load text and apply language filter ───────────────────────────────────────
 text_files = sorted(glob.glob(str(CSV_DIR / 'books_text_*.csv')))
-books_data, skipped_dupe = {}, []
+books_data   = {}
+skipped_dupe = []
+lang_excluded = []   # (bid, title, detected_lang, confidence, source)
+
 for fpath in text_files:
     fname = os.path.basename(fpath)
     n_new = 0
     with open(fpath, encoding='utf-8', errors='replace') as f:
         for row in csv.DictReader(f):
             bid = row['id'].strip()
-            if bid not in valid_book_ids: continue
-            if bid in books_data: skipped_dupe.append(bid); continue
-            books_data[bid] = {'text': preprocess_raw_text(row['searchable_text']), '_src': fname}
+            if bid not in valid_book_ids:
+                continue
+            if bid in books_data:
+                skipped_dupe.append(bid)
+                continue
+
+            raw_text = row['searchable_text']
+            title    = books_meta.get(bid, {}).get('title', f'Book {bid}')
+
+            # Manual override takes absolute precedence
+            if lang_override.get(bid) == 'exclude':
+                lang_excluded.append((bid, title, 'override', 1.0, 'override'))
+                continue
+            if lang_override.get(bid) == 'include':
+                # Force-include: skip detection entirely
+                books_data[bid] = {'text': preprocess_raw_text(raw_text), '_src': fname}
+                n_new += 1
+                continue
+
+            # Auto-detect from text
+            detected_lang, confidence = detect_book_language(raw_text)
+            if detected_lang != 'en' and confidence >= _LANG_CONF_THRESHOLD:
+                lang_excluded.append((bid, title, detected_lang, confidence, 'auto'))
+                continue
+
+            books_data[bid] = {'text': preprocess_raw_text(raw_text), '_src': fname}
             n_new += 1
     print(f"  {fname}  +{n_new} (total {len(books_data)})")
 
+# ── Language filter report ────────────────────────────────────────────────────
+if lang_excluded:
+    print(f"\nLanguage filter: excluded {len(lang_excluded)} non-English books:")
+    for bid, title, lang, conf, src in sorted(lang_excluded, key=lambda x: x[2]):
+        print(f"  [{bid}] ({lang} {conf:.2f}, {src}) {title}")
+else:
+    print("\nLanguage filter: all books detected as English (or detection skipped)")
+
+# ── Attach metadata and finalise ──────────────────────────────────────────────
 for bid in books_data:
     meta = books_meta.get(bid, {})
     books_data[bid].update({'title': meta.get('title', f'Book {bid}'),
@@ -179,17 +245,18 @@ print("Saved books_parsed.json")
 _runlog_path = CSV_DIR / 'runlog.csv'
 _run_ts  = datetime.datetime.now().isoformat(timespec='seconds')
 _logrows = []
-for bid, title, lang in lang_excluded:
-    src = 'list' if bid in manual_exclusions else 'calibre'
+for bid, title, lang, conf, src in lang_excluded:
     _logrows.append({'run_timestamp': _run_ts, 'step': '01_parse_books',
                      'action': 'lang_excluded', 'book_id': bid,
-                     'title': title, 'lang_code': lang, 'source': src})
+                     'title': title, 'lang_code': lang,
+                     'confidence': conf, 'source': src})
 for bid in skipped_dupe:
     title = books_meta.get(bid, {}).get('title', '')
     _logrows.append({'run_timestamp': _run_ts, 'step': '01_parse_books',
                      'action': 'dupe_skipped', 'book_id': bid,
-                     'title': title, 'lang_code': '', 'source': ''})
-_log_fields = ['run_timestamp', 'step', 'action', 'book_id', 'title', 'lang_code', 'source']
+                     'title': title, 'lang_code': '', 'confidence': '', 'source': ''})
+_log_fields = ['run_timestamp', 'step', 'action', 'book_id', 'title',
+               'lang_code', 'confidence', 'source']
 _write_header = not _runlog_path.exists()
 with open(str(_runlog_path), 'a', encoding='utf-8', newline='') as _lf:
     _writer = csv.DictWriter(_lf, fieldnames=_log_fields)
