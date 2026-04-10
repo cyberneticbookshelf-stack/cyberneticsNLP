@@ -534,6 +534,13 @@ def main():
     try:
         with open(out_path, encoding='utf-8') as f:
             cleaned = json.load(f)
+        # Prune any books no longer in books_parsed.json
+        # (e.g. excluded by language filter or other upstream changes)
+        stale = [bid for bid in list(cleaned) if bid not in books]
+        if stale:
+            for bid in stale:
+                del cleaned[bid]
+            print(f"  Pruned {len(stale)} stale books no longer in books_parsed.json")
         print(f"Resuming: {len(cleaned)} books already cleaned, "
               f"{len(books) - len(cleaned)} remaining\n")
     except (FileNotFoundError, json.JSONDecodeError):
