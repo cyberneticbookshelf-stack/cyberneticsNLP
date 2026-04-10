@@ -1715,6 +1715,94 @@ is to add `oder` and `sind` to the custom stopword list in
 
 ---
 
+## Publication type filter: include monograph and collected works only
+**Date:** 10 April 2026 | **Session:** Cowork
+
+### Decision
+Books are included in the LDA corpus if and only if their manually assigned
+`pub_type` (Calibre custom column 5, exported as `pub_type` in
+`books_metadata_full.csv`) contains `monograph` or `collected works`.
+Books with no `pub_type` label pass through (safe default).
+
+Excluded types: anthology, textbook, proceedings, journal special issue,
+reference, catalog — and any compound labels that do not contain the two
+anchor types (e.g. `anthology, reference`).
+
+### Rationale
+Non-monograph types introduce structural noise into topic modelling:
+- **Anthologies** have mixed vocabulary from multiple independent contributors;
+  the LDA signal is a union of unrelated author vocabularies, not a coherent
+  intellectual position.
+- **Textbooks** carry a retrospective, consensus-smoothed vocabulary that lags
+  the actual conceptual development of the field by a decade or more.
+- **Proceedings, journal special issues** are heterogeneous by construction.
+- **Reference works, catalogs** are enumerative, not argumentative.
+
+### Why publication types are non-disjoint
+The labelling scheme uses compound labels (e.g. `monograph, textbook`,
+`collected works, monograph`) because a book can genuinely instantiate
+multiple types simultaneously. Ashby's *Introduction to Cybernetics* is
+both a monograph (sustained first-person argument) and a textbook
+(explicitly pedagogical, widely used in courses). A collected works volume
+may have a unifying editorial argument that makes it function as a monograph.
+Treating types as mutually exclusive would force a false categorical choice
+on genuinely ambiguous cases.
+
+The filter therefore reads compound labels inclusively: presence of
+`monograph` or `collected works` anywhere in the label is sufficient for
+inclusion, regardless of co-occurring labels.
+
+### Implementation
+- `00_export_calibre.py`: exports `pub_type` from Calibre custom column 5
+  into column 22 of `books_metadata_full.csv`
+- `03_nlp_pipeline.py`: applies the filter immediately after loading
+  `books_clean.json`, before min-chars and alpha-ratio filters
+
+### Source of labels
+Manually assigned in Calibre by the corpus curator. All 714 books in the
+Calibre library on Cybersonic have a label assigned. Labels are authoritative
+— they replace the heuristic `book_styles.json` classifier for pipeline
+filtering purposes (the classifier remains useful for analysis and covariates).
+
+---
+
+## Cross-run LDA stability tracking (future work)
+**Date:** 10 April 2026 | **Session:** Cowork | **Status:** Deferred
+
+### Problem
+The current pipeline measures topic stability *within* a single run across
+multiple seeds (Jaccard similarity, reported in `topic_stability.json`).
+There is no mechanism to compare topic solutions *across* successive runs —
+e.g., to check whether T3 in run N corresponds to T3 (or some other topic)
+in run N−1, and whether the word distribution has drifted.
+
+This matters because: (a) topic names should not be assigned until stability
+across runs is established; (b) corpus changes (new books, exclusions,
+re-OCR) may shift topic boundaries in ways not visible from within-run
+metrics alone.
+
+### Proposed design
+1. After each LDA run, append a snapshot of top-word distributions to
+   `json/run_history.jsonl` (one JSON line per run, keyed by ISO timestamp
+   + corpus size + k).
+2. In `09c_validate_topics.py`, load the last N snapshots and align topics
+   across runs using Jaccard similarity + Hungarian algorithm (same maths
+   as within-run seed stability).
+3. Report a per-topic cross-run stability score alongside the existing
+   within-run score.
+
+### Why deferred
+Topic naming is blocked on this analysis. The analysis requires at least
+3–5 successive clean runs on a stable corpus. The corpus is still being
+stabilised (publication-type filter, OCR redos). Implementation should
+proceed once the corpus is settled.
+
+### Scope
+Touches `03_nlp_pipeline.py` (snapshot write) and `09c_validate_topics.py`
+(cross-run comparison). Estimated effort: ~1 session.
+
+---
+
 ## Why a manual exclusion list supplements Calibre lang_code
 **Date:** 10 April 2026 | **Session:** Cowork
 

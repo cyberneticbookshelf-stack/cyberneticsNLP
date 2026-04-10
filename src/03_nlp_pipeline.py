@@ -213,6 +213,46 @@ with open(str(JSON_DIR / 'books_clean.json')) as f:
 
 book_ids   = list(books.keys())
 
+# ── Publication type filter ───────────────────────────────────────────────────
+# Inclusion rule: include if pub_type contains 'monograph' OR 'collected works'.
+# Publication types are non-disjoint — a book may carry multiple labels
+# (e.g. "monograph, textbook"). The presence of either anchor type is sufficient
+# for inclusion, regardless of other labels on the same book.
+# Source: manually assigned Calibre custom column 5 (Publication Type),
+# exported into books_metadata_full.csv by 00_export_calibre.py.
+_INCLUDE_TYPES = {'monograph', 'collected works'}
+_pubtype_map = {}  # bid → raw pub_type string
+_meta_path = CSV_DIR / 'books_metadata_full.csv'
+if _meta_path.exists():
+    import csv as _csv
+    with open(str(_meta_path), encoding='utf-8') as _mf:
+        for _row in _csv.DictReader(_mf, delimiter='\t'):
+            _bid = _row['id'].strip()
+            _pt  = _row.get('pub_type', '').strip().lower()
+            if _pt:
+                _pubtype_map[_bid] = _pt
+    if _pubtype_map:
+        _before = len(book_ids)
+        def _is_included(bid):
+            pt = _pubtype_map.get(bid, '')
+            if not pt:
+                return True   # no label → include (safe default)
+            parts = [p.strip() for p in pt.replace(';', ',').split(',')]
+            return any(p in _INCLUDE_TYPES for p in parts)
+        _pubtype_excluded = [b for b in book_ids if not _is_included(b)]
+        book_ids = [b for b in book_ids if _is_included(b)]
+        print(f"  [pub-type] excluded {len(_pubtype_excluded)} books "
+              f"(no 'monograph' or 'collected works' label)  "
+              f"({_before} → {len(book_ids)})")
+        for bid in _pubtype_excluded:
+            print(f"    excluded: [{bid}] ({_pubtype_map.get(bid,'?')}) "
+                  f"{books[bid]['title'][:55]}")
+    else:
+        print("  [pub-type] pub_type column not found in books_metadata_full.csv "
+              "— run 00_export_calibre.py to include it")
+else:
+    print("  [pub-type] books_metadata_full.csv not found — pub-type filter skipped")
+
 # Apply --min-chars filter if set
 if _MIN_CHARS > 0:
     before = len(book_ids)

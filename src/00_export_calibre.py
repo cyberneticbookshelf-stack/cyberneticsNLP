@@ -12,7 +12,7 @@ enriched metadata file used by all downstream pipeline scripts:
 
 Output: csv/books_metadata_full.csv (tab-separated, UTF-8)
 
-Columns (21):
+Columns (22):
   id                — Calibre book ID
   title             — book title
   author_sort       — author(s) in sort form (Last, First)
@@ -25,6 +25,14 @@ Columns (21):
   source_url        — URL from custom column 1 (URL field)
   available_at      — provenance label from custom column 2 (Available at)
   theme             — curatorial theme from custom column 4 (Theme)
+  pub_type          — manually assigned publication type from custom column 5
+                      (Publication Type). Values are comma-separated and
+                      non-disjoint: e.g. "monograph, textbook" is valid.
+                      Canonical values: monograph, anthology, textbook,
+                      proceedings, journal special issue, reference,
+                      collected works, catalog, popular, history_bio.
+                      Pipeline inclusion rule: include if 'monograph' OR
+                      'collected works' appears in the label; exclude otherwise.
   description       — HTML description from comments table
   tags              — comma-separated tag names
   archive_id        — Internet Archive / URI identifier
@@ -237,6 +245,16 @@ try:
 except Exception as e:
     print(f"  WARNING: could not load custom_column_4 (Theme): {e}")
 
+# ── 9b. Custom column 5 — Publication Type ────────────────────────────────────
+print("[10b] Loading publication types (custom column 5)...")
+pubtype_map = {}  # book_id → publication type string (may be multi-valued)
+try:
+    for row in conn.execute("SELECT book, value FROM custom_column_5"):
+        pubtype_map[str(row['book'])] = (row['value'] or '').strip()
+    print(f"  {len(pubtype_map)} books with Publication Type")
+except Exception as e:
+    print(f"  WARNING: could not load custom_column_5 (Publication Type): {e}")
+
 # ── 10. Languages ──────────────────────────────────────────────────────────────
 print("[11] Loading languages...")
 lang_map = {}  # book_id → ISO 639-2 lang_code (e.g. 'eng', 'fra', 'deu')
@@ -305,6 +323,7 @@ for bid, b in sorted(books.items(), key=lambda x: int(x[0]) if x[0].isdigit() el
         'source_url':       url_map.get(bid, ''),
         'available_at':     avail_map.get(bid, ''),
         'theme':            theme,
+        'pub_type':         pubtype_map.get(bid, ''),
         'description':      description,
         'tags':             tags_str,
         'archive_id':       archive_map.get(bid, ''),
@@ -320,7 +339,7 @@ for bid, b in sorted(books.items(), key=lambda x: int(x[0]) if x[0].isdigit() el
 COLUMNS = [
     'id', 'title', 'author_sort', 'pubdate', 'publisher', 'series',
     'isbn', 'google_id', 'amazon_id', 'source_url', 'available_at',
-    'theme', 'description', 'tags', 'archive_id', 'lang_code',
+    'theme', 'pub_type', 'description', 'tags', 'archive_id', 'lang_code',
     'in_title', 'in_description', 'in_tags', 'in_publisher',
     'inclusion_stratum',
 ]
