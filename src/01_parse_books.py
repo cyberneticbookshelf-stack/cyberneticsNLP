@@ -32,6 +32,13 @@ NOTE FOR LARGE CORPORA (>~300 books):
 
 Input:  books_metadata_full.csv (tab-sep), books_text_*.csv (CSV, auto-detected)
 Output: books_parsed.json
+
+Language filtering:
+  Books whose lang_code is set in Calibre AND is not English ('eng') are
+  excluded at parse time and never written to books_parsed.json.  Books
+  with no lang_code set pass through (safe default — metadata gaps should
+  not accidentally exclude valid books).  The set of excluded books is
+  printed so the exclusion can be reviewed.
 """
 
 # ── Directory layout ─────────────────────────────────────────────────────────
@@ -88,8 +95,12 @@ def preprocess_raw_text(text: str) -> str:
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
 
+# English lang_code values used in Calibre (ISO 639-2)
+ENGLISH_CODES = {'eng'}
+
 valid_book_ids = set()
 books_meta = {}
+lang_excluded = []   # (bid, title, lang_code) — for reporting
 meta_path = CSV_DIR / 'books_metadata_full.csv'
 if not meta_path.exists():
     raise FileNotFoundError(
@@ -97,13 +108,26 @@ if not meta_path.exists():
         "Run: python3 src/00_export_calibre.py")
 with open(str(meta_path), encoding='utf-8') as f:
     for row in csv.DictReader(f, delimiter='\t'):
-        bid = row['id'].strip()
+        bid       = row['id'].strip()
+        lang_code = row.get('lang_code', '').strip().lower()
+        # Exclude books explicitly tagged as non-English.
+        # Books with no lang_code set pass through (metadata gap ≠ exclusion).
+        if lang_code and lang_code not in ENGLISH_CODES:
+            lang_excluded.append((bid, row['title'].strip(), lang_code))
+            continue
         raw = row['author_sort'].strip()
         parts = raw.split(',', 1)
         author = (parts[1].strip() + ' ' + parts[0].strip()).strip() if len(parts)==2 else raw
         valid_book_ids.add(bid)
         books_meta[bid] = {'title': row['title'].strip(), 'author': author,
                            'pubdate': row['pubdate'].strip()[:4]}
+
+if lang_excluded:
+    print(f"Language filter: excluded {len(lang_excluded)} non-English books:")
+    for bid, title, lang in sorted(lang_excluded, key=lambda x: x[2]):
+        print(f"  [{bid}] ({lang}) {title}")
+else:
+    print("Language filter: no non-English books found (or lang_code not set in Calibre)")
 
 text_files = sorted(glob.glob(str(CSV_DIR / 'books_text_*.csv')))
 books_data, skipped_dupe = {}, []

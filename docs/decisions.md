@@ -1662,3 +1662,53 @@ This rule applies at training time only. It is valid to:
 No automated enforcement is implemented. The rule must be upheld
 by the researcher. Claude's persistent memory records this constraint
 to prevent accidental violation in future sessions.
+
+---
+
+## Why language filtering is applied at parse time, not post-hoc
+**Date:** 10 April 2026 | **Session:** Cowork
+
+### Decision
+Books whose `lang_code` in Calibre is explicitly set to a non-English
+ISO 639-2 code (anything other than `eng`) are excluded before they
+are written to `books_parsed.json` or `books_clean.jsonl`. Books
+with no `lang_code` set pass through (metadata gap ≠ exclusion).
+
+The filter is implemented in three pipeline files:
+- `00_export_calibre.py` — adds `lang_code` as a column in
+  `books_metadata_full.csv` (queried from Calibre's `languages` /
+  `books_languages_link` tables)
+- `01_parse_books.py` — skips non-English books at metadata load time
+  (standard pipeline path)
+- `parse_and_clean_stream.py` — same filter in the streaming path
+
+### Rationale
+The earlier `books_lang.csv` file provided an explicit language field.
+When `books_metadata_full.csv` replaced it in v0.4.2, that field was
+lost. The corpus contains a small number of non-English titles (17 as
+of April 2026: 9 German, 5 French, 1 Italian, 1 Polish, 1 Spanish).
+Letting them through would introduce non-English vocabulary into LDA
+topic models and affect stopword filtering.
+
+Filtering at parse time is preferred over post-hoc removal because:
+1. It is cleaner — downstream scripts never need to know a book was
+   excluded
+2. It is deterministic — no accidental reintroduction if JSON files
+   are regenerated
+3. It produces an explicit exclusion log at run time, making the
+   filter auditable
+
+### Immediate effect
+As of April 2026, none of the 17 non-English Calibre books are present
+in any `books_text_*.csv` file, so the filter has no immediate effect
+on the corpus. It is a preventive measure for future library additions.
+
+### Note on German vocabulary in T5
+The German tokens observed in LDA topic T5 (`oder`, `sind`) originate
+from English-language books that cite or quote non-Anglophone
+cybernetics literature — not from German-language books. Those tokens
+survive stopword filtering because they are valid English words in other
+contexts (`oder` → not in NLTK stopwords; `sind` → uncommon). The
+language filter does not address this; the appropriate fix (if needed)
+is to add `oder` and `sind` to the custom stopword list in
+`02_clean_text.py`.

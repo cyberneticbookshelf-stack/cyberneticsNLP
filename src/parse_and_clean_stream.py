@@ -44,8 +44,11 @@ import csv, json, os, re, sys
 csv.field_size_limit(10_000_000)
 CLEAN_CAP = 300_000
 
-# ── Load metadata ─────────────────────────────────────────────────────────────
+# ── Load metadata (with language filter) ─────────────────────────────────────
+ENGLISH_CODES = {'eng'}   # ISO 639-2 codes accepted as English
+
 meta = {}
+lang_excluded = []   # (bid, title, lang_code) for reporting
 meta_path = CSV_DIR / 'books_metadata_full.csv'
 if not meta_path.exists():
     print(f"ERROR: {meta_path} not found.")
@@ -53,7 +56,13 @@ if not meta_path.exists():
     sys.exit(1)
 with open(str(meta_path), encoding='utf-8', errors='replace') as f:
     for row in csv.DictReader(f, delimiter='\t'):
-        bid = row['id'].strip()
+        bid       = row['id'].strip()
+        lang_code = row.get('lang_code', '').strip().lower()
+        # Exclude books explicitly tagged as non-English in Calibre.
+        # Books with no lang_code set pass through (metadata gap ≠ exclusion).
+        if lang_code and lang_code not in ENGLISH_CODES:
+            lang_excluded.append((bid, row['title'].strip(), lang_code))
+            continue
         last, _, first = row['author_sort'].partition(',')
         author = f'{first.strip()} {last.strip()}'.strip() if first else last.strip()
         meta[bid] = {
@@ -61,6 +70,12 @@ with open(str(meta_path), encoding='utf-8', errors='replace') as f:
             'author':  author,
             'pubdate': row['pubdate'][:4],
         }
+if lang_excluded:
+    print(f"Language filter: excluded {len(lang_excluded)} non-English books:")
+    for bid, title, lang in sorted(lang_excluded, key=lambda x: x[2]):
+        print(f"  [{bid}] ({lang}) {title}")
+else:
+    print("Language filter: no non-English books found (or lang_code not set in Calibre)")
 
 # ── Minimal regex-based cleaner (no Hunspell dependency) ─────────────────────
 _INLINE = re.compile(

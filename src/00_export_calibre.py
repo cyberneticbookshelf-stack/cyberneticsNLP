@@ -12,7 +12,7 @@ enriched metadata file used by all downstream pipeline scripts:
 
 Output: csv/books_metadata_full.csv (tab-separated, UTF-8)
 
-Columns (20):
+Columns (21):
   id                — Calibre book ID
   title             — book title
   author_sort       — author(s) in sort form (Last, First)
@@ -28,6 +28,8 @@ Columns (20):
   description       — HTML description from comments table
   tags              — comma-separated tag names
   archive_id        — Internet Archive / URI identifier
+  lang_code         — ISO 639-2 language code from Calibre (e.g. eng, fra, deu);
+                      empty if not set in Calibre
   in_title          — yes/no: "cybernetic(s)" in title
   in_description    — yes/no: "cybernetic(s)" in description
   in_tags           — yes/no: "cybernetic(s)" in any tag
@@ -235,6 +237,26 @@ try:
 except Exception as e:
     print(f"  WARNING: could not load custom_column_4 (Theme): {e}")
 
+# ── 10. Languages ──────────────────────────────────────────────────────────────
+print("[11] Loading languages...")
+lang_map = {}  # book_id → ISO 639-2 lang_code (e.g. 'eng', 'fra', 'deu')
+# Calibre schema: books_languages_link.lang_code is a FK to languages.id;
+# the actual code string lives in languages.lang_code.
+# item_order=0 is the primary language; we keep only the first per book.
+try:
+    for row in conn.execute("""
+            SELECT bll.book, l.lang_code
+            FROM   languages l
+            JOIN   books_languages_link bll ON l.id = bll.lang_code
+            ORDER  BY bll.book, bll.item_order
+    """):
+        bid = str(row['book'])
+        if bid not in lang_map:          # first row = primary language
+            lang_map[bid] = (row['lang_code'] or '').strip().lower()
+    print(f"  {len(lang_map)} books with language metadata")
+except Exception as e:
+    print(f"  WARNING: could not load languages table: {e}")
+
 conn.close()
 tmp_path.unlink(missing_ok=True)
 
@@ -286,6 +308,7 @@ for bid, b in sorted(books.items(), key=lambda x: int(x[0]) if x[0].isdigit() el
         'description':      description,
         'tags':             tags_str,
         'archive_id':       archive_map.get(bid, ''),
+        'lang_code':        lang_map.get(bid, ''),
         'in_title':         in_title,
         'in_description':   in_description,
         'in_tags':          in_tags,
@@ -297,7 +320,7 @@ for bid, b in sorted(books.items(), key=lambda x: int(x[0]) if x[0].isdigit() el
 COLUMNS = [
     'id', 'title', 'author_sort', 'pubdate', 'publisher', 'series',
     'isbn', 'google_id', 'amazon_id', 'source_url', 'available_at',
-    'theme', 'description', 'tags', 'archive_id',
+    'theme', 'description', 'tags', 'archive_id', 'lang_code',
     'in_title', 'in_description', 'in_tags', 'in_publisher',
     'inclusion_stratum',
 ]
@@ -313,11 +336,17 @@ with open(out_path, 'w', encoding='utf-8', newline='') as f:
 from collections import Counter
 strata = Counter(r['inclusion_stratum'] for r in output_rows)
 themes = Counter(r['theme'] for r in output_rows if r['theme'])
+langs  = Counter(r['lang_code'] for r in output_rows if r['lang_code'])
 
 print(f"\n{'='*55}")
 print(f"EXPORT COMPLETE: {out_path}")
 print(f"{'='*55}")
 print(f"  Total books:       {len(output_rows)}")
+print(f"\n  Languages (set in Calibre):")
+for lang, n in langs.most_common():
+    print(f"    {lang:<10} {n:4d}")
+no_lang = sum(1 for r in output_rows if not r['lang_code'])
+print(f"    {'(not set)':<10} {no_lang:4d}")
 print(f"\n  Inclusion strata:")
 for s, n in strata.most_common():
     print(f"    {s:<25} {n:4d}")
