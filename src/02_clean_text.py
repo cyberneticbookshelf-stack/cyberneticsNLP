@@ -531,6 +531,7 @@ def main():
 
     # Load already-cleaned books so we can resume interrupted runs
     out_path = str(JSON_DIR / 'books_clean.json')
+    stale = []   # books in cache but no longer in books_parsed.json
     try:
         with open(out_path, encoding='utf-8') as f:
             cleaned = json.load(f)
@@ -547,6 +548,7 @@ def main():
         cleaned = {}
         print(f"Cleaning {len(books)} books...\n")
 
+    wrote_during_loop = False
     for i, (bid, data) in enumerate(books.items()):
         if bid in cleaned:
             continue
@@ -559,6 +561,13 @@ def main():
         # Write after every book so progress is never lost
         with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(cleaned, f, ensure_ascii=False)
+        wrote_during_loop = True
+
+    # Always flush if pruning changed the dict (loop may have had nothing new to write)
+    if stale and not wrote_during_loop:
+        with open(out_path, 'w', encoding='utf-8') as f:
+            json.dump(cleaned, f, ensure_ascii=False)
+        print(f"  Flushed pruned cache to disk.")
 
     print(f"\nDone. Saved {len(cleaned)} books to {out_path}")
 
