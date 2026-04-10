@@ -132,7 +132,8 @@ _LDA_BASE = [
     'Applied Cybernetics & Computers in Society',
     'Residual / Outlier Cluster',
 ]
-TOPIC_NAMES = (R.get('topic_names') or (_LDA_BASE + [f'Topic {i+1}' for i in range(len(_LDA_BASE), n_topics)]))[:n_topics]
+_carried = R.get('topic_names') or _LDA_BASE
+TOPIC_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
 
 # ── Build aggregated vocab ─────────────────────────────────────────────────
 # IV has: {term_lower: {term, books: [bid,...], count}}

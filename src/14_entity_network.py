@@ -78,8 +78,8 @@ _LDA_BASE = [
     'Applied Cybernetics & Computers in Society',
     'Residual / Outlier Cluster',
 ]
-LDA_NAMES = (R.get('topic_names') or
-             (_LDA_BASE + [f'Topic {i+1}' for i in range(len(_LDA_BASE), n_topics)]))[:n_topics]
+_carried = R.get('topic_names') or _LDA_BASE
+LDA_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
 
 # ── Entity classification ─────────────────────────────────────────────────────
 # Canonical single-name historical persons (ancient, medieval, early modern)

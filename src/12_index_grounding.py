@@ -71,7 +71,8 @@ _LDA_BASE = [
     'Residual / Outlier Cluster',
 ]
 # Pad with generic labels if the pipeline found more topics than the base list
-LDA_NAMES = (R.get('topic_names') or (_LDA_BASE + [f'Topic {i+1}' for i in range(len(_LDA_BASE), n_topics)]))[:n_topics]
+_carried = R.get('topic_names') or _LDA_BASE
+LDA_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
 
 _NMF_BASE = [
     'Human & Social Experience',

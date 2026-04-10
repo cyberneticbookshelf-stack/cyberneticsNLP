@@ -45,7 +45,8 @@ _LDA_BASE = [
     'Applied Cybernetics & Computers in Society',
     'Residual / Outlier Cluster',
 ]
-LDA_NAMES = (R.get('topic_names') or (_LDA_BASE + [f'Topic {i+1}' for i in range(len(_LDA_BASE), n_topics)]))[:n_topics]
+_carried = R.get('topic_names') or _LDA_BASE
+LDA_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
 coords_2d      = R.get('coords_2d', [[0,0]]*len(book_ids))
 cos_sim        = R['cos_sim']
 titles_short   = [t[:40]+'…' if len(t)>40 else t for t in R['titles']]

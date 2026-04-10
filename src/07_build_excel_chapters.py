@@ -37,7 +37,8 @@ _BASE_TOPIC_NAMES = [
     'Control Theory & Engineering',
     'Topic 7', 'Topic 8', 'Topic 9',
 ]
-TOPIC_NAMES = (R.get('topic_names') or (_BASE_TOPIC_NAMES + [f'Topic {i+1}' for i in range(len(_BASE_TOPIC_NAMES), n_topics)]))[:n_topics]
+_carried = R.get('topic_names') or _BASE_TOPIC_NAMES
+TOPIC_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
 
 FILLS = [
     PatternFill('solid',fgColor='DBEAFE'), PatternFill('solid',fgColor='DCFCE7'),
