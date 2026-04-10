@@ -47,6 +47,16 @@ CLEAN_CAP = 300_000
 # ── Load metadata (with language filter) ─────────────────────────────────────
 ENGLISH_CODES = {'eng'}   # ISO 639-2 codes accepted as English
 
+# Manual exclusion list — repo-tracked, Calibre-sync-independent.
+# Overrides lang_code from books_metadata_full.csv (unreliable across
+# machines sharing a Calibre library via OneDrive).
+_excl_path = CSV_DIR / 'lang_exclusions.csv'
+manual_exclusions = {}   # bid → lang_code
+if _excl_path.exists():
+    with open(str(_excl_path), encoding='utf-8') as _ef:
+        for _row in csv.DictReader(_ef):
+            manual_exclusions[_row['id'].strip()] = _row['lang_code'].strip()
+
 meta = {}
 lang_excluded = []   # (bid, title, lang_code) for reporting
 meta_path = CSV_DIR / 'books_metadata_full.csv'
@@ -58,6 +68,10 @@ with open(str(meta_path), encoding='utf-8', errors='replace') as f:
     for row in csv.DictReader(f, delimiter='\t'):
         bid       = row['id'].strip()
         lang_code = row.get('lang_code', '').strip().lower()
+        # Manual exclusion list takes precedence over Calibre lang_code.
+        if bid in manual_exclusions:
+            lang_excluded.append((bid, row['title'].strip(), manual_exclusions[bid]))
+            continue
         # Exclude books explicitly tagged as non-English in Calibre.
         # Books with no lang_code set pass through (metadata gap ≠ exclusion).
         if lang_code and lang_code not in ENGLISH_CODES:
@@ -71,9 +85,13 @@ with open(str(meta_path), encoding='utf-8', errors='replace') as f:
             'pubdate': row['pubdate'][:4],
         }
 if lang_excluded:
-    print(f"Language filter: excluded {len(lang_excluded)} non-English books:")
+    n_manual = sum(1 for b,t,l in lang_excluded if b in manual_exclusions)
+    n_calibre = len(lang_excluded) - n_manual
+    print(f"Language filter: excluded {len(lang_excluded)} non-English books "
+          f"({n_manual} from exclusion list, {n_calibre} from Calibre lang_code):")
     for bid, title, lang in sorted(lang_excluded, key=lambda x: x[2]):
-        print(f"  [{bid}] ({lang}) {title}")
+        src = 'list' if bid in manual_exclusions else 'calibre'
+        print(f"  [{bid}] ({lang},{src}) {title}")
 else:
     print("Language filter: no non-English books found (or lang_code not set in Calibre)")
 

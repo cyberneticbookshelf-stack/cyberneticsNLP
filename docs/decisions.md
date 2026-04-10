@@ -1712,3 +1712,35 @@ contexts (`oder` → not in NLTK stopwords; `sind` → uncommon). The
 language filter does not address this; the appropriate fix (if needed)
 is to add `oder` and `sind` to the custom stopword list in
 `02_clean_text.py`.
+
+---
+
+## Why a manual exclusion list supplements Calibre lang_code
+**Date:** 10 April 2026 | **Session:** Cowork
+
+### Decision
+A repo-tracked file `csv/lang_exclusions.csv` lists the 17 known
+non-English books. It is checked by `01_parse_books.py` and
+`parse_and_clean_stream.py` before — and independently of — the
+Calibre `lang_code` field. A book in the exclusion list is always
+excluded, regardless of what `books_metadata_full.csv` says.
+
+### Rationale
+The Calibre library (`metadata.db`) is shared across NorbertX and
+AshbyX via OneDrive. Sync divergence has caused the language tags
+for the 17 non-English books to appear as `eng` in the exported CSV
+on at least one occasion, making the Calibre-based filter silently
+ineffective. The exclusion list is version-controlled in the repo and
+does not depend on any particular machine's Calibre state.
+
+### Maintenance
+When a new non-English book is added to the corpus, add it to
+`csv/lang_exclusions.csv` with its Calibre id and ISO 639-2 lang_code.
+Setting the lang_code in Calibre correctly is still encouraged — the
+Calibre-based filter remains active as a second layer for any books
+not yet in the exclusion list.
+
+### Source of the 17 book IDs
+Identified from a pipeline run on 10 April 2026 where Calibre language
+tags were intact. IDs: 2044, 2063, 2064, 2065, 2066, 2092, 2344, 2460,
+2469, 2470, 2471, 2472, 2473, 2474, 2475, 2476, 2477.
