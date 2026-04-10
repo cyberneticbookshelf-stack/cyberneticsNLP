@@ -39,7 +39,7 @@ JSON_DIR = _pl.Path('json')   # all JSON/JSONL files
 JSON_DIR.mkdir(exist_ok=True)
 
 
-import csv, json, os, re, sys
+import csv, datetime, json, os, re, sys
 
 csv.field_size_limit(10_000_000)
 CLEAN_CAP = 300_000
@@ -206,6 +206,36 @@ with open(out_path, 'a', encoding='utf-8') as out_f, \
 
 print(f'\nDone. New: {n_new}  Skipped: {n_skip}  No-meta: {n_nometa}')
 print(f'Total in {out_path}: {len(done_ids)} books')
+
+# ── runlog.csv: append lang exclusions from this CSV file ────────────────────
+# Only written once per script invocation (i.e. when processing the first
+# CSV file in the batch), to avoid duplicating the 17-row exclusion list 25×.
+# Duplication guard: skip if a row with this run_timestamp + step already exists.
+_runlog_path = CSV_DIR / 'runlog.csv'
+_run_ts  = datetime.datetime.now().isoformat(timespec='seconds')
+_logrows = []
+for bid, title, lang in lang_excluded:
+    src = 'list' if bid in manual_exclusions else 'calibre'
+    _logrows.append({'run_timestamp': _run_ts, 'step': 'parse_and_clean_stream',
+                     'action': 'lang_excluded', 'book_id': bid,
+                     'title': title, 'lang_code': lang, 'source': src})
+_log_fields = ['run_timestamp', 'step', 'action', 'book_id', 'title', 'lang_code', 'source']
+# Check if we've already logged this exclusion set in a previous CSV file for
+# this same run: look for our timestamp in the last N rows.
+_already_logged = False
+if _runlog_path.exists() and _logrows:
+    with open(str(_runlog_path), encoding='utf-8') as _chk:
+        _last = _chk.read()
+    if _run_ts in _last:
+        _already_logged = True
+if _logrows and not _already_logged:
+    _write_header = not _runlog_path.exists()
+    with open(str(_runlog_path), 'a', encoding='utf-8', newline='') as _lf:
+        _writer = csv.DictWriter(_lf, fieldnames=_log_fields)
+        if _write_header:
+            _writer.writeheader()
+        _writer.writerows(_logrows)
+    print(f"runlog.csv: appended {len(_logrows)} row(s)")
 
 # ── JSONL → JSON conversion helper ───────────────────────────────────────────
 # If any downstream script still expects the old dict-format books_clean.json,

@@ -48,7 +48,7 @@ JSON_DIR = _pl.Path('json')   # all JSON/JSONL files
 JSON_DIR.mkdir(exist_ok=True)
 
 
-import csv, glob, json, os, re
+import csv, datetime, glob, json, os, re
 csv.field_size_limit(10_000_000)
 
 # ── Lightweight raw-text preprocessing ───────────────────────────────────────
@@ -174,3 +174,26 @@ print(f"Final corpus: {len(books_data)} books")
 with open(str(JSON_DIR / 'books_parsed.json'), 'w', encoding='utf-8') as f:
     json.dump(books_data, f, ensure_ascii=False)
 print("Saved books_parsed.json")
+
+# ── runlog.csv: append one row per dropped book for auditability ─────────────
+_runlog_path = CSV_DIR / 'runlog.csv'
+_run_ts  = datetime.datetime.now().isoformat(timespec='seconds')
+_logrows = []
+for bid, title, lang in lang_excluded:
+    src = 'list' if bid in manual_exclusions else 'calibre'
+    _logrows.append({'run_timestamp': _run_ts, 'step': '01_parse_books',
+                     'action': 'lang_excluded', 'book_id': bid,
+                     'title': title, 'lang_code': lang, 'source': src})
+for bid in skipped_dupe:
+    title = books_meta.get(bid, {}).get('title', '')
+    _logrows.append({'run_timestamp': _run_ts, 'step': '01_parse_books',
+                     'action': 'dupe_skipped', 'book_id': bid,
+                     'title': title, 'lang_code': '', 'source': ''})
+_log_fields = ['run_timestamp', 'step', 'action', 'book_id', 'title', 'lang_code', 'source']
+_write_header = not _runlog_path.exists()
+with open(str(_runlog_path), 'a', encoding='utf-8', newline='') as _lf:
+    _writer = csv.DictWriter(_lf, fieldnames=_log_fields)
+    if _write_header:
+        _writer.writeheader()
+    _writer.writerows(_logrows)
+print(f"runlog.csv: appended {len(_logrows)} row(s) ({_runlog_path})")
