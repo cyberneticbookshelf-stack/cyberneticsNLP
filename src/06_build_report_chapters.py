@@ -54,7 +54,11 @@ _BASE_NAMES = [
     'Control Theory & Engineering',
     'Topic 7', 'Topic 8', 'Topic 9',
 ]
-TOPIC_NAMES = (R.get('topic_names') or (_BASE_NAMES + [f'Topic {i+1}' for i in range(len(_BASE_NAMES), n_topics)]))[:n_topics]
+# Build TOPIC_NAMES for chapter-level NMF.
+# Carried book-level LDA names are used as a fallback only; NMF k may differ
+# from LDA k, so we always pad to exactly n_topics entries with generic labels.
+_carried = (R.get('topic_names') or _BASE_NAMES)[:]
+TOPIC_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
 
 def img_b64(path):
     with open(path,'rb') as f:
