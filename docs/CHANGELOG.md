@@ -223,3 +223,83 @@ Dates are AEST (UTC+11).
 ### Note on canonical topic solution (2026-04-03)
 `topic_stability.json` reflects the most recently run k. Canonical solution: **k=9** (validated 3 April 2026). After comparison runs, restore with `python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5`
 [126] Narrative Gravity — descriptive summary is verbatim extract, needs API regeneration
+
+## [0.4.2] — 2026-04-08
+
+### Fixed
+- `src/10_build_index_report.py` — corpus count 675 → 695
+- `src/11_embedding_comparison.py` — corpus count 675 → 695
+- `src/06_build_report_chapters.py` — line 27 bug fixed (was overwriting NMF chapter names with LDA book names)
+- `_LDA_BASE` fallback lists updated in all 8 report scripts (7 old topic names → 9 agreed k=9 names from 3 April)
+- `_BASE_CH` in `src/08_build_timeseries.py` — 8 named NMF topics; removed placeholder Topic 7/8/9 labels
+- `_NMF_BASE` in `src/12_index_grounding.py` — expanded 6 → 8 topic names
+- `json/nlp_results_chapters.json` — `topic_names` field populated (was None)
+- `json/embedding_results.json` — stale cache deleted and rebuilt
+- All 8 HTML reports verified clean: no generic "Topic N" labels, no 675 references
+
+### Added
+- `src/heuristic_features.py` — 10 structural text heuristics for monograph classification; 100% majority-vote agreement on 14 known books
+- `src/train_monograph_classifier.py` — logistic regression monograph classifier; 33 features (23 metadata + 10 heuristic); 197 expert labels; threshold=0.4; 5-fold CV: precision=0.89, recall=0.68
+- Active learning cycle established: first round of 40 new labels from Paul via `Monograph_Review.xlsx`
+
+### Design decisions (8 April 2026)
+- **"Expert labels" not "ground truth"**: labels record which pipeline assumptions a book violates, not objective type
+- **"Agreement with expert labels" not "accuracy"**: classifier performance stated relative to expert judgement
+- **Classifier training data integrity rule**: machine-inferred labels from `00_classify_book_styles.py` must never be used as training data for `train_monograph_classifier.py` — circuits in active learning cycle
+
+### Documentation
+- `docs/decisions.md` — training data integrity rule, terminology substitutions
+- `docs/methodology.md` — Phase 1 binary classifier design, active learning protocol
+- `docs/contributions.md` — 8 April session logged
+
+---
+
+## [0.4.3] — 2026-04-14
+
+### Added
+- `src/03_nlp_pipeline.py` — `--full-text` flag: strips front/back matter, feeds full body text to LDA; `--run-id` flag: appends suffix to all output filenames enabling concurrent runs without collision; `--max-features` default raised to 15,000 for full-text server runs; `--name-topics` flag: Anthropic API integration (claude-sonnet-4-20250514) for automated topic name proposals
+- `src/record_topic_run.py` (drafted in `docs/src_draft/`) — snapshots each pipeline run to `json/topic_run_records.json`; supports multi-run topic naming reliability tracking
+- `src/compare_topic_runs.py` (drafted in `docs/src_draft/`) — generates HTML comparison report across N runs; book presence matrices, word stability, naming records
+- `json/nlp_results_k8.json`, `json/nlp_results_k9.json`, `json/nlp_results_k10.json`, `json/nlp_results_k12.json` — k-sweep comparison runs (pub-type filtered corpus, 542 books)
+- `docs/memo_lda_k_selection.md` — k-selection analysis; stability tables for k=8/9/10/12; final topic names and rationale
+- `docs/consolidation_14apr2026.md` — master reference: canonical facts, all four topic runs, slide deck and PDF discrepancy tables, pending tasks
+
+### Changed
+- **Canonical corpus for LDA: 542 books** (pub-type filter: monographs + collected works only; confirmed 14 April 2026)
+- **Canonical k=9 run: `json/nlp_results_k9.json`** (Run C: 542 books, `--seeds 5 --lemmatize --full-text --max-features 15000 --run-id k9`) — supersedes 3 April sampled run
+- `json/nlp_results.json` — now holds Run B (Session 1 full-text, ~690 books, no pub-type filter); Run A (3 April sampled) overwritten
+- `docs/draft_methods_corpus_construction.md` — §3.8 added: LDA preprocessing, k-selection methodology, fiction outlier note, final topic structure table
+- `README.md` — updated to v0.4.3: 695/542 corpus counts, new scripts, Run C topic names
+
+### Design decisions (14 April 2026)
+- **Run C is canonical for v0.4.3** (not Run B): v0.4.3 is defined by the pub-type filter (542 books); Run C was run with this filter, `--seeds 5`, and `--lemmatize`, making it reproducible. Confirmed by Paul Wong.
+- **k=9 recommended** over k=8/10/12: best balance of perplexity (3413.6), stability (mean=0.327, 5/9 stable), and interpretability; T9 highest-stability topic (0.622) across all k
+- **Topic names provisional**: agreed by title-sweep (top-loading books inspection), not word-level inspection alone; subject to multi-run validation via run-records system and independent rater review before use in paper
+- **T1 (History and Biography of Cybernetics) low stability (0.131)**: attributed to Lem/Čapek science fiction outliers at top of loading list; cluster intellectually coherent beneath them; name retained with caveat
+
+### New canonical 9-topic taxonomy (Run C, 542 books)
+| # | Name | Stability |
+|---|------|-----------|
+| T1 | History and Biography of Cybernetics | 0.131 |
+| T2 | Cybernetics of Psychology | 0.559 |
+| T3 | Extensions of Cybernetics | 0.153 |
+| T4 | Cybernetic Management Theory | 0.349 |
+| T5 | Biological Systems Cybernetics | 0.224 |
+| T6 | Formal Foundations of Cybernetics | 0.289 |
+| T7 | Cross-Domain Applications of Cybernetics | 0.306 |
+| T8 | Cybernetics of Posthumanism | 0.306 |
+| T9 | Cultural Applications of Cybernetics | 0.622 |
+
+### Documentation
+- `docs/decisions.md` — corpus-scale epistemic access framing; run-id rationale; canonical run decision
+- `docs/methodology.md` — corpus-scale epistemic access; index compilation caveat; compression trade-offs
+- `docs/memo_lda_k_selection.md` — filed
+- `docs/consolidation_14apr2026.md` — filed
+- `docs/contributions.md` — 14 April sessions to be logged (see below)
+
+### Known issues
+- KI-04: Amazon/Google/Facebook entity noise — unresolved (post-presentation)
+- KI-05: T9 residual cluster (3 April run) — superseded by Run C taxonomy
+- T1 Lem/Čapek fiction outliers — documented; cluster coherent below top 3 books
+
+---

@@ -55,6 +55,51 @@ across following given thus within despite recent
 WEIGHTED     = '--weighted'     in sys.argv
 NAME_TOPICS  = '--name-topics'  in sys.argv
 
+# --full-text: use the full book body (front/back-matter stripped) as LDA input
+# instead of the default 3-point 60k-char sample. Intended for server-class
+# machines (Cybersonic) with ample RAM. Increases vocabulary coverage and LDA
+# signal quality at the cost of longer vectorisation and fitting time.
+# Combine with --max-features to expand the vocabulary beyond the default 3000.
+# Example: python3 src/03_nlp_pipeline.py --full-text --max-features 15000 \
+#                                          --topics 9 --seeds 5
+FULL_TEXT = '--full-text' in sys.argv
+if FULL_TEXT:
+    print('  [--full-text] Full body text mode — front/back-matter will be stripped')
+
+# --max-features N: vocabulary size for TF-IDF and CountVectorizer.
+# Default: 3000 (preserves backward compatibility for laptop runs).
+# Recommended for --full-text runs: 10000–20000 (more signal, more RAM needed).
+# With 695 books and 15000 features the count matrix is still sparse and
+# comfortably within 16 GB RAM.
+_MAX_FEATURES = 3000
+if '--max-features' in sys.argv:
+    try:
+        _MAX_FEATURES = int(sys.argv[sys.argv.index('--max-features') + 1])
+        print(f'  [--max-features] vocabulary size set to {_MAX_FEATURES:,}')
+    except (IndexError, ValueError):
+        print('  [--max-features] usage: --max-features N  (integer)')
+
+# --gpu: use RAPIDS cuML for LDA fitting (CUDA required).
+# Accelerates the final model fit and --seeds stability runs. The coherence
+# sweep (k-selection) still runs on sklearn/CPU because cuML LDA does not
+# expose a perplexity() method. Falls back to sklearn automatically if cuML
+# or CuPy is not installed.
+# Install: conda install -c rapidsai cuml cudatoolkit=12.x
+# Example: python3 src/03_nlp_pipeline.py --full-text --gpu --topics 9 --seeds 5
+GPU = '--gpu' in sys.argv
+_cuLDA = None
+if GPU:
+    try:
+        import cupy as _cp
+        import cupyx.scipy.sparse as _cpsp
+        from cuml.decomposition import LatentDirichletAllocation as _cuLDA
+        print('  [--gpu] cuML + CuPy loaded — LDA fitting will use GPU')
+    except ImportError as _e:
+        print(f'  [--gpu] WARNING: cuML/CuPy not available ({_e}) — '
+              f'falling back to sklearn (CPU)')
+        GPU = False
+        _cuLDA = None
+
 # --topics N: override the automatic k selection for LDA
 _FIXED_TOPICS = None
 if '--topics' in sys.argv:
@@ -77,12 +122,14 @@ if '--min-chars' in sys.argv:
     except (IndexError, ValueError):
         print('  [--min-chars] usage: --min-chars N  (integer)')
 
-# --lemmatize: apply spaCy lemmatisation to sampled texts before vectorisation.
+# --lemmatize: apply spaCy lemmatisation to texts before vectorisation.
 # Collapses inflected forms to base forms ('systems' → 'system',
 # 'organising' → 'organise') while preserving readability — unlike stemming
 # which produces uninterpretable truncations ('cybernetics' → 'cybernet').
 # Requires spaCy en_core_web_sm: python -m spacy download en_core_web_sm
-# Adds ~2-5 min processing time for 675 books at 60k chars/book.
+# Timing: ~2-5 min for 695 books at 60k chars/book (default sample).
+#         ~20-50 min for 695 books at full body text (~500k chars/book).
+#         Use --lemmatize with --full-text only on Cybersonic or equivalent.
 LEMMATIZE = '--lemmatize' in sys.argv
 if LEMMATIZE:
     try:
@@ -113,6 +160,28 @@ if '--seeds' in sys.argv:
                   'to fix k; auto-selection may choose different k per seed')
     except (IndexError, ValueError):
         print('  [--seeds] usage: --seeds N  (integer ≥ 2)')
+
+# --run-id ID: suffix appended to all output filenames, enabling concurrent runs
+# without clobbering each other's results.
+#   nlp_results.json       → nlp_results_<ID>.json
+#   topic_stability.json   → topic_stability_<ID>.json
+# Use a short descriptive tag, e.g. --run-id k8 or --run-id sweep or --run-id ft_k12
+# Example (three concurrent terminals):
+#   python3 src/03_nlp_pipeline.py --full-text --topics  8 --seeds 5 --run-id k8   &
+#   python3 src/03_nlp_pipeline.py --full-text --topics 12 --seeds 5 --run-id k12  &
+#   python3 src/03_nlp_pipeline.py --full-text            --seeds 5 --run-id sweep &
+_RUN_ID = ''
+if '--run-id' in sys.argv:
+    try:
+        _RUN_ID = sys.argv[sys.argv.index('--run-id') + 1].strip()
+        print(f'  [--run-id] output suffix: _{_RUN_ID}')
+    except (IndexError, ValueError):
+        print('  [--run-id] usage: --run-id ID  (short string, no spaces)')
+
+def _out(stem: str) -> str:
+    """Return JSON_DIR / stem[_RUN_ID].json, e.g. 'nlp_results_k8.json'."""
+    suffix = f'_{_RUN_ID}' if _RUN_ID else ''
+    return str(JSON_DIR / f'{stem}{suffix}.json')
 
 # ── Index-term weight builder ─────────────────────────────────────────────────
 def build_index_weights(feature_names, index_analysis_path=str(JSON_DIR / 'index_analysis.json'),
@@ -308,11 +377,13 @@ if low_alpha:
 titles     = [books[b]['title'] for b in book_ids]
 authors    = [books[b]['author'] for b in book_ids]
 
+# ── Text preparation: sample mode (default) ──────────────────────────────────
 # Multi-point sampling: three 20k-char slices (early/middle/late) concatenated.
-# Total sample = 60k chars, same as before, but now representative of the whole
-# book rather than just the introduction.
-# Slice positions: 10% (past front matter), 50% (argumentative core), 85% (conclusions).
-# Minimum offset of 4000 chars avoids publisher pages / copyright blocks.
+# Total sample = 60k chars (~12,000 words); representative of whole book
+# without front-matter traps.
+# Slice positions: 10% (past front matter), 50% (argumentative core), 85%
+# (conclusions). Minimum offset of 4000 chars avoids publisher/copyright pages.
+# Use this mode on laptop/desktop. For server runs use --full-text instead.
 SLICE_LEN = 20000
 
 def sample_book(text):
@@ -321,7 +392,154 @@ def sample_book(text):
     slices = [text[o: o + SLICE_LEN] for o in offsets]
     return ' '.join(slices)
 
-texts = [sample_book(books[b]['clean_text']) for b in book_ids]
+# ── Text preparation: full-text mode (--full-text) ───────────────────────────
+# Strip front matter (copyright pages, TOC, dedication, preface) and back
+# matter (references/bibliography, index) to produce a clean body text.
+# Designed for server-class machines (Cybersonic) with ample RAM.
+#
+# Front-matter strategy:
+#   After a minimum safe offset (FRONT_SKIP_MIN_CHARS), scan for the first
+#   strong body-text marker (chapter heading, "Introduction", etc.).
+#   If no marker is found within the first 30% of the text, fall back to
+#   skipping FRONT_SKIP_FRAC of the text length.
+#
+# Back-matter strategy:
+#   Find the LAST occurrence of a section heading that indicates back matter
+#   (References, Bibliography, Index, etc.) at least BACK_MIN_FRAC into the
+#   text (to avoid false positives early in the body). Truncate there.
+#
+# Both functions return (stripped_text, chars_removed) for logging.
+
+FRONT_SKIP_MIN_CHARS = 3000    # Never start before this offset
+FRONT_SKIP_FRAC      = 0.05    # Fallback: skip first 5% if no body marker found
+BACK_MIN_FRAC        = 0.50    # Only truncate if back-matter marker ≥ 50% in
+
+# Body-text start markers — first occurrence past FRONT_SKIP_MIN_CHARS
+# Matches "Chapter One", "Chapter 1", "Part I", "Introduction", "Prologue",
+# or a bare chapter-number line (e.g. "1\n" or "I\n").
+_BODY_START_RE = re.compile(
+    r'^\s*(?:'
+    r'chapter\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|'
+    r'eleven|twelve|[1-9][0-9]?)\b'
+    r'|part\s+(?:one|two|three|i{1,4}|v?i{0,3}|[1-9])\b'
+    r'|introduction\b'
+    r'|prologue\b'
+    r'|[1-9][0-9]?\s*\n'     # bare chapter number on its own line
+    r')',
+    re.IGNORECASE | re.MULTILINE
+)
+
+# Back-matter section headings — we find the LAST occurrence past BACK_MIN_FRAC.
+# Matches headings that are essentially alone on their line (end-of-line anchored)
+# to avoid matching mid-paragraph phrases like "see references above".
+_BACK_START_RE = re.compile(
+    r'^\s*(?:'
+    r'references?\s*$'
+    r'|bibliography\s*$'
+    r'|works\s+cited\s*$'
+    r'|further\s+reading\s*$'
+    r'|notes?\s+and\s+references?\s*$'
+    r'|selected\s+bibliography\s*$'
+    r'|bibliographical\s+notes?\s*$'
+    r'|index\s*$'
+    r'|general\s+index\s*$'
+    r'|subject\s+index\s*$'
+    r'|author\s+index\s*$'
+    r'|name\s+index\s*$'
+    r')',
+    re.IGNORECASE | re.MULTILINE
+)
+
+
+def strip_front_matter(text: str):
+    """
+    Remove front matter from cleaned book text.
+
+    Returns (body_text, chars_skipped).
+
+    Strategy:
+      1. Scan for the first body-text marker (chapter heading, Introduction,
+         etc.) after FRONT_SKIP_MIN_CHARS. If found within the first 30% of
+         text, start there.
+      2. Otherwise fall back to skipping max(FRONT_SKIP_MIN_CHARS,
+         FRONT_SKIP_FRAC * len(text)).
+    """
+    n = len(text)
+    m = _BODY_START_RE.search(text, FRONT_SKIP_MIN_CHARS)
+    if m and m.start() < n * 0.30:
+        return text[m.start():], m.start()
+    offset = max(FRONT_SKIP_MIN_CHARS, int(n * FRONT_SKIP_FRAC))
+    return text[offset:], offset
+
+
+def strip_back_matter(text: str):
+    """
+    Remove back matter (bibliography, references, index) from cleaned book text.
+
+    Returns (body_text, chars_removed).
+
+    Strategy:
+      Find the LAST occurrence of a back-matter heading that appears at least
+      BACK_MIN_FRAC into the text. Truncate there. If none found, return text
+      unchanged.
+    """
+    n = len(text)
+    min_offset = int(n * BACK_MIN_FRAC)
+    last_match = None
+    for m in _BACK_START_RE.finditer(text):
+        if m.start() >= min_offset:
+            last_match = m
+    if last_match:
+        return text[:last_match.start()], n - last_match.start()
+    return text, 0
+
+
+def prepare_full_text(text: str):
+    """
+    Apply front- and back-matter stripping to produce a clean body text.
+
+    Returns (body_text, stats_dict).
+    stats keys: original_chars, front_stripped, back_stripped,
+                body_chars, body_pct.
+    """
+    original_chars = len(text)
+    stripped_front, front_chars = strip_front_matter(text)
+    stripped_body,  back_chars  = strip_back_matter(stripped_front)
+    body_chars = len(stripped_body)
+    stats = {
+        'original_chars': original_chars,
+        'front_stripped':  front_chars,
+        'back_stripped':   back_chars,
+        'body_chars':      body_chars,
+        'body_pct':        round(100 * body_chars / original_chars, 1)
+                           if original_chars else 0,
+    }
+    return stripped_body, stats
+
+
+# ── Apply text preparation ────────────────────────────────────────────────────
+if FULL_TEXT:
+    print(f"\n  [--full-text] Preparing body texts for {len(book_ids)} books...")
+    texts = []
+    ft_stats_list = []
+    for i, b in enumerate(book_ids, 1):
+        body, stats = prepare_full_text(books[b]['clean_text'])
+        texts.append(body)
+        ft_stats_list.append(stats)
+        if i <= 5 or i % 100 == 0:          # print first 5 then every 100
+            print(f"    [{b}] {books[b]['title'][:45]:45s}  "
+                  f"orig={stats['original_chars']//1000:4d}k  "
+                  f"body={stats['body_chars']//1000:4d}k  "
+                  f"({stats['body_pct']}%)  "
+                  f"-front={stats['front_stripped']//1000}k  "
+                  f"-back={stats['back_stripped']//1000}k")
+    mean_body = int(np.mean([s['body_chars'] for s in ft_stats_list]))
+    mean_orig = int(np.mean([s['original_chars'] for s in ft_stats_list]))
+    mean_pct  = round(np.mean([s['body_pct'] for s in ft_stats_list]), 1)
+    print(f"  [--full-text] Mean body: {mean_body//1000}k chars  "
+          f"(mean original: {mean_orig//1000}k chars, {mean_pct}% retained)")
+else:
+    texts = [sample_book(books[b]['clean_text']) for b in book_ids]
 
 # ── Lemmatisation (--lemmatize) ───────────────────────────────────────────────
 def _lemmatise_text(text, nlp, batch_size=50):
@@ -342,7 +560,7 @@ def _lemmatise_text(text, nlp, batch_size=50):
     return ' '.join(lemmas)
 
 if LEMMATIZE:
-    print(f"  Lemmatising {len(texts)} texts (this may take a few minutes)...")
+    print(f"  Lemmatising {len(texts)} texts (this may take a while)...")
     texts = [_lemmatise_text(t, _nlp) for i, t in enumerate(texts, 1)
              if not print(f"    {i}/{len(texts)}", end='\r') or True]
     print()
@@ -360,7 +578,7 @@ def _join_hyphens(text):
 
 texts = [_join_hyphens(t) if not LEMMATIZE else t for t in texts]
 
-tfidf = TfidfVectorizer(max_features=3000, stop_words=list(STOPWORDS),
+tfidf = TfidfVectorizer(max_features=_MAX_FEATURES, stop_words=list(STOPWORDS),
                         ngram_range=(1,2), min_df=2, max_df=0.95,
                         token_pattern=r'(?u)\b[a-zA-Z]{4,}\b')
 X_tfidf = tfidf.fit_transform(texts)
@@ -380,7 +598,7 @@ if WEIGHTED:
 # ── 2. LDA Topic Modelling ───────────────────────────────────────────────────
 # Build a unigram count matrix for coherence scoring (NPMI over co-occurrences)
 # and a separate TF-IDF count matrix for LDA fitting.
-cv = CountVectorizer(max_features=3000, stop_words=list(STOPWORDS),
+cv = CountVectorizer(max_features=_MAX_FEATURES, stop_words=list(STOPWORDS),
                      ngram_range=(1,1), min_df=2, max_df=0.95,
                      token_pattern=r'(?u)\b[a-zA-Z]{4,}\b')
 X_count   = cv.fit_transform(texts)
@@ -410,7 +628,10 @@ def npmi_coherence(top_words, X_bin, df, vocab_idx, N, eps=1.0):
         scores.append(pmi / denom if denom != 0 else 0.0)
     return float(np.mean(scores))
 
-# Fit LDA for k = N_TOPICS_MIN..N_TOPICS_MAX, select by mean NPMI coherence.
+# ── k-selection sweep (always CPU / sklearn) ─────────────────────────────────
+# The coherence sweep runs on sklearn regardless of --gpu because cuML LDA
+# does not expose a perplexity() or coherence method. The GPU is used only
+# for the final model fit and the --seeds stability runs.
 # FIX: if --topics N is set and N > N_TOPICS_MAX, extend the sweep to include N
 # so perplexity/coherence are recorded for it and the override fires correctly.
 N_TOPICS_MIN = 2
@@ -447,16 +668,78 @@ for n_topics in range(N_TOPICS_MIN, N_TOPICS_MAX + 1):
 # the sweep above now always includes it when --topics N is set.
 if _FIXED_TOPICS is not None:
     best_n = _FIXED_TOPICS
-    best_lda = LatentDirichletAllocation(
-        n_components=best_n, max_iter=20, learning_method='online',
-        random_state=99, learning_offset=50., doc_topic_prior=0.1)
-    best_lda.fit(X_count)
     best_coh = coherences.get(best_n, 0.0)
-    print(f'\n[--topics] Using forced n_topics={best_n} '
+    print(f'\n[--topics] Fitting final model at forced n_topics={best_n} '
           f'(coherence={best_coh:.4f}, perplexity={perplexities.get(best_n, 0):.1f})')
 else:
     print(f"\nBest n_topics={best_n} (highest coherence={best_coh:.4f}, "
           f"perplexity={perplexities[best_n]:.1f})")
+
+# ── Final model fit (GPU if --gpu, else sklearn) ──────────────────────────────
+# If --gpu is set and cuML loaded successfully, fit the final model on GPU.
+# The count matrix is converted to a CuPy sparse array for cuML. cuML LDA
+# uses the same online learning approach as sklearn but dispatches to CUDA
+# for the E-step and M-step matrix operations.
+#
+# cuML LDA note: max_iter here corresponds to n_components in cuML ≥ 24.06.
+# If you see an API error, check your cuML version:
+#   python -c "import cuml; print(cuml.__version__)"
+# Confirmed working: cuML 24.06+  (RAPIDS 24.06).
+def _fit_lda_gpu(n_topics, X_count_sparse, random_state=99):
+    """Fit LDA on GPU via cuML. Returns a fitted cuML LDA object."""
+    import cupy as cp
+    import cupyx.scipy.sparse as cpsp
+    X_gpu = cpsp.csr_matrix(X_count_sparse.astype(np.float32))
+    lda_gpu = _cuLDA(
+        n_components=n_topics,
+        max_iter=20,
+        learning_method='online',
+        random_state=random_state,
+        learning_offset=50.,
+        doc_topic_prior=0.1,
+    )
+    lda_gpu.fit(X_gpu)
+    return lda_gpu, X_gpu
+
+
+def _transform_lda_gpu(lda_gpu, X_gpu):
+    """Return doc-topic matrix from a fitted cuML LDA (as numpy array)."""
+    import cupy as cp
+    return cp.asnumpy(lda_gpu.transform(X_gpu))
+
+
+if GPU and _cuLDA is not None:
+    print(f'\n[--gpu] Fitting final LDA (k={best_n}) on GPU...')
+    try:
+        best_lda_gpu, X_count_gpu = _fit_lda_gpu(best_n, X_count)
+        # Extract components as numpy for downstream use
+        import cupy as _cp_main
+        best_components = _cp_main.asnumpy(best_lda_gpu.components_)
+        doc_topic_gpu   = _transform_lda_gpu(best_lda_gpu, X_count_gpu)
+        print(f'  [--gpu] GPU fit complete.')
+        # Wrap in a lightweight namespace so downstream code can call
+        # best_lda.components_ and best_lda.transform() uniformly.
+        class _GPULDAWrapper:
+            def __init__(self, components, doc_topic_arr):
+                self.components_ = components
+                self._doc_topic  = doc_topic_arr
+            def transform(self, X):
+                return self._doc_topic
+            def perplexity(self, X):
+                return float('nan')  # not available for GPU model
+        best_lda = _GPULDAWrapper(best_components, doc_topic_gpu)
+    except Exception as _gpu_err:
+        print(f'  [--gpu] GPU fit failed ({_gpu_err}) — falling back to sklearn')
+        GPU = False
+        best_lda = LatentDirichletAllocation(
+            n_components=best_n, max_iter=20, learning_method='online',
+            random_state=99, learning_offset=50., doc_topic_prior=0.1)
+        best_lda.fit(X_count)
+else:
+    best_lda = LatentDirichletAllocation(
+        n_components=best_n, max_iter=20, learning_method='online',
+        random_state=99, learning_offset=50., doc_topic_prior=0.1)
+    best_lda.fit(X_count)
 
 # ── Topic stability analysis (--seeds) ───────────────────────────────────────
 def _jaccard(set_a, set_b):
@@ -481,6 +764,8 @@ def run_stability_analysis(n_topics, X_count, cv_vocab, n_seeds, n_top=10):
     Run LDA n_seeds times, align topics across all pairs of runs using the
     Hungarian algorithm, and compute per-topic mean Jaccard stability scores.
 
+    Uses GPU (cuML) for each seed run if --gpu is active.
+
     Returns:
         seed_top_words  : list of n_seeds × n_topics × n_top word lists
         stability_scores: list of n_topics floats (mean Jaccard across pairs)
@@ -488,17 +773,35 @@ def run_stability_analysis(n_topics, X_count, cv_vocab, n_seeds, n_top=10):
                           to match the canonical topic ordering
     """
     SEEDS = [42, 7, 123, 256, 999, 17, 88, 314, 501, 777][:n_seeds]
-    print(f"\n[--seeds] Fitting {n_seeds} LDA runs at k={n_topics}...")
+    backend = 'GPU (cuML)' if GPU and _cuLDA is not None else 'CPU (sklearn)'
+    print(f"\n[--seeds] Fitting {n_seeds} LDA runs at k={n_topics} ({backend})...")
 
     all_top_words = []
     for i, seed in enumerate(SEEDS):
-        lda_s = LatentDirichletAllocation(
-            n_components=n_topics, max_iter=20, learning_method='online',
-            random_state=seed, learning_offset=50., doc_topic_prior=0.1)
-        lda_s.fit(X_count)
+        if GPU and _cuLDA is not None:
+            try:
+                lda_s, X_gpu_s = _fit_lda_gpu(n_topics, X_count,
+                                               random_state=seed)
+                import cupy as _cp_s
+                comps = _cp_s.asnumpy(lda_s.components_)
+            except Exception as _se:
+                print(f'  seed {seed}: GPU failed ({_se}), using sklearn')
+                lda_s = LatentDirichletAllocation(
+                    n_components=n_topics, max_iter=20,
+                    learning_method='online', random_state=seed,
+                    learning_offset=50., doc_topic_prior=0.1)
+                lda_s.fit(X_count)
+                comps = lda_s.components_
+        else:
+            lda_s = LatentDirichletAllocation(
+                n_components=n_topics, max_iter=20, learning_method='online',
+                random_state=seed, learning_offset=50., doc_topic_prior=0.1)
+            lda_s.fit(X_count)
+            comps = lda_s.components_
+
         tw = []
         for t in range(n_topics):
-            top_idx = lda_s.components_[t].argsort()[-n_top:][::-1]
+            top_idx = comps[t].argsort()[-n_top:][::-1]
             tw.append([cv_vocab[idx] for idx in top_idx
                        if ' ' not in cv_vocab[idx]][:n_top])
         all_top_words.append(tw)
@@ -564,9 +867,9 @@ if _N_SEEDS >= 2:
             'unstable': [t for t, s in enumerate(stability_scores) if s < 0.15],
         }
     }
-    with open(str(JSON_DIR / 'topic_stability.json'), 'w') as f:
+    with open(_out('topic_stability'), 'w') as f:
         json.dump(stability_results, f, indent=2)
-    print(f"  Saved topic_stability.json")
+    print(f"  Saved {_out('topic_stability')}")
 
 # Get topic-word distributions for best model
 def get_top_words(model, feature_names, n_top=12):
@@ -578,6 +881,8 @@ def get_top_words(model, feature_names, n_top=12):
 
 top_words      = get_top_words(best_lda, cv_vocab)
 doc_topic      = best_lda.transform(X_count)
+if not isinstance(doc_topic, np.ndarray):
+    doc_topic = np.array(doc_topic)
 dominant_topics = doc_topic.argmax(axis=1)
 
 # ── 3. Key Phrase Extraction (TF-IDF per document) ───────────────────────────
@@ -645,7 +950,7 @@ def name_topics_via_api(top_words, n_topics,
     import anthropic as _anth
     import json as _json
 
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    api_key = _os.environ.get('ANTHROPIC_API_KEY', '')
     if not api_key:
         print("  [--name-topics] ANTHROPIC_API_KEY not set — skipping naming")
         return [f'Topic {t+1}' for t in range(n_topics)]
@@ -703,6 +1008,7 @@ results = {
     'authors': authors,
     'n_topics': best_n,
     'perplexities': perplexities,
+    'coherences': coherences,
     'top_words': top_words,
     'doc_topic': doc_topic.tolist(),
     'dominant_topics': dominant_topics.tolist(),
@@ -718,12 +1024,15 @@ results = {
     'coords_2d': coords_2d,
     'topic_names': None,  # populated by --name-topics or carried from prev run
     'stability': stability_results,  # None unless --seeds was used
+    'pipeline_mode': 'full_text' if FULL_TEXT else 'sampled',
+    'max_features': _MAX_FEATURES,
+    'gpu_used': GPU,
 }
 
 # Carry forward topic_names from a previous run if n_topics matches
 # (so names survive --weighted re-runs without --name-topics)
 try:
-    with open(str(JSON_DIR / 'nlp_results.json')) as _f:
+    with open(_out('nlp_results')) as _f:
         _prev = json.load(_f)
     if (_prev.get('n_topics') == results['n_topics']
             and _prev.get('topic_names')
@@ -736,9 +1045,9 @@ except Exception:
 if NAME_TOPICS:
     results['topic_names'] = name_topics_via_api(top_words, best_n)
 
-with open(str(JSON_DIR / 'nlp_results.json'), 'w') as f:
+with open(_out('nlp_results'), 'w') as f:
     json.dump(results, f)
-print("\nNLP pipeline complete. Results saved to nlp_results.json")
+print(f"\nNLP pipeline complete. Results saved to {_out('nlp_results')}")
 if results.get('topic_names'):
     print('Topic names:')
     for i, name in enumerate(results['topic_names']):

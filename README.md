@@ -8,7 +8,7 @@ Claude Sonnet 4.6 (Anthropic, claude.ai)²
 ¹ School of Cybernetics, The Australian National University, Canberra, Australia
 ² Large language model; no persistent identity, affiliation, or legal standing
 
-**Date:** 8 April 2026
+**Date:** 15 April 2026
 
 ---
 
@@ -31,13 +31,14 @@ applied to a cybernetics book corpus extracted from a Calibre library.
 
 ```
 CyberneticsNLP/
-├── csv/                        ← Place Calibre CSV exports here (OneDrive synced)
+├── csv/                        ← Place Calibre CSV exports here (Cybersonic local)
 │   ├── books_metadata_full.csv ← Calibre metadata, 20 cols incl. inclusion_stratum (tab-separated)
 │   └── books_text_*.csv        ← OCR text (25 files)
 │
-├── json/                       ← All JSON/JSONL outputs (auto-created, OneDrive synced)
+├── json/                       ← All JSON/JSONL outputs (auto-created, Cybersonic local)
 │   ├── books_clean.json        ← cleaned text corpus (written by 02/stream)
-│   ├── nlp_results.json        ← LDA/cluster results (written by 03)
+│   ├── nlp_results.json        ← Run B: full-text LDA, ~690 books (overwrote Run A; written by 03)
+│   ├── nlp_results_k{N}.json  ← k-sweep runs; nlp_results_k9.json = v0.4.3 canonical (Run C)
 │   ├── summaries.json          ← abstractive summaries (written by generate_summaries_api)
 │   ├── index_terms.json        ← raw per-book index terms (written by 09)
 │   ├── index_vocab.json        ← raw vocabulary (written by 09)
@@ -51,7 +52,7 @@ CyberneticsNLP/
 │   └── ...                     ← other pipeline intermediates
 │
 ├── data/
-│   └── outputs/                ← Generated HTML reports and Excel files (OneDrive synced)
+│   └── outputs/                ← Generated HTML reports and Excel files (Cybersonic local)
 │       ├── book_nlp_analysis.html
 │       ├── book_nlp_analysis_chapters.html
 │       ├── book_nlp_timeseries.html
@@ -63,7 +64,7 @@ CyberneticsNLP/
 │       ├── book_nlp_results.xlsx
 │       └── book_nlp_chapters.xlsx
 │
-├── figures/                    ← matplotlib figures (auto-created, OneDrive synced)
+├── figures/                    ← matplotlib figures (auto-created, Cybersonic local)
 │
 ├── src/                        ← Pipeline scripts (tracked in git)
 │   ├── parse_and_clean_stream.py   Step 0s: streaming clean (large corpora)
@@ -288,9 +289,29 @@ All reports are written to `data/outputs/`.
 
 ## Topic Solutions
 
-### Book-level (LDA, k=9 — canonical, 3 April 2026)
+### Book-level (LDA, k=9 — v0.4.3 CANONICAL, Run C, 14 April 2026)
 
-695 books · `--min-chars 10000 --lemmatize --topics 9 --seeds 5` · 7/9 stable · 0 dead · mean stability=0.382
+542 books (monographs + collected works only) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --run-id k9` · 5/9 stable · mean stability=0.327 · output: `json/nlp_results_k9.json`
+
+Topic names generated via `--name-topics` (Anthropic API) then manually reviewed and corrected by Paul Wong.
+
+| # | Name | Stability | Notes |
+|---|------|-----------|-------|
+| T1 | History and Biography of Cybernetics | 0.131 | Low stability due to Lem/Čapek fiction outliers; historiography cluster coherent |
+| T2 | Cybernetics of Psychology | 0.559 | |
+| T3 | Extensions of Cybernetics | 0.153 | Brier, Yuk Hui, actor-network theory |
+| T4 | Cybernetic Management Theory | 0.349 | Beer's VSM tradition |
+| T5 | Biological Systems Cybernetics | 0.224 | Sterling, Schulkin, Laughlin |
+| T6 | Formal Foundations of Cybernetics | 0.289 | Mathematical and computational tradition |
+| T7 | Cross-Domain Applications of Cybernetics | 0.306 | Urban systems, church governance, border security |
+| T8 | Cybernetics of Posthumanism | 0.306 | |
+| T9 | Cultural Applications of Cybernetics | 0.622 | Highest stability across k=8–12 sweep |
+
+Full topic validation: `json/topic_validation.json` · run `src/09c_validate_topics.py --top 10 --md` to regenerate.
+
+### Book-level (LDA, k=9 — Run A, 3 April 2026, historical reference)
+
+695 books · `--min-chars 10000 --lemmatize --topics 9 --seeds 5` · 7/9 stable · 0 dead · mean stability=0.382 · output: `json/nlp_results.json` (**overwritten** by Run B; names retained for reference)
 
 | # | Name |
 |---|------|
@@ -303,8 +324,6 @@ All reports are written to `data/outputs/`.
 | T7 | Cultural Cybernetics, Posthumanism & Digital Media |
 | T8 | Applied Cybernetics & Computers in Society |
 | T9 | Residual / Outlier Cluster |
-
-Full topic validation: `json/topic_validation.json` · run `src/09c_validate_topics.py --top 10 --md` to regenerate.
 
 ### Chapter-level (NMF, 8 topics)
 
@@ -367,6 +386,13 @@ Or uncomment the pre-written block at the bottom of `src/run_all.sh`.
 ---
 
 ## Recent changes
+
+### v0.4.3 (14 April 2026)
+- **Full-text LDA refactor**: `--full-text`, `--run-id`, `--name-topics` flags added to `03_nlp_pipeline.py`; full body text with front/back matter stripped; 15,000-feature vocabulary; spaCy lemmatisation.
+- **Pub-type filter**: canonical corpus filtered to monographs and collected works only (695 → 542 books) via `books_metadata_full.csv` `pub_type` column.
+- **k-selection sweep**: concurrent runs at k=8, 9, 10, 12 with `--run-id` flag (`nlp_results_k{N}.json`). k=9 confirmed optimal (mean stability 0.327; highest-stability topic T9=0.622).
+- **Run C canonical** (`nlp_results_k9.json`): 542 books, 9-topic taxonomy named and confirmed by Paul Wong (14 April 2026). Six of nine API-generated names manually corrected via `src/patch_topic_names.py`.
+- **Documentation**: `docs/decisions.md` — new entry on corpus-scale epistemic access as qualitatively distinct mode; `docs/methodology.md` — new entry on pipeline compression trade-offs and index compilation caveat; `docs/CHANGELOG.md` and `docs/contributions.md` updated; `CyberneticsNLP_Talk_v2.pptx` updated.
 
 ### v0.4.2 (8 April 2026)
 - **Monograph binary classifier** (`heuristic_features.py`, `train_monograph_classifier.py`): logistic regression on 33 features (23 metadata + 10 structural text heuristics); 197 expert labels; threshold=0.4; 5-fold CV precision=0.89, recall=0.68. Active learning cycle established.

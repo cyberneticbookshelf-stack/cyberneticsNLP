@@ -1996,3 +1996,75 @@ expert judgement and machine inference — and enforcing it structurally
 by keeping the two data sources separate — is a methodological
 discipline that must be explicitly designed into the workflow.
 It will not emerge spontaneously from the AI's elaboration.
+
+---
+
+## Corpus-scale epistemic access: what the pipeline reveals and what it cannot
+*Added 15 April 2026 (Cowork session)*
+
+### The scale problem in knowledge access
+
+695 books spanning 70 years represents approximately 60,000–120,000 pages of text. No
+individual reader can hold the full structure of such a collection in working memory
+simultaneously. But the epistemic challenge is not only practical — it is structural. What
+it means to "understand" a corpus rather than its individual texts is a different question
+from what it means to understand any one of those texts.
+
+### Two distinct epistemic modes
+
+Individual reading and corpus-scale NLP produce different kinds of knowledge and answer
+different questions.
+
+**What individual reading affords:** comprehension of specific arguments and their logical
+structure; sensitivity to rhetorical register, qualification, and provisionality; awareness
+of intertextual relationships (specific debates, responses, objections); tacit context
+required to interpret explicit claims.
+
+**What corpus-scale NLP affords:** topic structure — which intellectual clusters exist
+across the collection; temporal evolution — how thematic emphases have shifted over 70
+years; concept velocity — which terms are stable anchors and which are migrating across
+traditions; network centrality — which persons and concepts are most connected across
+the field.
+
+These are not two ways of answering the same questions at different speeds. They are
+qualitatively different epistemic modes. The research questions in this project
+(topic structure, temporal evolution, network centrality, concept velocity) are only
+askable at corpus scale. They cannot be answered by reading individual books, no matter
+how carefully or extensively.
+
+### Additional caveat: index compilation changed across the 70-year span
+
+The index-as-controlled-vocabulary signal is not uniform across the corpus. Books published
+before approximately the 1990s typically have hand-compiled indexes: selective, semantically
+rich, reflecting expert judgement about what is conceptually significant. Books published
+after the widespread adoption of desktop publishing and automated index generation tend to
+have denser, more mechanically produced indexes that are less discriminating.
+
+This temporal shift in index compilation practice is a confound in the concept velocity
+analysis: apparent changes in concept frequency over time may partially reflect changes in
+indexing practice rather than changes in intellectual emphasis. This should be acknowledged
+as a limitation in the paper's treatment of temporal trends, alongside the existing
+index quality stratification framework (§4 of the epistemic affordances memo).
+
+### What the pipeline preserves and what it loses
+
+Each compression operation in the pipeline is not neutral with respect to epistemic
+content:
+
+**Preserved:** statistical vocabulary patterns across the corpus; most frequent and
+distinctive index concepts; entity co-occurrence within paragraph windows; temporal
+trends in concept frequency.
+
+**Lost:** argument structure and logical relationships between claims; rhetorical register
+(irony, qualification, provisionality); the reader-text relationship; intertextual
+specificity (which author was responding to whom); tacit disciplinary knowledge.
+
+The pipeline is better at characterising what the cybernetics tradition *discussed* than
+what it *argued*. It maps the concept space more reliably than the claim space. This is a
+systematic bias that should be stated explicitly in the paper rather than implied by
+silence.
+
+### Reference
+Full theoretical development — including the self-referential connection to Ashby's Law of
+Requisite Variety and the proposed theoretical contribution statement — is in §15 of
+`docs/memo_media_aware_nlp_epistemic_affordances.md`.

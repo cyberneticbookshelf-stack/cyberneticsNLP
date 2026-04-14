@@ -1,6 +1,6 @@
 # Topic Validation Report
 
-**Date:** 2026-04-10  
+**Date:** 2026-04-14  
 **k:** 9  
 **Corpus:** 541 books  
 **Method:** LDA top words + 5-seed stability (Hungarian alignment) + title verification  
@@ -59,7 +59,7 @@
 
 **Top words:** control, behavior, level, organism, cell, brain, human, environment  
 **Proposed name:** *(to be named)*  
-**Notes:** Has occurred in different form in previous runs. Low within-run stability (0.167) suggests boundaries shift across seeds. Bateson-inflected cluster mixing behavioural cybernetics, perceptual control theory, and self-help/pop-cybernetics titles; the latter (Psycho-Cybernetics, Success Cybernetics, Hypno Cybernetics) pull the topic away from serious scholarship. Cluster coherence may improve if pop-cybernetics titles are reviewed for pub-type labelling.  
+**Notes:** —  
 
 | Score | ID | Title | Year |
 |---|---|---|---|
@@ -78,7 +78,7 @@
 
 **Top words:** world, year, computer, design, medium, american, people, city  
 **Proposed name:** *(to be named)*  
-**Notes:** Applied Cybernetics — consistent across multiple runs. Feedback, control, and communication used as analytical framework applied to a range of heterogeneous domains. The unusual vocabulary (water, fish, wing, vessel, church) reflects the subject domains of top-loading books (biomechanics, hydrology, ecclesiology) rather than incoherence — the unifying thread is application of cybernetic concepts, not shared domain.  
+**Notes:** —  
 
 | Score | ID | Title | Year |
 |---|---|---|---|
@@ -97,7 +97,7 @@
 
 **Top words:** control, model, value, function, equation, number, element, output  
 **Proposed name:** *(to be named)*  
-**Notes:** New in this run; not observed in pre-pub-type-filter runs. Emerged after anthologies and textbooks were removed from the corpus. Educational and learning-theoretic cybernetics cluster: conversation theory (Pask), instructional cybernetics, learning performance. High within-run stability (0.507) despite being a new cluster, which suggests the signal was previously diluted by textbook/anthology titles that have now been excluded.  
+**Notes:** —  
 
 | Score | ID | Title | Year |
 |---|---|---|---|
@@ -135,7 +135,7 @@
 
 **Top words:** model, control, decision, organization, management, variety, information, environment  
 **Proposed name:** *(to be named)*  
-**Notes:** Has occurred in previous runs. Highest within-run stability of all topics (0.533). Philosophy of technology and posthumanism cluster: Stiegler, transhumanism, cyborg theory, Latin American posthumanism, documentary ontology. Consistent recurrence and high stability suggest this is a robust signal in the corpus.  
+**Notes:** —  
 
 | Score | ID | Title | Year |
 |---|---|---|---|

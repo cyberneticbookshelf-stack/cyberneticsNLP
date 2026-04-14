@@ -1832,3 +1832,68 @@ not yet in the exclusion list.
 Identified from a pipeline run on 10 April 2026 where Calibre language
 tags were intact. IDs: 2044, 2063, 2064, 2065, 2066, 2092, 2344, 2460,
 2469, 2470, 2471, 2472, 2473, 2474, 2475, 2476, 2477.
+
+---
+
+## Git operations: always run on Cybersonic directly
+**Date:** 11 April 2026 | **Session:** Cowork
+
+### Decision
+All git operations (commit, merge, push, pull, rebase) must be run
+directly on Cybersonic via SSH. Do not run git through the SSHFS
+network mount on NorbertX or AshbyX.
+
+### Rationale
+macOS writes AppleDouble resource fork files (`._*`) into `.git/objects/`
+on SSHFS-mounted directories, corrupting git's object store. The network
+mount also causes stale stat information in the git index, making git
+falsely report clean files as modified and blocking merges, stashes, and
+HEAD detachment. Both failure modes are silent and hard to diagnose.
+These problems do not occur on Cybersonic's native filesystem.
+
+### Rule
+- Edit files via the SSHFS mount on NorbertX/AshbyX as normal
+- SSH into Cybersonic for all git operations
+- If `._*` contamination is suspected: `find .git -name "._*" -delete && find .git -name "tmp_obj_*"` to check for stranded temp objects
+
+---
+
+## Why corpus-scale NLP is framed as a qualitatively distinct epistemic mode
+**Date:** 15 April 2026 | **Session:** Cowork
+
+### Decision
+The paper frames corpus-scale NLP analysis as affording qualitatively different epistemic
+access than individual reading — not merely faster or more comprehensive reading, but a
+different kind of knowing that reveals patterns invisible at the level of any individual
+text. This is the paper's primary theoretical contribution alongside the media-aware
+feature selection argument.
+
+### Rationale
+Reading one book and reading 695 books over 70 years computationally are not the same
+epistemic act performed at different scales. They answer different questions and make
+different things visible.
+
+Individual reading produces: argument comprehension, sensitivity to rhetorical register,
+awareness of specific intertextual relationships, the tacit context required to interpret
+explicit claims. Corpus-scale NLP produces: topic structure across the collection, temporal
+evolution of thematic emphasis, concept velocity and migration, network centrality of
+persons and concepts. Neither mode is a substitute for the other. They are qualitatively
+distinct.
+
+The framing decision is to be explicit about both what the pipeline reveals and what it
+cannot see — rather than implying it is a faster substitute for close reading, which would
+misrepresent both its capabilities and its limitations.
+
+### Relation to the epistemic affordances memo
+This extends the epistemic affordances argument from the level of individual media types
+(§1–2 of `memo_media_aware_nlp_epistemic_affordances.md`) to the level of the analytical
+method itself. The full development — including the connection to Ashby's Law of Requisite
+Variety and the compression trade-offs — is in §15 of that memo.
+
+### Implication for the paper
+The contribution statement should be explicit: the paper does not claim to have read the
+cybernetics corpus — it claims to have analysed it at scale in a way that reveals structure
+unavailable to individual reading. The methodology section should acknowledge both what the
+pipeline preserves (vocabulary patterns, concept distribution, temporal trends, network
+structure) and what it loses (argument structure, rhetorical register, intertextual
+specificity).
