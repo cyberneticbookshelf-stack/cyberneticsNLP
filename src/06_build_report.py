@@ -234,11 +234,11 @@ for _ci in range(_n_clusters):
             _cl_avg[_ci, _cj] = round(float(cos_arr[np.ix_(_idx_i, _idx_j)].mean()), 3)
 _cl_labels  = [f'Cluster {c+1} (n={int((_cl_arr==c).sum())})' for c in range(_n_clusters)]
 cosine_data = json.dumps({
-    'z':          cos_sorted,
-    'labels':     labs_sorted,
-    'cl_avg':     _cl_avg.tolist(),
-    'cl_labels':  _cl_labels,
-    'best_k':     _n_clusters,
+    'z':         cos_sorted,
+    'labels':    labs_sorted,
+    'cl_avg':    _cl_avg.tolist(),
+    'cl_labels': _cl_labels,
+    'best_k':    _n_clusters,
 })
 
 # Topic distribution data for stacked bar
@@ -593,15 +593,21 @@ function updateCosine() {{
     Plotly.react('cosine_chart', [{{
       z: CD.cl_avg, x: CD.cl_labels, y: CD.cl_labels,
       type: 'heatmap', colorscale: 'Blues', zmin:0, zmax:1,
-      hovertemplate: '<b>%{{y}}</b><br>vs<br><b>%{{x}}</b><br>Mean similarity: %{{z:.3f}}<extra></extra>',
-      texttemplate: '%{{z:.2f}}', textfont: {{size:13}}
+      hovertemplate: '<b>%{{y}}</b><br>vs<br><b>%{{x}}</b><br>Mean similarity: %{{z:.3f}}<extra></extra>'
     }}], {{
       height: 420,
       margin: {{t:20, b:160, l:220, r:40}},
       xaxis: {{tickangle:-40, tickfont:{{size:11}}, side:'bottom', automargin:true}},
       yaxis: {{tickfont:{{size:11}}, automargin:true}},
       paper_bgcolor:'transparent',
-      hoverlabel: hoverStyle
+      hoverlabel: hoverStyle,
+      annotations: CD.cl_avg.flatMap((row, r) =>
+        row.map((val, c) => ({{
+          x: CD.cl_labels[c], y: CD.cl_labels[r],
+          text: val.toFixed(2), showarrow: false,
+          font: {{size:14, color: val > 0.50 ? '#1e293b' : '#fff'}}
+        }}))
+      )
     }});
 
   }} else if (cosineMode === 'heatmap') {{
