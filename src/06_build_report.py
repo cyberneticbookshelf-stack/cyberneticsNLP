@@ -209,7 +209,7 @@ kp_data = json.dumps({
     'authors':  R['authors'],
     'topics':   dominant,
     'clusters': cluster_labels,
-    'keyphrases': {bid: R['keyphrases'].get(bid,[]) for bid in book_ids},
+    'keyphrases': {bid: _clean_kp(R['keyphrases'].get(bid,[])) for bid in book_ids},
     'n_topics': n_topics,
     'best_k':   best_k,
 })
