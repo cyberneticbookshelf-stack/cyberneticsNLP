@@ -101,19 +101,36 @@ _AUTHAFFIL  = re.compile(
     r'Belgium|Poland|Greece|Portugal|Israel|South Africa|New Zealand)\b', re.I)
 
 # Single-name historical figures not caught by the "Surname, Firstname" pattern
+# (fallback only — used when entity_types_cache.json is not available)
 _ANCIENT_PERSONS = {
     'aristotle', 'plato', 'socrates', 'pythagoras', 'archimedes', 'euclid',
     'heraclitus', 'democritus', 'epicurus', 'cicero', 'virgil', 'homer',
     'confucius', 'buddha', 'newton', 'galileo', 'copernicus', 'leibniz',
     'kant', 'hegel', 'spinoza', 'locke', 'hume', 'nietzsche', 'marx',
-    'freud', 'jung', 'plato', 'descartes',
+    'freud', 'jung', 'descartes',
 }
 
+# Load the NER cache produced by 15_entity_classify.py (if available)
+_ENTITY_CACHE = {}
+_entity_cache_path = JSON_DIR / 'entity_types_cache.json'
+if _entity_cache_path.exists():
+    try:
+        with open(str(_entity_cache_path)) as _f:
+            _ENTITY_CACHE = json.load(_f)
+        print(f"  Loaded entity cache: {len(_ENTITY_CACHE):,} entries")
+    except Exception:
+        pass
+
 def is_person_term(tl, term):
-    """Return True if this index term is a person name rather than a concept."""
-    # Standard comma-inverted index form: "Wiener, Norbert" or "mcluhan, marshall"
+    """Return True if this index term is a person name rather than a concept.
+    Prefers the NER cache from 15_entity_classify.py; falls back to heuristics."""
+    # Check NER cache first (most accurate)
+    cached = _ENTITY_CACHE.get(tl.strip().lower())
+    if cached:
+        return cached['kind'] == 'person'
+    # Fallback: comma-inverted index form "Wiener, Norbert" or "mcluhan, marshall"
     if _is_clean_name(term): return True
-    # Single-name ancients / well-known figures
+    # Fallback: single-name ancients
     if tl.strip().lower() in _ANCIENT_PERSONS: return True
     return False
 
