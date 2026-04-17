@@ -65,40 +65,54 @@ def clean_term(t):
     t = re.sub(r',\s*$', '', t).strip()       # trailing comma
     return t if len(t) >= 3 and t[0].isalpha() else ''
 
-# Build charts data
-freq_data = {'terms': [v['term'] for v in top200[:80]],
-             'counts': [v['count'] for v in top200[:80]]}
+# ── Split top200 into concepts and persons ────────────────────────────────────
+top200_concepts = [v for v in top200 if not v.get('is_person')]
+top200_persons  = [v for v in top200 if     v.get('is_person')]
 
-top30 = top200[:30]
-ts_abs  = {v['term']: [v['year_dist'].get(str(d),v['year_dist'].get(d,0)) for d in decades] for v in top30}
-ts_norm = {v['term']: [round(v['year_dist'].get(str(d),v['year_dist'].get(d,0))/max(bpd.get(d,1),1),4) for d in decades] for v in top30}
-ts_data = {'decades': [f'{d}s' for d in decades], 'terms': [v['term'] for v in top30],
-           'abs': ts_abs, 'norm': ts_norm}
+# Build charts data — each chart carries both splits; JS toggles between them
+def _freq(items, n=80):
+    return {'terms': [v['term'] for v in items[:n]],
+            'counts': [v['count'] for v in items[:n]]}
 
-# Co-occurrence network nodes with circle positions
+freq_data = {'concepts': _freq(top200_concepts), 'persons': _freq(top200_persons)}
+
+def _ts(items, n=30):
+    top = items[:n]
+    abs_  = {v['term']: [v['year_dist'].get(str(d), v['year_dist'].get(d, 0)) for d in decades] for v in top}
+    norm_ = {v['term']: [round(v['year_dist'].get(str(d), v['year_dist'].get(d, 0)) / max(bpd.get(d, 1), 1), 4)
+                         for d in decades] for v in top}
+    return {'decades': [f'{d}s' for d in decades], 'terms': [v['term'] for v in top],
+            'abs': abs_, 'norm': norm_}
+
+ts_data = {'concepts': _ts(top200_concepts), 'persons': _ts(top200_persons)}
+
+# Co-occurrence network — concepts only (concept-to-concept links are more meaningful)
 nodes_set = {}
 for p in cooc[:50]:
-    for t in [p['a'],p['b']]:
+    for t in [p['a'], p['b']]:
         if t not in nodes_set:
-            for v in top200:
-                if v['term']==t: nodes_set[t]=v['count']; break
-nodes = [{'name':k,'count':v} for k,v in nodes_set.items()]
+            for v in top200_concepts:
+                if v['term'] == t: nodes_set[t] = v['count']; break
+nodes = [{'name': k, 'count': v} for k, v in nodes_set.items()]
 N = len(nodes)
-for i,nd in enumerate(nodes):
-    a = 2*math.pi*i/N
-    nd['x'] = round(math.cos(a),4); nd['y'] = round(math.sin(a),4)
-ni = {nd['name']:i for i,nd in enumerate(nodes)}
-edges = [{'s':ni[p['a']],'t':ni[p['b']],'v':p['count']}
+for i, nd in enumerate(nodes):
+    a = 2 * math.pi * i / N
+    nd['x'] = round(math.cos(a), 4); nd['y'] = round(math.sin(a), 4)
+ni = {nd['name']: i for i, nd in enumerate(nodes)}
+edges = [{'s': ni[p['a']], 't': ni[p['b']], 'v': p['count']}
          for p in cooc[:50] if p['a'] in ni and p['b'] in ni]
 cooc_data = {'nodes': nodes, 'edges': edges}
 
-top50 = top200[:50]
-topic_data = {
-    'terms':  [v['term'] for v in top50],
-    'names':  TOPIC_NAMES,
-    'matrix': [[v['topic_dist'].get(str(t),v['topic_dist'].get(t,0))
-                for t in range(n_topics)] for v in top50],
-}
+def _topic(items, n=50):
+    top = items[:n]
+    return {
+        'terms':  [v['term'] for v in top],
+        'names':  TOPIC_NAMES,
+        'matrix': [[v['topic_dist'].get(str(t), v['topic_dist'].get(t, 0))
+                    for t in range(n_topics)] for v in top],
+    }
+
+topic_data = {'concepts': _topic(top200_concepts), 'persons': _topic(top200_persons)}
 
 # Explorer data with cleaned terms and snippets
 top200_lower = {v['term'].lower() for v in top200}
@@ -124,6 +138,7 @@ jcc = json.dumps(cooc_data)
 jtm = json.dumps(topic_data)
 jex = json.dumps(explorer)
 jp  = json.dumps(PAL)
+print(f"Concepts in top200: {len(top200_concepts)}  Persons: {len(top200_persons)}")
 
 html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -194,7 +209,10 @@ h2{{font-size:1.35rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.5rem;b
   <h2>1 · Term Frequency Ranking</h2>
   <p class="desc">Number of corpus books each index term appears in.</p>
   <div class="ctrls">
-    <label>Show top</label>
+    <label>Show:</label>
+    <button class="tbtn on" id="freq_c" onclick="setFreqSplit('concepts')">📚 Concepts</button>
+    <button class="tbtn"    id="freq_p" onclick="setFreqSplit('persons')">👤 Persons</button>
+    <label style="margin-left:.8rem">Top</label>
     <select id="fn" onchange="drawFreq()">
       <option value="30">30</option><option value="50" selected>50</option><option value="80">80</option>
     </select><label>terms</label>
@@ -206,7 +224,10 @@ h2{{font-size:1.35rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.5rem;b
   <h2>2 · Term Density Over Time</h2>
   <p class="desc">Occurrences per decade, normalised by books published that decade. Select up to 8 terms.</p>
   <div class="ctrls">
-    <label>Mode:</label>
+    <label>Show:</label>
+    <button class="tbtn on" id="ts_c" onclick="setTSSplit('concepts')">📚 Concepts</button>
+    <button class="tbtn"    id="ts_p" onclick="setTSSplit('persons')">👤 Persons</button>
+    <label style="margin-left:.8rem">Mode:</label>
     <select id="ts_mode" onchange="drawTS()">
       <option value="norm">Normalised (per book that decade)</option>
       <option value="abs">Absolute count</option>
@@ -218,7 +239,7 @@ h2{{font-size:1.35rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.5rem;b
 
 <section id="cooc">
   <h2>3 · Co-occurrence Network</h2>
-  <p class="desc">Terms that frequently appear together in the same books. Node size = corpus frequency. Hover edges for shared book count.</p>
+  <p class="desc">Concept terms that frequently appear together in the same books. Node size = corpus frequency. Hover edges for shared book count.</p>
   <div class="ctrls">
     <label>Show top</label>
     <select id="cn" onchange="drawCooc()">
@@ -229,10 +250,13 @@ h2{{font-size:1.35rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.5rem;b
 </section>
 
 <section id="topic">
-  <h2>4 · Term × NMF Topic Distribution</h2>
-  <p class="desc">Proportion of books containing each term that belong to each NMF topic. Cross-cutting terms show an even spread; topic-specific terms are dominated by one colour.</p>
+  <h2>4 · Term × Topic Distribution</h2>
+  <p class="desc">Proportion of books containing each term that belong to each LDA topic. Cross-cutting terms show an even spread; topic-specific terms are dominated by one colour.</p>
   <div class="ctrls">
-    <label>Sort by:</label>
+    <label>Show:</label>
+    <button class="tbtn on" id="tm_c" onclick="setTMSplit('concepts')">📚 Concepts</button>
+    <button class="tbtn"    id="tm_p" onclick="setTMSplit('persons')">👤 Persons</button>
+    <label style="margin-left:.8rem">Sort by:</label>
     <select id="tsort" onchange="drawTopic()">
       <option value="freq">Frequency</option><option value="dom">Dominant topic</option>
     </select>
@@ -272,13 +296,39 @@ const PAL={jp};
 const L={{paper_bgcolor:'transparent',plot_bgcolor:'#f8fafc',
           hoverlabel:{{bgcolor:'#1e293b',font:{{color:'white',size:12}}}}}};
 
+// ── Split toggle helpers ──────────────────────────────────────────────────────
+let freqSplit='concepts', tsSplit='concepts', tmSplit='concepts';
+
+function setFreqSplit(s){{
+  freqSplit=s;
+  document.getElementById('freq_c').classList.toggle('on',s==='concepts');
+  document.getElementById('freq_p').classList.toggle('on',s==='persons');
+  drawFreq();
+}}
+function setTSSplit(s){{
+  tsSplit=s;
+  ts_sel = s==='concepts'
+    ? ['Cybernetics','Feedback','Information','Control','Homeostasis','Entropy']
+    : ['Wiener, Norbert','Turing, Alan','Shannon, Claude','Von Foerster, Heinz','Beer, Stafford'];
+  document.getElementById('ts_c').classList.toggle('on',s==='concepts');
+  document.getElementById('ts_p').classList.toggle('on',s==='persons');
+  buildTSBtns();drawTS();
+}}
+function setTMSplit(s){{
+  tmSplit=s;
+  document.getElementById('tm_c').classList.toggle('on',s==='concepts');
+  document.getElementById('tm_p').classList.toggle('on',s==='persons');
+  drawTopic();
+}}
+
 // 1. Frequency
 function drawFreq(){{
+  const src=FD[freqSplit];
   const n=+document.getElementById('fn').value;
-  const t=FD.terms.slice(0,n),c=FD.counts.slice(0,n);
+  const t=src.terms.slice(0,n),c=src.counts.slice(0,n);
   Plotly.react('freq_div',[{{
     x:c,y:t,type:'bar',orientation:'h',
-    marker:{{color:c.map((_,i)=>`hsl(${{210-i*1.5}},68%,50%)`)}},
+    marker:{{color:c.map((_,i)=>`hsl(${{freqSplit==='persons'?280:210}},68%,${{55-i*0.3}}%)`)}},
     hovertemplate:'<b>%{{y}}</b><br>%{{x}} books<extra></extra>',
   }}],{{...L,height:Math.max(400,n*17),
        margin:{{t:10,b:50,l:210,r:20}},
@@ -288,10 +338,11 @@ function drawFreq(){{
 drawFreq();
 
 // 2. Time series
-let ts_sel=['cybernetics','feedback','Wiener, Norbert','autopoiesis','homeostasis','information theory'];
+let ts_sel=['Cybernetics','Feedback','Information','Control','Homeostasis','Entropy'];
 function buildTSBtns(){{
+  const src=TS[tsSplit];
   const w=document.getElementById('ts_btns');w.innerHTML='';
-  TS.terms.forEach(t=>{{
+  src.terms.forEach(t=>{{
     const b=document.createElement('button');
     b.className='tbtn'+(ts_sel.includes(t)?' on':'');
     b.textContent=t;
@@ -304,11 +355,12 @@ function buildTSBtns(){{
   }});
 }}
 function drawTS(){{
+  const src=TS[tsSplit];
   const mode=document.getElementById('ts_mode').value;
-  const src=mode==='norm'?TS.norm:TS.abs;
+  const data=mode==='norm'?src.norm:src.abs;
   Plotly.react('ts_div',ts_sel.map((t,i)=>{{
-    const y=src[t]||TS.decades.map(()=>0);
-    return{{x:TS.decades,y,type:'scatter',mode:'lines+markers',name:t,
+    const y=data[t]||src.decades.map(()=>0);
+    return{{x:src.decades,y,type:'scatter',mode:'lines+markers',name:t,
             line:{{color:PAL[i%PAL.length],width:2.5}},marker:{{size:7}},
             hovertemplate:`<b>${{t}}</b><br>%{{x}}: %{{y:.3f}}<extra></extra>`}};
   }}),{{...L,height:400,margin:{{t:10,b:60,l:60,r:20}},
@@ -358,15 +410,16 @@ drawCooc();
 
 // 4. Topic matrix
 function drawTopic(){{
+  const src=TM[tmSplit];
   const sort=document.getElementById('tsort').value;
   const n=+document.getElementById('tn').value;
-  let rows=TM.terms.map((t,i)=>{{
-    const r=TM.matrix[i],tot=r.reduce((a,b)=>a+b,0);
+  let rows=src.terms.map((t,i)=>{{
+    const r=src.matrix[i],tot=r.reduce((a,b)=>a+b,0);
     return{{t,r,tot,dom:r.indexOf(Math.max(...r))}};
   }});
   if(sort==='dom') rows.sort((a,b)=>a.dom-b.dom||b.tot-a.tot);
   rows=rows.slice(0,n);
-  Plotly.react('topic_div',TM.names.map((nm,ti)=>{{
+  Plotly.react('topic_div',src.names.map((nm,ti)=>{{
     const norm=rows.map(d=>d.tot>0?+(d.r[ti]/d.tot).toFixed(3):0);
     return{{x:norm,y:rows.map(d=>d.t),type:'bar',orientation:'h',name:nm,
             marker:{{color:PAL[ti%PAL.length]}},

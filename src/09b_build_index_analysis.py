@@ -100,6 +100,23 @@ _AUTHAFFIL  = re.compile(
     r'Japan|Mexico|Egypt|Canada|Switzerland|Sweden|Norway|Denmark|Austria|'
     r'Belgium|Poland|Greece|Portugal|Israel|South Africa|New Zealand)\b', re.I)
 
+# Single-name historical figures not caught by the "Surname, Firstname" pattern
+_ANCIENT_PERSONS = {
+    'aristotle', 'plato', 'socrates', 'pythagoras', 'archimedes', 'euclid',
+    'heraclitus', 'democritus', 'epicurus', 'cicero', 'virgil', 'homer',
+    'confucius', 'buddha', 'newton', 'galileo', 'copernicus', 'leibniz',
+    'kant', 'hegel', 'spinoza', 'locke', 'hume', 'nietzsche', 'marx',
+    'freud', 'jung', 'plato', 'descartes',
+}
+
+def is_person_term(tl, term):
+    """Return True if this index term is a person name rather than a concept."""
+    # Standard comma-inverted index form: "Wiener, Norbert" or "mcluhan, marshall"
+    if _is_clean_name(term): return True
+    # Single-name ancients / well-known figures
+    if tl.strip().lower() in _ANCIENT_PERSONS: return True
+    return False
+
 def is_noise_term(tl, term):
     if len(term.strip()) < 3: return True
     if _FUNC_FRAG.match(term) and len(term.split()) <= 6: return True
@@ -182,6 +199,7 @@ for tl, v in IV.items():
         'n_books':    len(books_with_term),
         'year_dist':  dict(year_dist),
         'topic_dist': dict(topic_dist),
+        'is_person':  is_person_term(tl, v['term']),
     }
 
 print(f"  Vocab terms: {len(vocab):,}")
@@ -195,7 +213,12 @@ for tl, v in top200_raw:
         'count':      v['n_books'],
         'year_dist':  v['year_dist'],
         'topic_dist': v['topic_dist'],
+        'is_person':  v['is_person'],
     })
+
+n_persons  = sum(1 for v in top200 if v['is_person'])
+n_concepts = len(top200) - n_persons
+print(f"  Top 200 breakdown: {n_concepts} concepts, {n_persons} persons")
 
 # ── Top co-occurrence pairs (top 50 terms) ─────────────────────────────────
 print("Computing co-occurrence pairs...")
