@@ -14,6 +14,32 @@ Input:  nlp_results.json, summaries.json, books_clean.json, figures/fig*.png
 Output: data/outputs/book_nlp_analysis.html
 """
 
+# ── METHODOLOGICAL NOTE — all outputs are provisional ────────────────────────
+# This script generates HTML from automated analysis of a 542-book corpus.
+# Results should be treated as provisional: known data quality issues have been
+# characterised and mitigated; residual errors of uncharacterised distribution
+# remain. Algorithm infection — residual input errors propagate into downstream
+# computations (LDA, PMI, TF-IDF, etc.) with effects that cannot be quantified
+# in advance. Individual associations should be verified against source material
+# before being treated as established findings.
+# Full argument: docs/methodology.md §"Implication for dissemination —
+# all outputs are provisional"
+# ─────────────────────────────────────────────────────────────────────────────
+
+_PROV_NOTICE = (
+    '\n<div style="margin:1.5rem 1rem 0.5rem;padding:0.9rem 1.25rem;'
+    'background:#fef3c7;border-left:4px solid #d97706;border-radius:4px;'
+    'font-size:.82rem;color:#78350f;line-height:1.6">'
+    '<strong>Provenance notice:</strong> Results are derived from automated '
+    'analysis of a 542-book corpus and should be treated as provisional. '
+    'Known data quality issues have been characterised and mitigated; residual '
+    'errors of uncharacterised distribution remain. Individual associations '
+    'should be verified against source material before being treated as '
+    'established findings. '
+    'See <em>docs/methodology.md</em> §&ldquo;Implication for dissemination '
+    '&mdash; all outputs are provisional&rdquo;.</div>'
+)
+
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
 CSV_DIR  = _pl.Path('csv')    # input CSVs:  csv/books_metadata_full.csv, csv/books_text_*.csv
@@ -722,6 +748,7 @@ total = 0
 for fname, title, content, scripts, plotly in pages:
     out = OUT_DIR / fname
     html = _page(fname, title, content, scripts, plotly)
+    html = html.replace('</body>', _PROV_NOTICE + '\n</body>', 1)
     # Use json/ staging + rename to avoid fuse-t large-file write failures
     _tmp = JSON_DIR / fname
     with open(str(_tmp), 'w', encoding='utf-8') as f:

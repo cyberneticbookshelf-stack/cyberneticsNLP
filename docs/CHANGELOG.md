@@ -6,6 +6,35 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.4.5] — 2026-04-18
+
+> Session: 18 April 2026 (Cowork) — second batch
+
+### Added — Algorithm infection principle embedded in all HTML-generating scripts
+
+All 9 HTML-generating scripts now carry the methodological provenance statement in two places:
+
+1. **Python source (comment block):** A standardised `# ── METHODOLOGICAL NOTE —
+   all outputs are provisional ──` block placed immediately after the module docstring
+   (or at the top of scripts without a docstring). States the algorithm infection principle
+   and links to `docs/methodology.md §"Implication for dissemination — all outputs are
+   provisional"`. Serves as a standing reminder for anyone reading or modifying the code.
+
+2. **Generated HTML (visible disclaimer):** `_PROV_NOTICE` constant defined in each script.
+   `html.replace('</body>', _PROV_NOTICE + '\n</body>', 1)` inserted just before each
+   `f.write(html)`. Renders as an amber-bordered notice panel at the bottom of every
+   generated report, visible to anyone who opens the HTML.
+
+Scripts updated: `src/06_build_report.py`, `src/06_build_report_chapters.py`,
+`src/08_build_timeseries.py`, `src/10_build_index_report.py`,
+`src/11_embedding_comparison.py`, `src/12_index_grounding.py`,
+`src/13_weighted_comparison.py`, `src/14_entity_network.py`, `src/build_embed_report.py`.
+
+Pattern is idempotent and survives `run_all.sh` reruns (disclaimer is injected at write
+time from the constant, not stored in the output file).
+
+---
+
 ## [0.4.4] — 2026-04-18
 
 > Session: 18 April 2026 (Cowork)

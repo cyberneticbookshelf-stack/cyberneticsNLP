@@ -23,6 +23,43 @@ mean stability=0.327. Run C locked as canonical 14 April 2026.
 
 ---
 
+## Standing methodological principle — all outputs are provisional
+
+All pipeline outputs should be treated as provisional results subject to validation, not
+as findings. Because the distribution of residual input errors is unknown, and because each
+algorithm makes different simplifying assumptions, the degree of corruption from residual
+error cannot be determined in advance. Domain knowledge can flag individual artefacts but
+cannot certify the absence of subtler, undetectable ones.
+
+**Practical consequence for dissemination:**
+- HTML reports shared publicly: viewers flagging errors is expected and welcome.
+  Corrections should be checked against source data (→ ROADMAP #15).
+- Peer reviewers: must be told explicitly that (a) known error classes are characterised
+  and mitigated; (b) unknown residual errors remain with uncharacterised distribution;
+  (c) results are robust in aggregate and indicative at the level of individual
+  associations, not individually certified facts.
+
+**Paper/report framing to use:**
+> *Results are derived from automated analysis of a 542-book corpus and should be treated
+> as provisional. Known data quality issues have been characterised and mitigated; residual
+> errors of uncharacterised distribution remain. Individual associations should be verified
+> against source material before being treated as established findings.*
+
+Full methodological argument: `docs/methodology.md` §"Implication for dissemination —
+all outputs are provisional" (added 18 April 2026).
+
+---
+
+## Backlog item — User correction mechanism (ROADMAP #15)
+
+Entity network HTML is shared publicly. Viewers will spot misclassifications.
+**Future task:** add in-report UI for users to flag corrections (wrong kind, duplicate,
+fragment). Corrections feed back into `MANUAL_CORRECTIONS` after review.
+Design open questions: capture channel, correction schema, review workflow.
+See `docs/ROADMAP.md` item #15.
+
+---
+
 ## Current sprint — Topic naming reliability
 
 All four items remain open:
@@ -82,9 +119,12 @@ duplicate person; ~50 trailing-function-word fragments ("evolution of", "wiener 
    - person → org: Gordon and Breach Science Publishers, Whole Earth Catalog The
    - org → suppress (duplicates): kluckhohn, von bertalanffy, vinge, waddington, free will and
 
-**Next action:** Rerun `python3 src/14_entity_network.py` on Cybersonic to apply fixes.
-`entity_types_cache.json` is gitignored — not committed; but `src/14_entity_network.py` change
-(the `_TRAILING_FUNC`/`_CTA_BACK_MATTER` additions) should be committed.
+**Code committed:** `aae3877` — "fix: harden entity network classification against misclassification (KI-07)"
+Both `src/14_entity_network.py` and `src/15_entity_classify.py` pushed to origin/main 18 April 2026.
+`entity_types_cache.json` updated locally but remains gitignored.
+
+**Remaining action:** Rerun `python3 src/15_entity_classify.py` then `python3 src/14_entity_network.py`
+on Cybersonic to regenerate `json/entity_network.json` with corrected classifications.
 
 **Two minor issues noted 17 April — still open:**
 - "evolution of" node — now caught by `_TRAILING_FUNC` ✓ (was previously unfixed)
@@ -152,7 +192,7 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
 - `json/book_styles.json` — EOLSS vols 1–3 (IDs 2232/2233/2711) reclassified
   `reference`, `verified=True` (not committed — json/ is gitignored)
 
-## Files modified this session (18 April 2026)
+## Files modified this session (18 April 2026 — continued)
 
 - `src/14_entity_network.py` — `_TRAILING_FUNC` and `_CTA_BACK_MATTER` regexes added
   after `KNOWN_TECH_PLATFORMS` (~line 167–185); both wired into classification loop
@@ -168,16 +208,28 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
   see KI-07 above for full list). Not committed — json/ is gitignored.
 - `docs/CHANGELOG.md` — [0.4.4] entry added.
 - `CLAUDE.md` — KI-07 added; files-modified and next-session sections updated.
+- `src/06_build_report.py`, `src/06_build_report_chapters.py`, `src/08_build_timeseries.py`,
+  `src/10_build_index_report.py`, `src/11_embedding_comparison.py`, `src/12_index_grounding.py`,
+  `src/13_weighted_comparison.py`, `src/14_entity_network.py`, `src/build_embed_report.py` —
+  All 9 HTML-generating scripts: (a) Python comment block added at top/after docstring, stating
+  algorithm infection principle and pointing to methodology.md; (b) `_PROV_NOTICE` constant
+  defined (amber-bordered HTML div with provenance statement); (c) `html.replace('</body>',
+  _PROV_NOTICE + '\n</body>', 1)` inserted just before each `f.write(html)`, so every generated
+  HTML report displays the disclaimer to viewers. Pattern survives `run_all.sh` reruns.
 
 ---
 
 ## Next session agenda
 
-1. **Rerun `src/14_entity_network.py` on Cybersonic** — applies KI-07 fixes;
-   verify new node counts and spot-check previously bad nodes
-   (Perceptron should be concept, Brain should be concept, no fragment nodes).
-2. **Commit `src/14_entity_network.py`** — the `_TRAILING_FUNC`/`_CTA_BACK_MATTER`
-   additions (KI-07 code fix). `entity_types_cache.json` stays gitignored.
+1. **Rerun pipeline on Cybersonic** — `python3 src/15_entity_classify.py` then
+   `python3 src/14_entity_network.py`. Verify corrected node counts and spot-check:
+   Perceptron → concept, Brain → concept, New York Times → organisation, no fragment nodes.
+   (KI-07 code committed `aae3877`; pipeline rerun still pending.)
+2. **Commit HTML provenance changes** — `src/06_build_report.py`, `src/06_build_report_chapters.py`,
+   `src/08_build_timeseries.py`, `src/10_build_index_report.py`, `src/11_embedding_comparison.py`,
+   `src/12_index_grounding.py`, `src/13_weighted_comparison.py`, `src/14_entity_network.py`,
+   `src/build_embed_report.py` — all 9 HTML scripts updated with algorithm infection comment +
+   _PROV_NOTICE disclaimer injected into output. Not yet committed.
 3. **Review draft scripts** in vault `02 Projects/CyberneticsNLP/docs/src_draft/`:
    - `compare_topic_runs.py` — assess readiness to graduate to `src/`
    - `record_topic_run.py` — assess readiness to graduate to `src/`

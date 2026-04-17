@@ -23,6 +23,32 @@ Usage:
   python3 src/13_weighted_comparison.py
 """
 
+# ── METHODOLOGICAL NOTE — all outputs are provisional ────────────────────────
+# This script generates HTML from automated analysis of a 542-book corpus.
+# Results should be treated as provisional: known data quality issues have been
+# characterised and mitigated; residual errors of uncharacterised distribution
+# remain. Algorithm infection — residual input errors propagate into downstream
+# computations (LDA, PMI, TF-IDF, etc.) with effects that cannot be quantified
+# in advance. Individual associations should be verified against source material
+# before being treated as established findings.
+# Full argument: docs/methodology.md §"Implication for dissemination —
+# all outputs are provisional"
+# ─────────────────────────────────────────────────────────────────────────────
+
+_PROV_NOTICE = (
+    '\n<div style="margin:1.5rem 1rem 0.5rem;padding:0.9rem 1.25rem;'
+    'background:#fef3c7;border-left:4px solid #d97706;border-radius:4px;'
+    'font-size:.82rem;color:#78350f;line-height:1.6">'
+    '<strong>Provenance notice:</strong> Results are derived from automated '
+    'analysis of a 542-book corpus and should be treated as provisional. '
+    'Known data quality issues have been characterised and mitigated; residual '
+    'errors of uncharacterised distribution remain. Individual associations '
+    'should be verified against source material before being treated as '
+    'established findings. '
+    'See <em>docs/methodology.md</em> §&ldquo;Implication for dissemination '
+    '&mdash; all outputs are provisional&rdquo;.</div>'
+)
+
 import json, os, re, math, numpy as np
 from collections import defaultdict, Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -481,6 +507,7 @@ function filterBooks(){{
 </script>
 </body></html>"""
 
+html = html.replace('</body>', _PROV_NOTICE + '\n</body>', 1)
 out = 'data/outputs/book_nlp_weighted_comparison.html'
 with open(out, 'w', encoding='utf-8') as f:
     f.write(html)
