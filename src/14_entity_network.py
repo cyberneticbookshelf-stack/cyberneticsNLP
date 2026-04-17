@@ -164,6 +164,30 @@ KNOWN_TECH_PLATFORMS = {
     'intel', 'nvidia', 'oracle', 'salesforce', 'adobe',
 }
 
+# Trailing-function-word fragments: "evolution of", "wiener and", "ai and",
+# "free will and", etc.  _FUNC_FRAG in 09b catches terms *starting* with a
+# function word; this catches terms *ending* with one, which slip through NER
+# as apparent named entities.  Applied before cache lookup so it cannot be
+# overridden by a stale cache entry.  Added 18 April 2026.
+_TRAILING_FUNC = re.compile(
+    r'\s(?:and|of|on|the|to|for|in|with|or|by|at|from|about|'
+    r'its|their|our|a|an|is|are|was|were|has|have|had|be|been|being|'
+    r'not|nor|yet|whether|though|although|'
+    r'this|that|these|those|it|we|they|he|she)\s*[.,;]?\s*$',
+    re.I
+)
+
+# Back-matter / CTA strings that NER misidentifies as named entities.
+# Applied before cache lookup.  Added 18 April 2026.
+_CTA_BACK_MATTER = re.compile(
+    r'^(?:sign\s+up|discover\s+your|all\s+rights\s+reserved|'
+    r'about\s+the\s+author|first\s+edition|copyright\s+\d|'
+    r'published\s+by|printed\s+in|table\s+of\s+contents|'
+    r'terms\s+of\s+(?:use|service)|click\s+here|'
+    r'download\s+now|get\s+started)',
+    re.I
+)
+
 persons       = {}
 organisations = {}
 locations     = {}
@@ -175,6 +199,8 @@ for tl, v in vocab.items():
     if nb < MIN_BOOKS: continue
     if tl.lower() in NOISE_TERMS: continue
     if tl.lower() in KNOWN_TECH_PLATFORMS: continue  # KI-04: suppress before PMI
+    if _TRAILING_FUNC.search(t): continue             # fragment: "evolution of", "wiener and"
+    if _CTA_BACK_MATTER.match(t): continue            # back-matter: "sign up now", "about the author"
     if len(t) < 3: continue
     # Skip clearly garbled OCR entries
     if re.search(r'\d{3,}|[^\w\s\-\',\.\(\)\/&]', t): continue

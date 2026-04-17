@@ -221,7 +221,7 @@ MANUAL_CORRECTIONS = {
     "radio":("concept",""),      "cyborg":("concept",""),
     "social systems":("concept",""), "chatgpt":("concept",""),
     "macy conferences":("concept",""),
-    "macy conferences on cybernetics":("concept",""),
+    "macy conferences on cybernetics":("suppress","duplicate of macy conferences [96]"),
     "second-order":("concept",""),"theorem":("concept",""),
     "quantum mechanics":("concept",""),"quantum theory":("concept",""),
     "rna":("concept",""),       "syntax":("concept",""),
@@ -258,6 +258,147 @@ MANUAL_CORRECTIONS = {
     "viet cong":("organisation",""),"wiley":("organisation",""),
     "pink floyd":("organisation",""),
     "kingsley hall":("location",""),
+
+    # ── Comprehensive misclassification fixes — 18 April 2026 (KI-07) ─────────
+    # Full-corpus node review: ~130 misclassified nodes corrected.
+    # These entries also live in entity_types_cache.json but that file is
+    # gitignored. Keeping them here guarantees they survive cache rebuilds
+    # (including --refresh) and are applied before spaCy/Wikidata can
+    # re-introduce the wrong classification.
+
+    # location → organisation
+    "new york times":          ("organisation","newspaper"),
+    "san francisco chronicle": ("organisation","newspaper"),
+    "vienna circle":           ("organisation","philosophical group/movement"),
+
+    # location → concept
+    "manhattan project": ("concept","historical programme/event"),
+    "perceptron":        ("concept","ML model/concept"),
+    "big bang":          ("concept","cosmological event/concept"),
+    "hippocampus":       ("concept","anatomical concept"),
+    "algorithm":         ("concept","CS concept"),
+    "truth":             ("concept","philosophical concept"),
+    "weltanschauung":    ("concept","worldview concept"),
+
+    # location → suppress
+    "systém":   ("suppress","OCR artefact — Czech word for system"),
+    "tortoise": ("suppress","too ambiguous at network level"),
+    "ai and":   ("suppress","trailing-function-word fragment"),
+
+    # organisation → person
+    "lorente de nó, rafael": ("person","neuroanatomist"),
+    "cicero":                ("person","Roman orator/philosopher"),
+    "st. augustine":         ("person","theologian/philosopher"),
+    "epictetus":             ("person","Stoic philosopher"),
+    "rutherford":            ("person","Ernest Rutherford, physicist"),
+
+    # organisation → concept
+    "principia mathematica":      ("concept","foundational work in mathematical logic"),
+    "design for a brain":         ("concept","Ashby book title used as concept in discourse"),
+    "quantum computing":          ("concept",""),
+    "social sciences":            ("concept",""),
+    "synergy":                    ("concept",""),
+    "actor-network theory (ant)": ("concept",""),
+    "brain":                      ("concept","anatomical structure/concept"),
+    "neurotransmitters":          ("concept",""),
+    "retina":                     ("concept","anatomical concept"),
+    "slavery":                    ("concept","social/historical concept"),
+    "synthesis":                  ("concept",""),
+    "quantum entanglement":       ("concept",""),
+    "speech":                     ("concept",""),
+    "healthcare":                 ("concept",""),
+    "recognition":                ("concept",""),
+    "neo-darwinism":              ("concept",""),
+    "aesthetic":                  ("concept",""),
+    "phenomenon":                 ("concept",""),
+    "complex adaptive systems":   ("concept",""),
+    "digital communication":      ("concept",""),
+    "knowledge-based systems":    ("concept",""),
+    "quantum physics":            ("concept",""),
+    "habit":                      ("concept",""),
+    "digital media":              ("concept",""),
+    "venture capital":            ("concept",""),
+    "linear programming":         ("concept",""),
+    "digital computer":           ("concept",""),
+    "signal":                     ("concept","information/communication concept"),
+    "sequence":                   ("concept","mathematical/biological concept"),
+
+    # organisation → suppress (generic nouns / fragments / ambiguous)
+    "laboratory":    ("suppress","generic noun — many distinct labs in corpus"),
+    "university)":   ("suppress","malformed fragment — stray closing paren"),
+    "self-":         ("suppress","truncated fragment"),
+    "linear":        ("suppress","bare adjective"),
+    "epistemological":("suppress","bare adjective"),
+    "trajectories":  ("suppress","generic noun"),
+    "corporation":   ("suppress","generic noun"),
+    "women":         ("suppress","generic noun — too broad for entity network"),
+    "force":         ("suppress","generic noun"),
+    "school":        ("suppress","generic noun"),
+    "phenomena":     ("suppress","generic noun"),
+    "frequency":     ("suppress","generic noun"),
+    "wages":         ("suppress","generic noun"),
+    "institute":     ("suppress","generic noun"),
+    "decline":       ("suppress","generic noun"),
+    "ace":           ("suppress","too short / ambiguous"),
+    "stickleback":   ("suppress","animal species; too specific for network"),
+    "health care":   ("suppress","duplicate of healthcare"),
+    "bishop":        ("suppress","too ambiguous — multiple Bishops in corpus"),
+    "press":         ("suppress","generic publisher abbreviation"),
+    "oxford":        ("location","city/university location"),
+
+    # concept → person
+    "voltaire":  ("person",""),
+    "homer":     ("person","ancient Greek poet"),
+    "sophocles": ("person","ancient Greek playwright"),
+    "bernard":   ("person","Claude Bernard, physiologist"),
+
+    # concept → organisation
+    "life magazine":         ("organisation","publication"),
+    "coevolution quarterly": ("organisation","publication by Stewart Brand"),
+    "ramparts":              ("organisation","political magazine"),
+
+    # concept → suppress (duplicates / standalone name fragments)
+    "galileo galilei": ("suppress","duplicate of galileo in person list"),
+    "stengers":        ("suppress","duplicate of stengers, isabelle in person list"),
+    "wiener":          ("suppress","first-name-absent fragment; canonical is wiener, norbert"),
+
+    # person → suppress (noise / fragments / address strings / duplicates)
+    "drop":    ("suppress","random word"),
+    "norbert": ("suppress","first-name-only fragment (Norbert Wiener)"),
+    "one park avenue, new york, ny":
+               ("suppress","publisher address string"),
+    "growing field with applications to many disciplines. frank george":
+               ("suppress","sentence fragment with embedded person name"),
+    "enlightenment, the":
+               ("suppress","variant of Enlightenment concept — duplicate"),
+    "weiner, norbert": ("suppress","misspelling — canonical is wiener, norbert"),
+    "clark":           ("suppress","surname only; ambiguous"),
+    "humphreys":       ("suppress","surname only; ambiguous"),
+
+    # person → concept
+    "brain, human": ("concept","anatomical concept"),
+    "grammar":      ("concept","linguistic concept"),
+
+    # person → organisation
+    "whole earth catalog, the":             ("organisation","publication by Stewart Brand"),
+    "gordon and breach science publishers": ("organisation","publisher"),
+
+    # person → location
+    "new york, ny":          ("location",""),
+    "cambridge, massachusetts": ("location",""),
+
+    # suppress duplicates (name-order variants and surname-only forms)
+    "foerster, heinz von": ("suppress","duplicate of von foerster, heinz"),
+    "neumann, john von":   ("suppress","duplicate of von neumann, john"),
+    "kluckhohn":           ("suppress","duplicate of kluckhohn, clyde in person list"),
+    "von bertalanffy":     ("suppress","duplicate of bertalanffy, ludwig von in person list"),
+    "vinge":               ("suppress","duplicate of vinge, vernor in person list"),
+    "waddington":          ("suppress","duplicate of waddington, conrad hal in person list"),
+
+    # trailing-function-word fragments (belt-and-suspenders: _TRAILING_FUNC in
+    # 14_entity_network.py catches these at runtime; cache entries here ensure
+    # they are suppressed even if 14 is run without the code fix)
+    "free will and": ("suppress","trailing-function-word fragment"),
 }
 
 for _tl, (_kind, _note) in MANUAL_CORRECTIONS.items():
@@ -295,6 +436,11 @@ try:
         UNCERTAIN_THRESHOLD = 0.75  # below this → send to Wikidata
 
         for tl, term, nb in needs_ner:
+            # Manual corrections take absolute precedence — never overwrite them,
+            # even on --refresh runs (needs_ner is built before MANUAL_CORRECTIONS
+            # runs, so manual entries can end up in both cache and needs_ner).
+            if cache.get(tl, {}).get('source') == 'manual':
+                continue
             doc = nlp(term)
             if doc.ents:
                 ent = doc.ents[0]

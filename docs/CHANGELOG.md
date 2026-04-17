@@ -6,6 +6,57 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.4.4] — 2026-04-18
+
+> Session: 18 April 2026 (Cowork)
+
+### Fixed — Entity network node misclassification sweep (KI-07)
+
+Comprehensive review of all 1860 nodes in `json/entity_network.json` identified ~130
+misclassified nodes across all four kinds. Two-part fix:
+
+**`src/14_entity_network.py` — new suppression filters (applied before cache lookup):**
+- `_TRAILING_FUNC` regex — suppresses any term whose surface form ends with a function word
+  ("of", "and", "on", "the", "to", "for", "in", "with", …). Catches ~50 fragment nodes
+  that slipped through NER as apparent named entities ("evolution of" [degree 18],
+  "definition of" [18], "history of" [15], "cybernetics and" [15], "wiener and" [3],
+  "free will and" [47 — was org], "ai and" [39 — was location], etc.)
+- `_CTA_BACK_MATTER` regex — suppresses "sign up now", "discover your next",
+  "all rights reserved", "about the author", "first edition", "published by", etc.
+  Both filters run before cache lookup so they cannot be overridden by stale cache entries.
+
+**`json/entity_types_cache.json` — 101 entries corrected** (all pre-existing entries with
+wrong classification; not committed — json/ is gitignored):
+
+| Category | Count | Examples |
+|----------|-------|---------|
+| location → organisation | 3 | New York Times [138], San Francisco Chronicle [25], Vienna Circle [21] |
+| location → concept | 7 | Manhattan Project [86], Perceptron [81], Big Bang [22], Hippocampus [18], Algorithm [10], Truth [10] |
+| location → suppress | 3 | Systém [58] (Czech OCR artefact), Tortoise [1], ai and [39] |
+| org → person | 5 | Lorente de Nó Rafael [33], Cicero [12], St. Augustine [9], Epictetus [8], Rutherford [1] |
+| org → concept | 27 | Principia Mathematica [54], design for a brain [51], quantum computing [44], social sciences [37], Synergy [34], Brain [22], Neurotransmitters [21], Retina [21], Slavery [20], Synthesis [16], quantum entanglement [13], Speech [10], … |
+| org → suppress | 18 | Laboratory [60], Bishop [12], University) [23], Self- [6], Linear [3], generic nouns |
+| concept → person | 4 | Voltaire [7], Homer [3], Sophocles [1], Bernard [4] (Claude Bernard) |
+| concept → organisation | 3 | Life Magazine [15], CoEvolution Quarterly [6], Ramparts [2] |
+| concept → suppress | 3 | Galileo Galilei [2] (dup), Stengers [3] (dup), wiener [1] (standalone fragment) |
+| person → suppress | 8 | Weiner Norbert [5] (misspelling), Drop [4], Norbert [2] (fragment), One Park Ave NY [3], Foerster Heinz von [22] (dup), Neumann John von [19] (dup), Clark [4], Humphreys [3] |
+| person → location | 2 | New York NY [5], Cambridge Massachusetts [1] |
+| person → concept | 2 | brain human [8], Grammar [1] |
+| person → organisation | 2 | Gordon and Breach Science Publishers [3], Whole Earth Catalog The [4] |
+| org → suppress (dups) | 4 | kluckhohn, von bertalanffy, vinge, waddington (all duplicated in person list) |
+| misc cache corrections | 6 | free will and → suppress, ai and → suppress, oxford → location, etc. |
+
+**Expected result after rerun:** ~130 fewer bad nodes; anatomy terms (Brain, Retina, etc.)
+correctly as concepts; classical persons (Voltaire, Cicero, Homer) as persons; duplicates
+eliminated; no trailing-function-word fragments in any category.
+
+### Next action
+Rerun `python3 src/15_entity_classify.py` then `python3 src/14_entity_network.py` on
+Cybersonic. Then commit both source files — the cache file stays gitignored but the
+corrections are now permanent in source code.
+
+---
+
 ## [0.4.3] — 2026-04-17
 
 > Session: 17 April 2026
