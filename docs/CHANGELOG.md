@@ -6,6 +6,47 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.4.3] — 2026-04-17
+
+> Session: 17 April 2026
+
+### Added
+- `src/02_clean_text.py` — 4-signal OCR likelihood scorer producing Low / Medium / High bands. Signals: scanning metadata (+0.55), low alphabetic ratio (+0.25), OCR error patterns (+0.20), page artifacts (+0.10). Scores embedded in `books_clean.json` and propagated to all outputs
+- `src/06_build_report.py` — monolithic 15 MB HTML split into 5 focused pages with shared CSS and active-link navigation: `index.html` (topics), `clusters.html`, `cosine.html`, `similarity`), `keyphrases.html`, `books.html`
+- `src/09b_build_index_analysis.py` — `is_person_term()` function using `entity_types_cache.json` (NER cache from `15_entity_classify.py`) with `_is_clean_name()` and `_ANCIENT_PERSONS` fallbacks. Propagates `is_person` flag to all vocab and top-200 entries
+- `src/10_build_index_report.py` — concepts/persons split throughout index report: frequency, time series, and topic distribution charts each have 📚 Concepts / 👤 Persons toggle; co-occurrence network is concepts-only
+- `docs/memo_data_quality_algorithm_infection.md` — methodology memo documenting OCR propagation pathways, digitisation metadata contamination, PMI inflation for small-n entities, and phrase-fragment nodes. Includes worked example (Google–Wiener association) and planned mitigations table
+
+### Fixed
+- `src/06_build_report.py` — added `_esc()` (`html.escape()`) to all user-generated text in book cards (titles, authors, summaries, keyphrases, chapter content) — prevents OCR garbage from being parsed as unclosed HTML tags (e.g., book 2109 OCR `<s f Miscellaneous…` was causing strikethrough across entire page)
+- `src/06_build_report.py` — fig7 keyphrases PNG now embedded in Section 5; previously replaced with interactive table but PNG was never removed from build and never placed in output
+- `src/05_visualize.py` — fig7 replaced broken 542-panel per-book keyphrase grid with 9-panel per-topic summary bar chart
+- Cosine similarity heatmap: fixed blank chart (`texttemplate` → `layout.annotations`); added cluster-averaged default view
+- Google Books text-layer artefacts (`"Digitized by Google / Original from / UNIVERSITY OF CALIFORNIA"`) now stripped from clean text in OCR pre-processing
+- Keyphrase blocklist expanded; verb filtering improved; timeseries explanatory text updated
+
+### Analysis
+- Entity network data quality investigation: Google (#4 hub, weighted degree 178.7) and Amazon (#3, 180+) rank above Bateson, Shannon, and von Neumann despite appearing in <12 books. Root cause: PMI inflation — for rare entities with 100% overlap with a common entity, `sqrt(overlap/20)` reliability dampener is insufficient. Not primarily a metadata contamination issue (only 1 confirmed contamination case: book 2761). Amazon, Google, Facebook, National Security Agency, Bell Laboratories, Santa Fe Institute all identified as inflated hubs
+- Phrase fragment nodes identified in entity network: "free will and" (degree 47), "ai and" (degree 39), "cybernetics and" (degree 15) — structural mis-parsing of hierarchical index entries in `09_extract_index.py`
+- OCR distribution (Run C, 542 books): 148 Low / 322 Medium / 72 High
+- Person/concept split (top 200 index terms): 144 concepts, 56 persons
+
+### Design decisions (17 April 2026)
+- **Algorithm infection principle** — without a characterised distribution of input errors, every downstream algorithm is subject to infection from those errors. Pipeline outputs must be interpreted against known error distributions (OCR band, entity n_books, phrase-fragment provenance), not as measurements. See `docs/memo_data_quality_algorithm_infection.md`
+- **Person/concept separation** — index analysis charts separate person names from concept terms to avoid mixing citation prominence (persons) with conceptual density (concepts) in the same frequency distributions
+- **Multi-page HTML** — the monolithic report was split for usability; each page is self-contained with shared CSS and cross-links. All 5 pages written via `json/` staging + `os.replace()` to work around fuse-t file-size limits
+
+### Known issues / planned mitigations (not yet implemented)
+- PMI inflation: change reliability term `sqrt(overlap/20)` → `overlap/20`; raise `MIN_BOOKS` from 3 to 5 in `14_entity_network.py`
+- Phrase fragment suppression: add filter for terms ending with ` and`, ` or`, ` of` in `09b_build_index_analysis.py`
+- Digitisation metadata strip: extend OCR scorer to flag and strip provenance-string injections in `02_clean_text.py`
+- Index structure parsing: improve hierarchical sub-entry parsing in `09_extract_index.py`
+
+### GitHub
+- Commits: `c814b52` through `90a0d84` (16 commits) + this documentation commit
+
+---
+
 ## [0.4.2] — 2026-04-08
 
 > Sessions: 8 April 2026 (Chat)
