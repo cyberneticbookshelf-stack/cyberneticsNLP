@@ -63,6 +63,17 @@ best_k         = R['best_k']
 doc_topic      = np.array(R['doc_topic'])
 dominant       = R['dominant_topics']
 n_topics       = R['n_topics']
+ocr_scores     = R.get('ocr_scores', [None] * len(book_ids))
+ocr_bands      = R.get('ocr_bands',  [None] * len(book_ids))
+
+_OCR_BADGE = {
+    'high':   ('<span class="ocr-badge ocr-high"  '
+               'title="Likely OCR scan — text quality may affect analysis">⚠ OCR</span>'),
+    'medium': ('<span class="ocr-badge ocr-med"   '
+               'title="Possibly scanned — text quality uncertain">~ OCR</span>'),
+    'low':    '',
+    None:     '',
+}
 _LDA_BASE = [
     'Management Cybernetics',
     'Second-Order Cybernetics Applied to Social Systems',
@@ -140,14 +151,17 @@ def chapter_accordion(bid):
 
 book_cards = ''
 # Exclude books without summaries (e.g. OCR failures excluded from generate_summaries_api)
-book_ids = [bid for bid in book_ids if bid in S]
+_all_book_ids = R['book_ids']
+book_ids = [bid for bid in _all_book_ids if bid in S]
 for bid in book_ids:
-    sv  = S[bid]
-    c   = cluster_labels[book_ids.index(bid)]
-    t   = dominant[book_ids.index(bid)]
-    kp  = _clean_kp(R['keyphrases'].get(bid, []))
-    col = PALETTE[c % len(PALETTE)]
-    tcol= PALETTE[t % len(PALETTE)]
+    _idx = _all_book_ids.index(bid)
+    sv   = S[bid]
+    c    = cluster_labels[_idx]
+    t    = dominant[_idx]
+    kp   = _clean_kp(R['keyphrases'].get(bid, []))
+    col  = PALETTE[c % len(PALETTE)]
+    tcol = PALETTE[t % len(PALETTE)]
+    ocr_badge = _OCR_BADGE.get(ocr_bands[_idx] if _idx < len(ocr_bands) else None, '')
     book_cards += f"""
 <div class="book-card" id="book-{bid}">
   <div class="book-header" style="border-left:5px solid {col}">
@@ -158,6 +172,7 @@ for bid in book_ids:
         <span class="badge" style="background:{tcol}">{LDA_NAMES[t] if t < len(LDA_NAMES) else 'Topic ' + str(t+1)}</span>
         <span class="badge" style="background:{col}">Cluster {c+1}</span>
         <span class="ch-count-badge">{sv['n_chapters']} chapters</span>
+        {ocr_badge}
       </div>
     </div>
   </div>
@@ -267,6 +282,9 @@ td{{padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:.85rem;ve
 tr:hover td{{background:#f1f5f9}}
 .badge{{display:inline-block;color:#fff;padding:.15rem .6rem;border-radius:9999px;font-size:.75rem;font-weight:600;margin:.1rem}}
 .ch-count-badge{{display:inline-block;background:#e2e8f0;color:#475569;padding:.15rem .6rem;border-radius:9999px;font-size:.75rem;margin:.1rem}}
+.ocr-badge{{display:inline-block;padding:.15rem .6rem;border-radius:9999px;font-size:.72rem;font-weight:600;margin:.1rem;cursor:default}}
+.ocr-high{{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}}
+.ocr-med{{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}}
 .book-card{{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:1.4rem;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07)}}
 .book-header{{padding:1rem 1.2rem}}
 .book-title{{font-weight:700;font-size:.95rem;color:#0f172a;margin-bottom:.3rem}}

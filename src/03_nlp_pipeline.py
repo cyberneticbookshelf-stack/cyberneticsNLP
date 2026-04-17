@@ -402,8 +402,10 @@ if _ocr_before > len(book_ids):
         if bid in books:
             print(f"    excluded: [{bid}] {books[bid]['title'][:60]}")
 
-titles     = [books[b]['title'] for b in book_ids]
+titles     = [books[b]['title']  for b in book_ids]
 authors    = [books[b]['author'] for b in book_ids]
+ocr_scores = [books[b].get('ocr_score', None) for b in book_ids]
+ocr_bands  = [books[b].get('ocr_band',  None) for b in book_ids]
 
 # ── Text preparation: sample mode (default) ──────────────────────────────────
 # Multi-point sampling: three 20k-char slices (early/middle/late) concatenated.
@@ -1031,9 +1033,11 @@ def name_topics_via_api(top_words, n_topics,
 
 # Save all results
 results = {
-    'book_ids': book_ids,
-    'titles': titles,
-    'authors': authors,
+    'book_ids':   book_ids,
+    'titles':     titles,
+    'authors':    authors,
+    'ocr_scores': ocr_scores,  # per-book OCR likelihood 0.0–1.0 (None if not yet scored)
+    'ocr_bands':  ocr_bands,   # per-book 'low' / 'medium' / 'high' (None if not yet scored)
     'n_topics': best_n,
     'perplexities': perplexities,
     'coherences': coherences,

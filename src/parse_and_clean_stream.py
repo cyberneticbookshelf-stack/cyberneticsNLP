@@ -145,6 +145,74 @@ _GOOGLE_BOOKS = re.compile(
     r'|(generated\s+by\s+(?:google|abc\s+amber\s+lit\s+converter)[\w\s,]*)'
     r'|(google\s+books[\w\s]*)'
 )
+# ── OCR likelihood scorer ─────────────────────────────────────────────────────
+# Scores raw text (before cleaning) on four signals to estimate the probability
+# that a book's text was produced by OCR rather than extracted from a born-digital PDF.
+# Returns (score 0.0–1.0, list of detected signal labels).
+#
+# Bands:  < 0.30 → Low (likely born-digital)
+#         0.30–0.65 → Medium (possibly scanned)
+#         ≥ 0.65 → High (likely OCR scan)
+#
+# Signal weights (sum to 1.0 max, capped):
+#   scanning_metadata  +0.55  (Google/IA/HathiTrust strings — near-definitive)
+#   low_alpha_ratio    +0.25  (scaled: alpha < 0.60 over body sample)
+#   ocr_error_tokens   +0.20  (classic substitution errors: tlie, liave, tbe …)
+#   page_artifacts     +0.10  (isolated numbers on their own lines)
+
+_OCR_SCAN_META = re.compile(
+    r'(?i)(digitized\s+by\s+google'
+    r'|internet\s+archive'
+    r'|hathitrust'
+    r'|university\s+of\s+california\s+digitized'
+    r'|scanning\s+centre'
+    r'|scanned\s+by)'
+)
+_OCR_ERRORS = re.compile(
+    r'(?i)\b(tlie|llie|liave|tbe|wlien|wliich|wliere|tliis|tbeir|tbey'
+    r'|witli|tbat|sucli|mucli|wbat|wbo|wbose|sliould|could|woulcl'
+    r'|tliey|wliole|sliow|diat|iiave|heen|lias|iu\b)\b'
+)
+_PAGE_NUM = re.compile(r'(?m)^\s{0,4}\d{1,4}\s*$')
+
+def ocr_likelihood(raw: str) -> tuple:
+    score = 0.0
+    signals = []
+
+    # Signal 1: scanning metadata strings
+    if _OCR_SCAN_META.search(raw):
+        score += 0.55
+        signals.append('scanning_metadata')
+
+    # Signal 2: alpha ratio on body sample (skip first 10%)
+    start  = max(500, len(raw) // 10)
+    sample = raw[start:start + 6000]
+    if sample:
+        alpha = sum(c.isalpha() for c in sample) / len(sample)
+        if alpha < 0.60:
+            contribution = round((0.60 - alpha) / 0.60 * 0.25, 3)
+            score += contribution
+            signals.append(f'low_alpha:{alpha:.2f}')
+
+    # Signal 3: classic OCR substitution-error tokens
+    n_errors = len(_OCR_ERRORS.findall(raw))
+    if n_errors >= 3:
+        contribution = min(n_errors / 80, 0.20)
+        score += contribution
+        signals.append(f'ocr_errors:{n_errors}')
+
+    # Signal 4: isolated page-number lines
+    n_pages = len(_PAGE_NUM.findall(raw))
+    if n_pages >= 8:
+        contribution = min(n_pages / 150, 0.10)
+        score += contribution
+        signals.append(f'page_artifacts:{n_pages}')
+
+    score = round(min(score, 1.0), 3)
+    band  = 'high' if score >= 0.65 else ('medium' if score >= 0.30 else 'low')
+    return score, band, signals
+
+
 _SECTION_HDR = re.compile(
     r'(?im)^[\s]*(?:table\s+of\s+contents?|list\s+of\s+(?:tables?|figures?)'
     r'|(?:author[\'\s]s?\s+)?preface|foreword|prologue|acknowledgements?'
@@ -247,14 +315,18 @@ with open(out_path, 'a', encoding='utf-8') as out_f, \
                 continue
         # else: override == 'include' → skip detection, fall through
 
+        ocr_score, ocr_band, ocr_signals = ocr_likelihood(raw)
         clean_text = clean(raw)
 
         record = {
-            'id':         bid,
-            'title':      title,
-            'author':     meta[bid]['author'],
-            'pubdate':    meta[bid]['pubdate'],
-            'clean_text': clean_text,
+            'id':          bid,
+            'title':       title,
+            'author':      meta[bid]['author'],
+            'pubdate':     meta[bid]['pubdate'],
+            'clean_text':  clean_text,
+            'ocr_score':   ocr_score,   # 0.0–1.0 likelihood of OCR origin
+            'ocr_band':    ocr_band,    # 'low' / 'medium' / 'high'
+            'ocr_signals': ocr_signals, # list of detected evidence strings
         }
 
         # Write one JSON line — no read-back required
@@ -263,8 +335,9 @@ with open(out_path, 'a', encoding='utf-8') as out_f, \
         done_ids.add(bid)
         n_new += 1
 
+        ocr_tag = {'high': ' ⚠ OCR:high', 'medium': ' ~ OCR:med', 'low': ''}.get(ocr_band, '')
         print(f'  [{bid}] {title[:45]:45s} '
-              f'{len(raw):>7,} → {len(clean_text):>7,}')
+              f'{len(raw):>7,} → {len(clean_text):>7,}{ocr_tag}')
 
 if lang_excluded_this_run:
     print(f'\nLanguage filter: excluded {len(lang_excluded_this_run)} books from {csv_file}:')

@@ -39,8 +39,12 @@ with open(str(JSON_DIR / 'nlp_results.json')) as f: R = json.load(f)
 with open(str(JSON_DIR / 'summaries.json')) as f: S = json.load(f)
 with open(str(JSON_DIR / 'books_clean.json')) as f: B = json.load(f)
 
-book_ids = R['book_ids']
-doc_topic = np.array(R['doc_topic'])
+book_ids   = R['book_ids']
+doc_topic  = np.array(R['doc_topic'])
+ocr_scores = R.get('ocr_scores', [None] * len(book_ids))
+ocr_bands  = R.get('ocr_bands',  [None] * len(book_ids))
+
+_OCR_LABEL = {'high': 'High', 'medium': 'Medium', 'low': 'Low', None: '—'}
 
 # Sheet 1: Master results
 rows = []
@@ -57,6 +61,8 @@ for i, bid in enumerate(book_ids):
         'Dominant Topic': f"Topic {R['dominant_topics'][i]+1}",
         'Cluster': f"Cluster {R['cluster_labels'][i]+1}",
         'Key Phrases': '; '.join(kp[:8]),
+        'OCR Likelihood': _OCR_LABEL.get(ocr_bands[i] if i < len(ocr_bands) else None, '—'),
+        'OCR Score': ocr_scores[i] if i < len(ocr_scores) else None,
     }
     for t in range(R['n_topics']):
         row[f'Topic {t+1} Score'] = round(doc_topic[i, t], 4)
