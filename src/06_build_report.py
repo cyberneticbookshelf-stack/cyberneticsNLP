@@ -203,15 +203,16 @@ perp_pills = ''.join(
 
 # ── Plotly data ───────────────────────────────────────────────────────────────
 scatter_data = json.dumps({
-    'x':        [c[0] for c in coords_2d],
-    'y':        [c[1] for c in coords_2d],
-    'titles':   R['titles'],
-    'authors':  R['authors'],
-    'topics':   dominant,
-    'clusters': cluster_labels,
-    'n_topics': n_topics,
-    'best_k':   best_k,
-    'palette':  PALETTE,
+    'x':         [c[0] for c in coords_2d],
+    'y':         [c[1] for c in coords_2d],
+    'titles':    R['titles'],
+    'authors':   R['authors'],
+    'topics':    dominant,
+    'clusters':  cluster_labels,
+    'ocr_bands': ocr_bands,
+    'n_topics':  n_topics,
+    'best_k':    best_k,
+    'palette':   PALETTE,
     'lda_names': LDA_NAMES,
 })
 
@@ -234,11 +235,12 @@ for _ci in range(_n_clusters):
             _cl_avg[_ci, _cj] = round(float(cos_arr[np.ix_(_idx_i, _idx_j)].mean()), 3)
 _cl_labels  = [f'Cluster {c+1} (n={int((_cl_arr==c).sum())})' for c in range(_n_clusters)]
 cosine_data = json.dumps({
-    'z':         cos_sorted,
-    'labels':    labs_sorted,
-    'cl_avg':    _cl_avg.tolist(),
-    'cl_labels': _cl_labels,
-    'best_k':    _n_clusters,
+    'z':               cos_sorted,
+    'labels':          labs_sorted,
+    'ocr_bands_sorted': [ocr_bands[i] for i in sort_idx],
+    'cl_avg':          _cl_avg.tolist(),
+    'cl_labels':       _cl_labels,
+    'best_k':          _n_clusters,
 })
 
 # Topic distribution data for stacked bar
@@ -246,21 +248,25 @@ topic_dist_data = json.dumps({
     'titles':    [t[:35] for t in R['titles']],
     'doc_topic': doc_topic.tolist(),
     'dominant':  dominant,
+    'ocr_bands': ocr_bands,
     'n_topics':  n_topics,
     'palette':   PALETTE,
     'lda_names': LDA_NAMES,
 })
 
 # Keyphrases data
+# ocr_bands dict keyed by bid avoids index-alignment issues with the filtered book_ids list
+_ocr_by_bid = {bid: ocr_bands[_all_book_ids.index(bid)] for bid in book_ids}
 kp_data = json.dumps({
-    'book_ids': book_ids,
-    'titles':   R['titles'],
-    'authors':  R['authors'],
-    'topics':   dominant,
-    'clusters': cluster_labels,
+    'book_ids':  book_ids,
+    'titles':    R['titles'],
+    'authors':   R['authors'],
+    'topics':    dominant,
+    'clusters':  cluster_labels,
     'keyphrases': {bid: _clean_kp(R['keyphrases'].get(bid,[])) for bid in book_ids},
-    'n_topics': n_topics,
-    'best_k':   best_k,
+    'ocr_bands': _ocr_by_bid,
+    'n_topics':  n_topics,
+    'best_k':    best_k,
 })
 
 # ── Assemble HTML ─────────────────────────────────────────────────────────────
@@ -493,7 +499,11 @@ function buildScatterTraces(colourBy, filterVal) {{
       mode: 'markers', type: 'scatter', name: colourBy==='topic' ? (SD.lda_names?SD.lda_names[g]:`Topic ${{g+1}}`) : `Cluster ${{g+1}}`,
       marker: {{ color: PALETTE[g % PALETTE.length], size: 8, opacity: 0.8,
                  line: {{color:'white', width:0.5}} }},
-      text: idx.map(i => `<b>${{SD.titles[i].substring(0,50)}}</b><br>${{SD.authors[i]}}<br>Topic ${{SD.topics[i]+1}} · Cluster ${{SD.clusters[i]+1}}`),
+      text: idx.map(i => {{
+        const ob = SD.ocr_bands[i];
+        const ocr = ob==='high' ? '<br>⚠ OCR: High likelihood' : ob==='medium' ? '<br>~ OCR: Medium likelihood' : '';
+        return `<b>${{SD.titles[i].substring(0,50)}}</b><br>${{SD.authors[i]}}<br>Topic ${{SD.topics[i]+1}} · Cluster ${{SD.clusters[i]+1}}${{ocr}}`;
+      }}),
       hovertemplate: '%{{text}}<extra></extra>'
     }});
   }}
@@ -557,15 +567,20 @@ function updateTopicDist(){{
   }}
 
   const labels = idx.map(i=>TD.titles[i].length>45?TD.titles[i].substring(0,45)+'…':TD.titles[i]);
+  const ocrLabels = idx.map(i=>{{
+    const ob = TD.ocr_bands[i];
+    return ob==='high' ? ' ⚠ OCR:High' : ob==='medium' ? ' ~ OCR:Med' : '';
+  }});
   const traces = [];
   for(let t=0;t<TD.n_topics;t++){{
     const tnm = TD.lda_names?TD.lda_names[t]:`Topic ${{t+1}}`;
     traces.push({{
       x: idx.map(i=>+TD.doc_topic[i][t].toFixed(3)),
       y: labels,
+      customdata: ocrLabels,
       type:'bar', orientation:'h', name:tnm,
       marker:{{color:PALETTE[t%PALETTE.length]}},
-      hovertemplate:`<b>%{{y}}</b><br>${{tnm}}: %{{x:.1%}}<extra></extra>`,
+      hovertemplate:`<b>%{{y}}</b>%{{customdata}}<br>${{tnm}}: %{{x:.1%}}<extra></extra>`,
     }});
   }}
 
@@ -630,13 +645,15 @@ function updateCosine() {{
     const n = CD.labels.length;
     const pairs = [];
     for (let i=0; i<n; i++) for (let j=i+1; j<n; j++)
-      pairs.push({{a:CD.labels[i], b:CD.labels[j], s:CD.z[i][j]}});
+      pairs.push({{a:CD.labels[i], b:CD.labels[j], s:CD.z[i][j],
+                  oa:CD.ocr_bands_sorted[i], ob:CD.ocr_bands_sorted[j]}});
     pairs.sort((a,b)=>b.s-a.s);
     const top = pairs.slice(0,50);
+    const ocrTag = b => b==='high'?' ⚠':b==='medium'?' ~':'';
     Plotly.react('cosine_chart', [{{
       type:'bar', orientation:'h',
-      x: top.map(p=>p.s), y: top.map(p=>p.a.substring(0,30)+'…'),
-      text: top.map(p=>`vs: ${{p.b.substring(0,35)}}`),
+      x: top.map(p=>p.s), y: top.map(p=>p.a.substring(0,30)+'…'+ocrTag(p.oa)),
+      text: top.map(p=>`vs: ${{p.b.substring(0,35)}}${{ocrTag(p.ob)}}`),
       marker: {{color: top.map(p=>p.s), colorscale:'Blues', showscale:true, cmin:0, cmax:1}},
       hovertemplate: '<b>%{{y}}</b><br>%{{text}}<br>Score: %{{x:.3f}}<extra></extra>'
     }}], {{
@@ -675,8 +692,14 @@ function filterKP() {{
     const tcol = PALETTE[t % PALETTE.length];
     const ccol = PALETTE[c % PALETTE.length];
     const tname = KD.lda_names?KD.lda_names[t]:'T'+(t+1);
+    const ob = KD.ocr_bands[bid];
+    const ocrBadge = ob==='high'
+      ? `<span class="ocr-badge ocr-high" title="High OCR likelihood">⚠ OCR</span>`
+      : ob==='medium'
+      ? `<span class="ocr-badge ocr-med" title="Medium OCR likelihood">~ OCR</span>`
+      : '';
     html += `<tr>
-      <td style="font-weight:600;max-width:220px">${{title.substring(0,60)}}</td>
+      <td style="font-weight:600;max-width:220px">${{title.substring(0,60)}} ${{ocrBadge}}</td>
       <td style="color:#64748b;font-size:.8em">${{author.substring(0,30)}}</td>
       <td><span class="badge" style="background:${{tcol}}">${{tname}}</span></td>
       <td><span class="badge" style="background:${{ccol}}">C${{c+1}}</span></td>
