@@ -16,6 +16,10 @@ __pycache__/
 ._*
 Thumbs.db
 
+# NFS / SSHFS temp files (sshfs open-file handles)
+.nfs*
+.fuse_hidden*
+
 # Editor
 .vscode/
 .idea/
