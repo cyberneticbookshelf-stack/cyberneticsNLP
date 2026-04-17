@@ -458,6 +458,10 @@ tr:hover td{{background:#f1f5f9}}
 
 <section id="keyphrases">
   <h2>5 · Key Phrases (searchable)</h2>
+  <div class="fig">
+    <img src="{imgs['keyphrases']}" alt="top keyphrases per LDA topic">
+    <div class="fig-caption">Fig 7 — Most frequent key phrases per LDA topic (pooled from books whose dominant topic matches)</div>
+  </div>
   <div class="plotly-chart">
     <div class="chart-controls">
       <input class="kp-search" id="kp_search" type="text" placeholder="Search titles or keyphrases…" oninput="filterKP()">
