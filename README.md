@@ -91,6 +91,7 @@ CyberneticsNLP/
 │   ├── build_embed_report.py       Step 11b: rebuild comparison report from results JSON
 │   ├── 13_weighted_comparison.py   Step 13: compare unweighted vs weighted pipeline runs
 │   ├── embeddings.py               Embedding provider abstraction module
+│   ├── 00_export_calibre.py        Step 0:  export books_metadata_full.csv from Calibre DB
 │   ├── 00_classify_book_styles.py  Step 0a: heuristic book style classification
 │   ├── 00_fetch_worldcat_metadata.py Step 0b: Google Books + Open Library enrichment
 │   ├── 00_fetch_anu_primo.py        Step 0c: ANU Primo catalogue enrichment
@@ -146,10 +147,22 @@ pip install pyspellchecker>=0.7
 # Download from: https://github.com/LibreOffice/dictionaries
 ```
 
-### 2. Place input files in csv/
+### 2. Export Calibre metadata and place text CSVs in csv/
+
+Export `books_metadata_full.csv` directly from the Calibre database:
+
+```bash
+python3 src/00_export_calibre.py
+# or if metadata.db is elsewhere:
+python3 src/00_export_calibre.py --db /path/to/metadata.db
+```
+
+Re-run whenever books are added to or removed from Calibre, or when custom
+column values (Publication Type, Theme, Available at) are updated.
+
+Also place the OCR text exports in csv/:
 
 ```
-csv/books_metadata_full.csv
 csv/books_text_*.csv
 ```
 
@@ -193,7 +206,8 @@ python3 src/12_index_grounding.py
 python3 src/08_build_timeseries.py
 
 # Book style enrichment — run once before main pipeline
-# Requires csv/books_metadata_full.csv (exported from Calibre via metadata.db)
+# Step 0: export metadata from Calibre (writes csv/books_metadata_full.csv)
+python3 src/00_export_calibre.py
 python3 src/00_classify_book_styles.py                    # heuristic baseline
 python3 src/00_fetch_worldcat_metadata.py                 # Google Books + OL (~10 min)
 python3 src/00_fetch_anu_primo.py                         # ANU Primo (~12 min)
@@ -244,6 +258,11 @@ to use the new summaries.
 ## Pipeline Overview
 
 ```
+Calibre metadata.db  +  csv/books_text_*.csv
+        │
+  00_export_calibre.py         Export books_metadata_full.csv from Calibre DB
+        │
+        ▼
 csv/books_metadata_full.csv  +  csv/books_text_*.csv
         │
         ├── STREAMING (recommended) ──── parse_and_clean_stream.py × 25
