@@ -52,7 +52,7 @@ echo "=== Book Corpus NLP Pipeline ==="
 echo "Starting: $(date)"
 echo "Mode: $([ $STREAM -eq 1 ] && echo 'streaming (large corpus)' || echo 'standard')"
 
-run() { echo ""; echo "── $1 ──"; python3 "$SCRIPT_DIR/$1"; }
+run() { echo ""; echo "── $1 ──"; python3 "$SCRIPT_DIR/$1" "${@:2}"; }
 
 mkdir -p data/outputs figures
 mkdir -p csv json   # pipeline expects input CSVs in csv/ and writes JSON to json/
