@@ -374,6 +374,25 @@ if low_alpha:
         ratio = _alpha_ratio(books[bid]['clean_text'])
         print(f"    excluded: [{bid}] {books[bid]['title'][:60]}  (alpha={ratio:.2f})")
 
+# ── Explicit OCR exclusion list ───────────────────────────────────────────────
+# Books that pass heuristic filters (min-chars, alpha-ratio) but have
+# confirmed OCR quality issues that make them unsuitable for analysis.
+# Add book IDs here as strings when a book is known-bad and cannot be fixed.
+# See also: generate_summaries_api.py — books excluded here should also be
+# absent from summaries.json (they will not be summarised).
+OCR_EXCLUDED = {
+    '2133',  # Cybernation and Social Change (Donald N. Michael) — confirmed OCR failure
+}
+_ocr_before = len(book_ids)
+book_ids = [b for b in book_ids if b not in OCR_EXCLUDED]
+if _ocr_before > len(book_ids):
+    n = _ocr_before - len(book_ids)
+    print(f"  [ocr-excluded] excluded {n} book(s) from explicit exclusion list "
+          f"({_ocr_before} → {len(book_ids)})")
+    for bid in OCR_EXCLUDED:
+        if bid in books:
+            print(f"    excluded: [{bid}] {books[bid]['title'][:60]}")
+
 titles     = [books[b]['title'] for b in book_ids]
 authors    = [books[b]['author'] for b in book_ids]
 

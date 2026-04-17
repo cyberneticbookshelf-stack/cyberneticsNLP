@@ -110,6 +110,8 @@ def chapter_accordion(bid):
     return f'<div class="accordion">{items}</div>'
 
 book_cards = ''
+# Exclude books without summaries (e.g. OCR failures excluded from generate_summaries_api)
+book_ids = [bid for bid in book_ids if bid in S]
 for bid in book_ids:
     sv  = S[bid]
     c   = cluster_labels[book_ids.index(bid)]

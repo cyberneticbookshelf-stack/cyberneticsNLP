@@ -18,6 +18,8 @@ doc_topic = np.array(R['doc_topic'])
 # Sheet 1: Master results
 rows = []
 for i, bid in enumerate(book_ids):
+    if bid not in S:  # skip OCR failures excluded from generate_summaries_api
+        continue
     s = S[bid]
     kp = R['keyphrases'].get(bid, [])
     row = {
