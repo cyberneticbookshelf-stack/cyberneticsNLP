@@ -49,6 +49,11 @@ research study studies approach proposed based show shown
 result results finding findings suggest suggests suggested
 present presented discuss discussed discuss analysis analyse
 across following given thus within despite recent
+give gives given take takes taken make makes made come comes
+came seem seems seemed need needs needed know knows knew
+think thinks thought want wants wanted call called become
+becomes became keep keeps kept show shows showed turn turns
+turned leave leaves left move moves moved back still around
 """.split())
 
 # ── CLI flags ────────────────────────────────────────────────────────────────

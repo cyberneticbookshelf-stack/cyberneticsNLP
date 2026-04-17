@@ -375,7 +375,14 @@ h2{{font-size:1.35rem;font-weight:700;color:#1e293b;margin-bottom:.5rem;padding-
 <!-- Chart 4 -->
 <section id="clusters">
   <h2>4 · Cluster Composition by Decade</h2>
-  <p class="desc">How many books per cluster were published in each decade.</p>
+  <p class="desc">How many books per cluster were published in each decade.
+    Clusters are formed by K-Means (k=3) on TF-IDF vectors reduced to LSA space — the algorithm
+    groups books that are semantically close in vocabulary, without requiring predefined categories.
+    Clusters have no inherent names; their character can be read from which books dominate each group.
+    Note: the choice of k=3 is approximate — the elbow and silhouette curves for this corpus
+    do not show a strong optimal k, so clusters should be treated as a rough grouping rather than
+    a definitive partition.
+  </p>
   <div class="chart-controls">
     <label>Display:</label>
     <select id="cluster_mode" onchange="updateClusters()">
@@ -390,7 +397,15 @@ h2{{font-size:1.35rem;font-weight:700;color:#1e293b;margin-bottom:.5rem;padding-
 <!-- Chart 5 -->
 <section id="scatter">
   <h2>5 · Publication Year vs Semantic Position</h2>
-  <p class="desc">Each point is a book. X-axis = publication year, Y-axis = LSA semantic dimension 1. Coloured by dominant LDA topic. Hover for details.</p>
+  <p class="desc">Each point is a book. X-axis = publication year; Y-axis = LSA semantic dimension
+    (switchable below). Coloured by dominant LDA topic or K-Means cluster. Hover for details.<br>
+    <strong>LSA dimensions</strong> are abstract axes produced by dimensionality reduction of the
+    TF-IDF vocabulary matrix. They do not have interpretable names — they are the directions of
+    greatest variance in the document-term space. LSA Dim 1 and Dim 2 together explain only ~4% of
+    total variance, so this is a coarse 2D projection of a much higher-dimensional semantic space.
+    Points that appear close are similar in vocabulary; points that appear far apart differ.
+    Use this chart to spot temporal clustering and outliers, not to read off precise topic boundaries.
+  </p>
   <div class="chart-controls">
     <label>Colour by:</label>
     <select id="scatter_colour" onchange="updateScatter5()">
@@ -416,10 +431,21 @@ h2{{font-size:1.35rem;font-weight:700;color:#1e293b;margin-bottom:.5rem;padding-
 <section id="bands">
   <h2>7 · Index-Term Band Prevalence &amp; Concept Velocity</h2>
   <p class="desc">
-    <strong>Left:</strong> Mean Anchor / Signal / Frontier index terms per book per decade —
-    tracks whether the field’s conceptual core is stable, expanding, or shifting.<br>
-    <strong>Right:</strong> How a term’s dominant LDA topic shifts across decades
-    (Concept Velocity).
+    Index terms are drawn from the controlled vocabulary compiled by the pipeline’s index
+    extraction step and divided into three bands by corpus-wide frequency rank:<br>
+    &bull; <strong>Anchor</strong> — top 5% of terms by number of books: foundational,
+      ubiquitous terms present across the entire field
+      (e.g. <em>cybernetics</em>, <em>system</em>, <em>information</em>).<br>
+    &bull; <strong>Signal</strong> — 5th–40th percentile: moderately common, selective
+      but well-established — the working vocabulary of the field.<br>
+    &bull; <strong>Frontier</strong> — bottom 60% of terms appearing in ≥2 books:
+      specialist or emerging concepts that have not yet achieved broad uptake.<br>
+    <em>Note: the index currently mixes subject terms and person names
+    (e.g. Norbert Wiener); person names will be separated in a future release.</em><br><br>
+    <strong>Left chart:</strong> Mean count of terms from each band per book per decade.<br>
+    <strong>Right chart (Concept Velocity):</strong> For a selected term, shows which LDA
+    topic dominates among books containing that term in each decade. A term that shifts
+    dominant topic across decades is migrating through the intellectual landscape of the field.
   </p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
     <div class="card" style="padding:1rem"><div id="c7_band"></div></div>

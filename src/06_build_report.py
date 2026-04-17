@@ -24,6 +24,19 @@ JSON_DIR.mkdir(exist_ok=True)
 import json, base64, re
 import numpy as np
 
+# Generic verbs and filler words that slip through TF-IDF keyphrase extraction
+_KP_BLOCKLIST = {
+    'give', 'gives', 'given', 'take', 'takes', 'taken', 'make', 'makes', 'made',
+    'come', 'comes', 'came', 'seem', 'seems', 'seemed', 'need', 'needs', 'needed',
+    'know', 'knows', 'knew', 'think', 'thinks', 'thought', 'want', 'wants', 'wanted',
+    'call', 'called', 'become', 'becomes', 'became', 'keep', 'keeps', 'kept',
+    'show', 'shows', 'showed', 'turn', 'turns', 'turned', 'leave', 'leaves', 'left',
+    'move', 'moves', 'moved', 'back', 'still', 'around',
+}
+
+def _clean_kp(kp_list):
+    return [k for k in kp_list if not any(w in _KP_BLOCKLIST for w in k.split())]
+
 with open(str(JSON_DIR / 'nlp_results.json'))   as f: R     = json.load(f)
 with open(str(JSON_DIR / 'summaries.json'))     as f: S     = json.load(f)
 with open(str(JSON_DIR / 'books_clean.json'))   as f: books = json.load(f)
@@ -116,7 +129,7 @@ for bid in book_ids:
     sv  = S[bid]
     c   = cluster_labels[book_ids.index(bid)]
     t   = dominant[book_ids.index(bid)]
-    kp  = R['keyphrases'].get(bid, [])
+    kp  = _clean_kp(R['keyphrases'].get(bid, []))
     col = PALETTE[c % len(PALETTE)]
     tcol= PALETTE[t % len(PALETTE)]
     book_cards += f"""

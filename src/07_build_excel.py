@@ -1,5 +1,17 @@
 import json, numpy as np, pandas as pd
 
+_KP_BLOCKLIST = {
+    'give', 'gives', 'given', 'take', 'takes', 'taken', 'make', 'makes', 'made',
+    'come', 'comes', 'came', 'seem', 'seems', 'seemed', 'need', 'needs', 'needed',
+    'know', 'knows', 'knew', 'think', 'thinks', 'thought', 'want', 'wants', 'wanted',
+    'call', 'called', 'become', 'becomes', 'became', 'keep', 'keeps', 'kept',
+    'show', 'shows', 'showed', 'turn', 'turns', 'turned', 'leave', 'leaves', 'left',
+    'move', 'moves', 'moved', 'back', 'still', 'around',
+}
+
+def _clean_kp(kp_list):
+    return [k for k in kp_list if not any(w in _KP_BLOCKLIST for w in k.split())]
+
 
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
@@ -21,7 +33,7 @@ for i, bid in enumerate(book_ids):
     if bid not in S:  # skip OCR failures excluded from generate_summaries_api
         continue
     s = S[bid]
-    kp = R['keyphrases'].get(bid, [])
+    kp = _clean_kp(R['keyphrases'].get(bid, []))
     row = {
         'Book ID': bid,
         'Title': s['title'],
