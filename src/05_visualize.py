@@ -160,29 +160,51 @@ plt.savefig('figures/fig6_cluster_scatter.png', dpi=130, bbox_inches='tight')
 plt.close()
 print("Fig 6 saved")
 
-# ── FIG 7: Key Phrases per book (dynamic grid) ───────────────────────────────
-kp    = R['keyphrases']
-n     = len(book_ids)
-ncols = 5
-nrows = (n + ncols - 1) // ncols
-fig, axes = plt.subplots(nrows, ncols, figsize=(20, max(4, 3 * nrows)))
+# ── FIG 7: Top keyphrases per LDA topic ──────────────────────────────────────
+# Per-book mini-bar grids don't scale (542 books → ~40k-pixel figure).
+# Instead: for each topic, pool keyphrases from all dominant-topic books,
+# rank by frequency, and show the top 15 as a horizontal bar.
+from collections import Counter
+
+kp       = R['keyphrases']
+ncols    = 3
+nrows    = (n_topics + ncols - 1) // ncols
+fig, axes = plt.subplots(nrows, ncols, figsize=(18, 4 * nrows))
 axes = axes.flatten()
-for i, bid in enumerate(book_ids):
-    phrases = kp[bid][:6]
-    scores  = list(range(len(phrases), 0, -1))
-    color   = PALETTE[dominant[i] % len(PALETTE)]
-    axes[i].barh(range(len(phrases)), scores, color=color, alpha=0.75)
-    axes[i].set_yticks(range(len(phrases)))
-    axes[i].set_yticklabels(phrases, fontsize=7)
-    axes[i].set_title(R['titles'][i][:28]+'…' if len(R['titles'][i])>28 else R['titles'][i],
-                      fontsize=7, fontweight='bold')
-    axes[i].set_xticks([])
-    axes[i].invert_yaxis()
-for j in range(i + 1, len(axes)):
+
+for t in range(n_topics):
+    ax    = axes[t]
+    color = PALETTE[t % len(PALETTE)]
+    # Collect all keyphrases from books whose dominant topic is t
+    counts = Counter()
+    for i, bid in enumerate(book_ids):
+        if dominant[i] == t:
+            for phrase in kp.get(bid, [])[:8]:
+                counts[phrase] += 1
+    top15 = counts.most_common(15)
+    if not top15:
+        ax.set_visible(False)
+        continue
+    phrases, freqs = zip(*top15)
+    phrases = list(reversed(phrases))
+    freqs   = list(reversed(freqs))
+    ax.barh(range(len(phrases)), freqs, color=color, alpha=0.80)
+    ax.set_yticks(range(len(phrases)))
+    ax.set_yticklabels(phrases, fontsize=8)
+    n_books = sum(1 for d in dominant if d == t)
+    tname   = (R.get('topic_names') or [None]*n_topics)[t] or f'Topic {t+1}'
+    ax.set_title(f'Topic {t+1} — {tname}\n({n_books} books)',
+                 fontsize=9, fontweight='bold', color=color)
+    ax.set_xlabel('# books', fontsize=8)
+    ax.tick_params(axis='x', labelsize=7)
+    ax.grid(axis='x', alpha=0.25)
+
+for j in range(n_topics, len(axes)):
     axes[j].set_visible(False)
-plt.suptitle('Key Phrases per Book (coloured by dominant LDA topic)', fontweight='bold', y=1.01)
+
+plt.suptitle('Most Frequent Key Phrases by LDA Topic', fontweight='bold', fontsize=13, y=1.01)
 plt.tight_layout()
-plt.savefig('figures/fig7_keyphrases.png', dpi=120, bbox_inches='tight')
+plt.savefig('figures/fig7_keyphrases.png', dpi=130, bbox_inches='tight')
 plt.close()
 print("Fig 7 saved")
 
