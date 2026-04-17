@@ -2068,3 +2068,109 @@ silence.
 Full theoretical development — including the self-referential connection to Ashby's Law of
 Requisite Variety and the proposed theoretical contribution statement — is in §15 of
 `docs/memo_media_aware_nlp_epistemic_affordances.md`.
+
+---
+
+## Residual error propagation and the limits of upstream cleaning
+
+*Added 17 April 2026 — revised same session after corpus inspection*
+
+### The methodological point
+
+Data cleaning in a corpus NLP pipeline reduces *known* error classes. It does not
+eliminate errors of unknown type and magnitude. The distribution of residual errors —
+what remains after cleaning — is itself unknown. This is not a failure of the cleaning
+procedure; it is a structural feature of working at scale with heterogeneous, OCR-derived
+text from sources with variable production standards across seven decades.
+
+The consequence is that any downstream algorithm which makes simplifying assumptions about
+its input is susceptible to corruption by residual errors in ways that cannot be fully
+anticipated or measured. The severity of corruption depends on the algorithm's specific
+assumptions and on the statistical properties of the residual errors — neither of which
+is known in advance.
+
+### Observed instance: Wiener–Google association in the entity network
+
+The entity network (`14_entity_network.py`) uses book-level PMI to score person–concept
+associations: how much more often do two index terms co-occur across books than chance
+would predict? Norbert Wiener appeared with a PMI score of 1.0 against Google, based on
+9-book overlap — the 4th strongest association in his edge list, ranking above Cold War.
+
+Corpus inspection revealed two distinct sources for this artefact, which require different
+fixes:
+
+**Source 1 — Temporal co-occurrence (structural):** Google and Amazon are mentioned
+legitimately in 95 and 60 books respectively — modern books on algorithms, AI, and digital
+culture that discuss Wiener as a historical founding figure *and* contemporary platforms as
+examples. This is not a data quality error. It is a structural consequence of the corpus
+spanning 70 years: book-level PMI does not distinguish between historical and contemporary
+entities, so genuine co-occurrence across the temporal range produces associations that are
+statistically real but intellectually meaningless (Wiener died in 1964; Google was founded
+in 1998).
+
+**Fix:** Exclude known modern technology platforms from the entity network *before* PMI
+is computed. For book-level PMI, each edge is computed independently, so pre-computation
+exclusion is equivalent to post-computation exclusion — no other entity's scores are
+affected by a platform's presence. `14_entity_network.py` now maintains a
+`KNOWN_TECH_PLATFORMS` set (Google, Amazon, Facebook, Meta, Twitter, Apple, Microsoft,
+OpenAI, etc.) checked at entity classification, before book sets or PMI scores are
+built. Added 17 April 2026.
+
+**Source 2 — Index vocabulary noise (data quality):** Structural document navigation
+terms — "Chapter" (12 books), "Index" (15 books), "Introduction" (15 books), "Volume"
+(14 books), "Series" (11 books), "Section" (7 books), "Below." (5 books) — were
+appearing as index vocabulary items in `index_analysis.json`. These enter the index from
+cross-references in back-of-book indexes ("see Chapter 3"), section markers, and
+front-matter fragments that survived the extraction step. Additionally, Internet Archive
+digitisation notices ("Digitized by the Internet Archive in 2022 with funding from
+Kahle/Austin Foundation") appeared in 67 books and contributed "Internet Archive" and
+related strings to the entity vocabulary.
+
+**Fix:** Extended `is_noise_term` in `09b_build_index_analysis.py` with two new
+patterns: `_STRUCT_NAV` (structural navigation terms matched as whole tokens) and
+`_PLATFORM` (digitisation attribution strings). Extended `INLINE_PATTERNS` in
+`02_clean_text.py` to strip Internet Archive notices from body text before
+`books_clean.json` is written. Added 17 April 2026.
+
+### When output exclusion is and is not sufficient
+
+The two sources above require different reasoning about where to intervene:
+
+For **book-level PMI** (the mechanism in this case): each person–entity edge is computed
+independently from two book sets. Excluding an entity before book sets are built means
+it contributes no edges. It does not affect any other entity's book set or PMI score.
+Output exclusion and input exclusion are equivalent. Either works.
+
+For **paragraph-window co-occurrence** (the second mechanism in `14_entity_network.py`):
+if a contaminating string is dense enough to appear in many windows alongside many other
+entities, its presence could inflate co-occurrence counts for those other entities even
+if the contaminating entity itself is later excluded. In this corpus the paragraph-window
+signal is less dominant than book-level PMI, and the contaminating strings are not dense
+enough to cause measurable inflation. But in principle, a very high-frequency
+contaminating term (appearing in every book, in every window) could corrupt other
+entities' co-occurrence scores — in which case input text stripping is the correct fix,
+not entity exclusion.
+
+The general rule: output exclusion is sufficient when edges are computed independently
+and contamination does not inflate other entities' statistics. Input stripping is required
+when contamination is dense enough to act as a global co-occurrence booster.
+
+### General implication
+
+This instance illustrates that domain expertise is a necessary check on algorithmic
+outputs. The Wiener–Google association is immediately interpretable as wrong on historical
+grounds. An association between two legitimately co-occurring entities with a slightly
+inflated PMI due to residual noise would not be detectable by inspection. The pipeline
+should be treated as producing findings that are reliable in aggregate and indicative at
+the level of individual associations, but subject to residual error of unknown distribution
+that is not self-diagnosing.
+
+This does not invalidate the pipeline's findings. It does establish that:
+
+1. Domain expertise is required to detect the class of artefacts that are implausible
+   on substantive grounds — the algorithm cannot flag them.
+2. Upstream cleaning must target the specific input of each algorithm, not only the
+   global text preprocessing step. Different algorithms have different sensitivities.
+3. The paper should state that entity network results are conditional on index vocabulary
+   quality and that temporal co-occurrence across a 70-year corpus is a known limitation
+   of book-level PMI without temporal stratification.

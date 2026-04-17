@@ -145,6 +145,23 @@ NOISE_TERMS = {
     'political', 'theoretical', 'historical', 'natural', 'modern',
     'new', 'old', 'first', 'second', 'third', 'early', 'late',
     'good', 'best', 'great', 'higher', 'lower', 'basic', 'applied',
+    # Structural document navigation terms (belt-and-suspenders: 09b filters
+    # these upstream, but defence-in-depth catches any that slip through)
+    'chapter', 'section', 'volume', 'introduction', 'conclusion',
+    'appendix', 'bibliography', 'foreword', 'preface', 'series',
+    'below', 'above', 'contents', 'glossary',
+}
+
+# Modern technology platforms: excluded from the entity network entirely
+# because they generate spurious PMI associations with historical figures
+# (e.g. Wiener–Google) via co-occurrence in modern books that discuss both
+# cybernetics history and contemporary tech. Exclusion happens before PMI
+# computation so no edge scores are corrupted. Added 17 April 2026 (KI-04).
+KNOWN_TECH_PLATFORMS = {
+    'google', 'amazon', 'facebook', 'meta', 'twitter', 'apple',
+    'microsoft', 'ibm', 'openai', 'netflix', 'uber', 'airbnb',
+    'tiktok', 'instagram', 'whatsapp', 'youtube', 'linkedin',
+    'intel', 'nvidia', 'oracle', 'salesforce', 'adobe',
 }
 
 persons       = {}
@@ -157,6 +174,7 @@ for tl, v in vocab.items():
     nb = v['n_books']
     if nb < MIN_BOOKS: continue
     if tl.lower() in NOISE_TERMS: continue
+    if tl.lower() in KNOWN_TECH_PLATFORMS: continue  # KI-04: suppress before PMI
     if len(t) < 3: continue
     # Skip clearly garbled OCR entries
     if re.search(r'\d{3,}|[^\w\s\-\',\.\(\)\/&]', t): continue

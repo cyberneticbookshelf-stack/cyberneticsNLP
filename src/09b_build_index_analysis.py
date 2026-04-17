@@ -94,11 +94,43 @@ def build_person_merge_rules(IV):
 _FUNC_FRAG  = re.compile(r'^(of|and|in|on|at|to|for|with|by|from|the|a|an)\b', re.I)
 _CAPS_NOISE = re.compile(r'^[A-Z][A-Z\s\-&/]{4,}$')
 _PREAMBLE   = re.compile(r'page numbers|printed version|e-reader|scroll forward', re.I)
+
+# Structural document navigation terms that leak into back-of-book indexes
+# via cross-references ("see Chapter 3"), section markers, or front matter.
+# Two forms caught: (a) standalone structural words; (b) terms that embed
+# structural markers mid-string ("includes bibliographical references and index.").
+# Added 17 April 2026; extended same session.
+_STRUCT_NAV = re.compile(
+    r'^(?:chapter|section|volume|index|introduction|conclusion|appendix|'
+    r'bibliography|references|foreword|preface|afterword|glossary|contents|'
+    r'part|series|below|above|see also|see|ibid|passim|cf\.|et al\.?)'
+    r'[\s\.\d\-:]*$', re.I
+)
+_STRUCT_EMBED = re.compile(
+    r'(?:bibliographical\s+references\s+and\s+index|'
+    r'\bvolume\s+\d+\b)', re.I
+)
+
+# Platform/digitisation attribution strings that survive upstream cleaning
+# and appear as index terms in OCR-derived text.
+# Added 17 April 2026; "eolss" added same session.
+_PLATFORM   = re.compile(
+    r'(?:digitized\s+by|internet\s+archive|kahle|austin\s+foundation|'
+    r'kindle\s+edition|amazon\s+digital|google\s+play|google\s+books|'
+    r'this\s+page\s+intentionally|\beolss\b)', re.I
+)
+
+# Author-affiliation strings: "Surname, University of X, Country"
+# Original pattern used \bUniversit\b which misses "Universite"/"Universiteit".
+# Fixed: use \bUniversit\w* to match any inflection. Country list extended.
 _AUTHAFFIL  = re.compile(
-    r'\b(University|Instituto|Universit)\b.{0,60}'
+    r'\b(University|Instituto|Universit\w+)\b.{0,80}'
     r'\b(USA|UK|Germany|France|Australia|Brazil|China|India|Spain|Italy|'
     r'Japan|Mexico|Egypt|Canada|Switzerland|Sweden|Norway|Denmark|Austria|'
-    r'Belgium|Poland|Greece|Portugal|Israel|South Africa|New Zealand)\b', re.I)
+    r'Belgium|Poland|Greece|Portugal|Israel|South Africa|New Zealand|'
+    r'Slovenia|Croatia|Hungary|Czech|Slovakia|Romania|Bulgaria|Serbia|'
+    r'Finland|Netherlands|Ireland|Scotland|Wales|Singapore|Argentina|'
+    r'Chile|Colombia|Russia|Ukraine|Turkey|Iran|Korea|Taiwan)\b', re.I)
 
 # Single-name historical figures not caught by the "Surname, Firstname" pattern
 # (fallback only — used when entity_types_cache.json is not available)
@@ -135,11 +167,17 @@ def is_person_term(tl, term):
     return False
 
 def is_noise_term(tl, term):
-    if len(term.strip()) < 3: return True
+    t = term.strip()
+    if len(t) < 3: return True
+    # Short OCR fragments: suffix stubs like "tion", "ing" with no vowel context
+    if len(t) <= 4 and not any(c in 'aeiouAEIOU' for c in t): return True
     if _FUNC_FRAG.match(term) and len(term.split()) <= 6: return True
     if _CAPS_NOISE.match(term): return True
     if _PREAMBLE.search(term): return True
-    if _AUTHAFFIL.search(term): return True
+    if _AUTHAFFIL.search(term): return True          # author affiliations
+    if _STRUCT_NAV.match(term): return True          # standalone structural words
+    if _STRUCT_EMBED.search(term): return True       # structural words mid-string
+    if _PLATFORM.search(term): return True           # digitisation / platform strings
     if len(term) > 80 and term.count(',') >= 2: return True
     return False
 
@@ -148,6 +186,29 @@ with open(str(JSON_DIR / 'index_terms.json')) as f:  IT = json.load(f)
 with open(str(JSON_DIR / 'index_vocab.json')) as f:  IV = json.load(f)
 with open(str(JSON_DIR / 'nlp_results.json')) as f:  R  = json.load(f)
 with open(str(JSON_DIR / 'books_clean.json')) as f:  BC = json.load(f)
+
+# ── Book-level exclusion from book_styles.json ───────────────────────────────
+# Skip index terms from books classified as reference/proceedings/handbook.
+# This handles encyclopedias (e.g. EOLSS) whose "index" is a contributor list,
+# without requiring term-by-term pattern matching.
+# Added 17 April 2026.
+_EXCLUDED_STYLES = {'reference', 'proceedings', 'handbook'}
+_excluded_book_ids = set()
+_bs_path = CSV_DIR.parent / 'json' / 'book_styles.json'
+if not _bs_path.exists():
+    _bs_path = _pl.Path('json') / 'book_styles.json'
+if _bs_path.exists():
+    try:
+        with open(str(_bs_path)) as _f:
+            _bs = json.load(_f)
+        _excluded_book_ids = {
+            bid for bid, v in _bs.items()
+            if v.get('style', '') in _EXCLUDED_STYLES and v.get('verified', False)
+        }
+        print(f"  Book-level exclusions (verified reference/proceedings/handbook): "
+              f"{len(_excluded_book_ids)} books")
+    except Exception as _e:
+        print(f"  WARNING: could not load book_styles.json: {_e}")
 
 book_ids   = R['book_ids']
 titles     = dict(zip(book_ids, R['titles']))
@@ -199,10 +260,13 @@ for tl, v in IV.items():
     if is_noise_term(tl, term): continue          # suppress noise
     if tl in _all_merges: continue               # skip variants
 
-    # Aggregate books from canonical + all variants pointing here
+    # Aggregate books from canonical + all variants pointing here,
+    # excluding any books from verified reference/proceedings/handbook titles.
     variant_tls = {tl} | {vt for vt, ct in _all_merges.items() if ct == tl}
     books_with_term = list({b for vtl in variant_tls
-                             for b in IV.get(vtl, {}).get('books', [])})
+                             for b in IV.get(vtl, {}).get('books', [])
+                             if b not in _excluded_book_ids})
+    if not books_with_term: continue             # term only existed in excluded books
     year_dist   = defaultdict(int)
     topic_dist  = defaultdict(int)
     for bid in books_with_term:

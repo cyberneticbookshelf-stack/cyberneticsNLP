@@ -385,6 +385,15 @@ INLINE_PATTERNS = [
     r'(?i)catalogu(?:e|ing)-in-publication.{0,200}?(?:\n|$)',
     # Blank-page markers
     r'(?i)this\s+page\s+(?:is\s+)?intentionally\s+(?:left\s+)?blank',
+    # Platform / digitisation attribution strings (added 17 April 2026)
+    # These survive OCR and create spurious entity co-occurrences downstream.
+    # Internet Archive notices appear in 67 books; Kindle/Google in a handful.
+    r'(?i)digitized\s+by\s+(?:the\s+)?internet\s+archive[^\n]*',
+    r'(?i)in\s+\d{4}\s+with\s+funding\s+from\s*\n?kahle\s*/\s*austin\s+foundation[^\n]*',
+    r'(?i)kahle\s*/\s*austin\s+foundation[^\n]*',
+    r'(?i)kindle\s+(?:edition|ebook|format|version)[^\n]*',
+    r'(?i)google\s+play\s+books?[^\n]*',
+    r'(?i)amazon\s+digital\s+services[^\n]*',
     # URLs / DOIs
     r'https?://\S+',
     r'www\.\S+',
