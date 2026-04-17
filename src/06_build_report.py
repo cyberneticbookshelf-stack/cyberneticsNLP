@@ -278,83 +278,100 @@ kp_data = json.dumps({
     'best_k':    best_k,
 })
 
-# ── Assemble HTML ─────────────────────────────────────────────────────────────
-html = f"""<!DOCTYPE html>
+# ── Shared CSS ────────────────────────────────────────────────────────────────
+_CSS = """:root{--blue:#2563eb;--green:#16a34a;--red:#dc2626;--bg:#f8fafc;--card:#fff;--border:#e2e8f0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#1e293b;line-height:1.6}
+.header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:2.5rem 2rem;text-align:center}
+.header h1{font-size:1.9rem;font-weight:700;margin-bottom:.4rem}
+.stats-bar{display:flex;justify-content:center;gap:2rem;background:#1e293b;color:#fff;padding:.8rem;flex-wrap:wrap}
+.stat{text-align:center}.stat span{display:block;font-size:1.4rem;font-weight:700;color:#60a5fa}
+.stat small{font-size:.75rem;opacity:.7;text-transform:uppercase}
+nav{background:#fff;border-bottom:1px solid var(--border);padding:.6rem 1.5rem;position:sticky;top:0;z-index:99;display:flex;gap:1rem;flex-wrap:wrap}
+nav a{text-decoration:none;color:#475569;font-size:.85rem;padding:.3rem .7rem;border-radius:4px;transition:all .2s}
+nav a:hover{background:#eff6ff;color:var(--blue)}
+nav a.active{background:var(--blue);color:#fff}
+.container{max-width:1400px;margin:0 auto;padding:1.5rem}
+section{margin-bottom:3rem}
+h2{font-size:1.35rem;font-weight:700;color:#1e293b;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid var(--blue)}
+h3{font-size:1.05rem;font-weight:600;color:#334155;margin:.8rem 0}
+.fig{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.2rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.fig img{width:100%;border-radius:4px}
+.fig-caption{font-size:.8rem;color:#64748b;margin-top:.5rem;text-align:center}
+.plotly-chart{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.2rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.chart-controls{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.6rem;align-items:center}
+.chart-controls label{font-size:.82rem;color:#475569;font-weight:500}
+.chart-controls select{padding:.3rem .6rem;border:1px solid var(--border);border-radius:5px;font-size:.82rem;background:#fff;color:#1e293b}
+table{width:100%;border-collapse:collapse;background:var(--card);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+th{background:#1e3a5f;color:#fff;padding:.7rem 1rem;text-align:left;font-size:.85rem;font-weight:600}
+td{padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:.85rem;vertical-align:top}
+tr:hover td{background:#f1f5f9}
+.badge{display:inline-block;color:#fff;padding:.15rem .6rem;border-radius:9999px;font-size:.75rem;font-weight:600;margin:.1rem}
+.ch-count-badge{display:inline-block;background:#e2e8f0;color:#475569;padding:.15rem .6rem;border-radius:9999px;font-size:.75rem;margin:.1rem}
+.ocr-badge{display:inline-block;padding:.15rem .6rem;border-radius:9999px;font-size:.72rem;font-weight:600;margin:.1rem;cursor:default}
+.ocr-high{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}
+.ocr-med{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}
+.book-card{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:1.4rem;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.book-header{padding:1rem 1.2rem}
+.book-title{font-weight:700;font-size:.95rem;color:#0f172a;margin-bottom:.3rem}
+.book-meta{font-size:.8rem;color:#64748b}
+.book-body{padding:.8rem 1.2rem 1.2rem}
+.keyphrases{margin-bottom:.8rem}
+.kp{display:inline-block;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:.15rem .5rem;font-size:.75rem;margin:.2rem .15rem}
+.section-label{font-weight:600;font-size:.85rem;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem}
+.tab-btns{display:flex;gap:.4rem;margin-bottom:.7rem;flex-wrap:wrap}
+.tab-btn{padding:.3rem .8rem;border:1px solid var(--border);background:#f8fafc;border-radius:5px;cursor:pointer;font-size:.8rem;color:#475569;transition:all .2s}
+.tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.tab-content{display:none;font-size:.85rem;color:#334155;line-height:1.7;background:#f8fafc;padding:.8rem;border-radius:6px;border:1px solid var(--border)}
+.tab-content.active{display:block}
+.accordion{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:.3rem}
+.acc-item{border-bottom:1px solid var(--border)}.acc-item:last-child{border-bottom:none}
+.acc-btn{width:100%;display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;background:#f8fafc;border:none;cursor:pointer;text-align:left;transition:background .15s}
+.acc-btn:hover,.acc-btn.open{background:#eff6ff}
+.ch-num{font-size:.75rem;font-weight:700;color:#fff;background:#94a3b8;padding:.1rem .45rem;border-radius:4px;white-space:nowrap;min-width:2.8rem;text-align:center}
+.ch-title{flex:1;font-size:.83rem;font-weight:600;color:#1e293b}
+.ch-wc{font-size:.75rem;color:#94a3b8;white-space:nowrap}
+.acc-arrow{font-size:.7rem;color:#94a3b8;transition:transform .2s}
+.acc-btn.open .acc-arrow{transform:rotate(180deg)}
+.acc-body{display:none;padding:.7rem 1rem;font-size:.83rem;color:#334155;line-height:1.7;background:#fff;border-top:1px solid var(--border)}
+.acc-body.open{display:block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.perp-table{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.perp-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:.8rem 1.2rem;text-align:center;min-width:90px}
+.perp-card span{display:block;font-size:1.3rem;font-weight:700;color:var(--blue)}
+.perp-card.best{border-color:var(--green);background:#f0fdf4}.perp-card.best span{color:var(--green)}
+.perp-card small{font-size:.75rem;color:#64748b}
+.kp-search{padding:.4rem .8rem;border:1px solid var(--border);border-radius:5px;font-size:.85rem;width:260px}
+.kp-table{width:100%;border-collapse:collapse;font-size:.83rem}
+.kp-table th{background:#1e3a5f;color:#fff;padding:.5rem .8rem;text-align:left}
+.kp-table td{padding:.45rem .8rem;border-bottom:1px solid var(--border);vertical-align:top}
+.kp-table tr:hover td{background:#f1f5f9}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}"""
+
+# ── Page shell ────────────────────────────────────────────────────────────────
+_PAGES = [
+    ('index.html',      '📊 Topics'),
+    ('clusters.html',   '🗺 Clusters'),
+    ('cosine.html',     '🔗 Similarity'),
+    ('keyphrases.html', '🔑 Keyphrases'),
+    ('books.html',      '📝 Summaries'),
+]
+_STATS_N_CHAPTERS = sum(S[b]['n_chapters'] for b in book_ids)
+
+def _page(active_file, page_title, content, scripts='', needs_plotly=False):
+    nav_links = ''.join(
+        f'<a href="{href}" class="{"active" if href == active_file else ""}">{label}</a>'
+        for href, label in _PAGES)
+    plotly_cdn = ('<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>'
+                  if needs_plotly else '')
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Book Corpus NLP Analysis</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
-<style>
-:root{{--blue:#2563eb;--green:#16a34a;--red:#dc2626;--bg:#f8fafc;--card:#fff;--border:#e2e8f0}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#1e293b;line-height:1.6}}
-.header{{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:2.5rem 2rem;text-align:center}}
-.header h1{{font-size:1.9rem;font-weight:700;margin-bottom:.4rem}}
-.stats-bar{{display:flex;justify-content:center;gap:2rem;background:#1e293b;color:#fff;padding:.8rem;flex-wrap:wrap}}
-.stat{{text-align:center}}.stat span{{display:block;font-size:1.4rem;font-weight:700;color:#60a5fa}}
-.stat small{{font-size:.75rem;opacity:.7;text-transform:uppercase}}
-nav{{background:#fff;border-bottom:1px solid var(--border);padding:.6rem 1.5rem;position:sticky;top:0;z-index:99;display:flex;gap:1rem;flex-wrap:wrap}}
-nav a{{text-decoration:none;color:#475569;font-size:.85rem;padding:.3rem .7rem;border-radius:4px;transition:all .2s}}
-nav a:hover{{background:#eff6ff;color:var(--blue)}}
-.container{{max-width:1400px;margin:0 auto;padding:1.5rem}}
-section{{margin-bottom:3rem}}
-h2{{font-size:1.35rem;font-weight:700;color:#1e293b;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid var(--blue)}}
-h3{{font-size:1.05rem;font-weight:600;color:#334155;margin:.8rem 0}}
-.fig{{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.2rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}}
-.fig img{{width:100%;border-radius:4px}}
-.fig-caption{{font-size:.8rem;color:#64748b;margin-top:.5rem;text-align:center}}
-.plotly-chart{{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.2rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}}
-.chart-controls{{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.6rem;align-items:center}}
-.chart-controls label{{font-size:.82rem;color:#475569;font-weight:500}}
-.chart-controls select{{padding:.3rem .6rem;border:1px solid var(--border);border-radius:5px;font-size:.82rem;background:#fff;color:#1e293b}}
-table{{width:100%;border-collapse:collapse;background:var(--card);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}}
-th{{background:#1e3a5f;color:#fff;padding:.7rem 1rem;text-align:left;font-size:.85rem;font-weight:600}}
-td{{padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:.85rem;vertical-align:top}}
-tr:hover td{{background:#f1f5f9}}
-.badge{{display:inline-block;color:#fff;padding:.15rem .6rem;border-radius:9999px;font-size:.75rem;font-weight:600;margin:.1rem}}
-.ch-count-badge{{display:inline-block;background:#e2e8f0;color:#475569;padding:.15rem .6rem;border-radius:9999px;font-size:.75rem;margin:.1rem}}
-.ocr-badge{{display:inline-block;padding:.15rem .6rem;border-radius:9999px;font-size:.72rem;font-weight:600;margin:.1rem;cursor:default}}
-.ocr-high{{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}}
-.ocr-med{{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}}
-.book-card{{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:1.4rem;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07)}}
-.book-header{{padding:1rem 1.2rem}}
-.book-title{{font-weight:700;font-size:.95rem;color:#0f172a;margin-bottom:.3rem}}
-.book-meta{{font-size:.8rem;color:#64748b}}
-.book-body{{padding:.8rem 1.2rem 1.2rem}}
-.keyphrases{{margin-bottom:.8rem}}
-.kp{{display:inline-block;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:.15rem .5rem;font-size:.75rem;margin:.2rem .15rem}}
-.section-label{{font-weight:600;font-size:.85rem;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem}}
-.tab-btns{{display:flex;gap:.4rem;margin-bottom:.7rem;flex-wrap:wrap}}
-.tab-btn{{padding:.3rem .8rem;border:1px solid var(--border);background:#f8fafc;border-radius:5px;cursor:pointer;font-size:.8rem;color:#475569;transition:all .2s}}
-.tab-btn.active{{background:var(--blue);color:#fff;border-color:var(--blue)}}
-.tab-content{{display:none;font-size:.85rem;color:#334155;line-height:1.7;background:#f8fafc;padding:.8rem;border-radius:6px;border:1px solid var(--border)}}
-.tab-content.active{{display:block}}
-.accordion{{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:.3rem}}
-.acc-item{{border-bottom:1px solid var(--border)}}.acc-item:last-child{{border-bottom:none}}
-.acc-btn{{width:100%;display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;background:#f8fafc;border:none;cursor:pointer;text-align:left;transition:background .15s}}
-.acc-btn:hover,.acc-btn.open{{background:#eff6ff}}
-.ch-num{{font-size:.75rem;font-weight:700;color:#fff;background:#94a3b8;padding:.1rem .45rem;border-radius:4px;white-space:nowrap;min-width:2.8rem;text-align:center}}
-.ch-title{{flex:1;font-size:.83rem;font-weight:600;color:#1e293b}}
-.ch-wc{{font-size:.75rem;color:#94a3b8;white-space:nowrap}}
-.acc-arrow{{font-size:.7rem;color:#94a3b8;transition:transform .2s}}
-.acc-btn.open .acc-arrow{{transform:rotate(180deg)}}
-.acc-body{{display:none;padding:.7rem 1rem;font-size:.83rem;color:#334155;line-height:1.7;background:#fff;border-top:1px solid var(--border)}}
-.acc-body.open{{display:block}}
-.grid2{{display:grid;grid-template-columns:1fr 1fr;gap:1rem}}
-.perp-table{{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}}
-.perp-card{{background:#fff;border:1px solid var(--border);border-radius:8px;padding:.8rem 1.2rem;text-align:center;min-width:90px}}
-.perp-card span{{display:block;font-size:1.3rem;font-weight:700;color:var(--blue)}}
-.perp-card.best{{border-color:var(--green);background:#f0fdf4}}.perp-card.best span{{color:var(--green)}}
-.perp-card small{{font-size:.75rem;color:#64748b}}
-.kp-search{{padding:.4rem .8rem;border:1px solid var(--border);border-radius:5px;font-size:.85rem;width:260px}}
-.kp-table{{width:100%;border-collapse:collapse;font-size:.83rem}}
-.kp-table th{{background:#1e3a5f;color:#fff;padding:.5rem .8rem;text-align:left}}
-.kp-table td{{padding:.45rem .8rem;border-bottom:1px solid var(--border);vertical-align:top}}
-.kp-table tr:hover td{{background:#f1f5f9}}
-@media(max-width:700px){{.grid2{{grid-template-columns:1fr}}}}
-</style>
+<title>{page_title} — Book Corpus NLP</title>
+{plotly_cdn}
+<style>{_CSS}</style>
 </head>
 <body>
 <div class="header">
@@ -365,18 +382,20 @@ tr:hover td{{background:#f1f5f9}}
   <div class="stat"><span>{len(book_ids)}</span><small>Books</small></div>
   <div class="stat"><span>{n_topics}</span><small>LDA Topics</small></div>
   <div class="stat"><span>{best_k}</span><small>Clusters</small></div>
-  <div class="stat"><span>{sum(S[b]['n_chapters'] for b in book_ids)}</span><small>Chapters</small></div>
+  <div class="stat"><span>{_STATS_N_CHAPTERS}</span><small>Chapters</small></div>
 </div>
-<nav>
-  <a href="#topics">📊 Topics</a>
-  <a href="#scatter">🗺 Scatter</a>
-  <a href="#clusters">🗂 Clusters</a>
-  <a href="#cosine">🔗 Similarity</a>
-  <a href="#keyphrases">🔑 Keyphrases</a>
-  <a href="#summaries">📝 Summaries</a>
-</nav>
+<nav>{nav_links}</nav>
 <div class="container">
+{content}
+</div>
+<footer style="text-align:center;padding:1.5rem;color:#94a3b8;font-size:.8rem;border-top:1px solid var(--border);margin-top:2rem">
+  Book NLP Pipeline · LDA + TF-IDF + K-Means · Interactive charts via Plotly.js
+</footer>
+<script>{scripts}</script>
+</body></html>"""
 
+# ── index.html — Topic Modelling ──────────────────────────────────────────────
+_content_index = f"""
 <section id="topics">
   <h2>1 · Topic Modelling (LDA, k={n_topics})</h2>
   <p style="margin-bottom:1rem;color:#475569;font-size:.9rem">Optimal k={n_topics} by lowest perplexity ({round(R['perplexities'][str(n_topics)],1)}).</p>
@@ -389,13 +408,10 @@ tr:hover td{{background:#f1f5f9}}
   </div>
   <div class="fig"><img src="{imgs['topic_word_heatmap']}" alt="topic-word">
     <div class="fig-caption">Fig 2 — Topic–word heatmap</div></div>
-
   <div class="plotly-chart">
     <div class="chart-controls">
-      <label>Colour by topic, filter to books where dominant topic is:</label>
-      <select id="td_filter" onchange="updateTopicDist()">
-        <option value="-1">All books</option>
-      </select>
+      <label>Filter to dominant topic:</label>
+      <select id="td_filter" onchange="updateTopicDist()"><option value="-1">All books</option></select>
       <label style="margin-left:.8rem">Sort by:</label>
       <select id="td_sort" onchange="updateTopicDist()">
         <option value="dom">Dominant topic</option>
@@ -403,14 +419,59 @@ tr:hover td{{background:#f1f5f9}}
       </select>
     </div>
     <div id="topic_bar_chart"></div>
-    <div class="fig-caption">Fig 3 — Per-document topic proportions. Hover for exact values. Filter to a single dominant topic to reduce density.</div>
+    <div class="fig-caption">Fig 3 — Per-document topic proportions. Hover for exact values.</div>
   </div>
-
   <h3>Topic Summaries</h3>
   <table><thead><tr><th>#</th><th>Name</th><th>Top Keywords</th><th>Docs</th><th>Books (sample)</th></tr></thead>
   <tbody>{topic_rows}</tbody></table>
-</section>
+</section>"""
 
+_scripts_index = f"""
+const TD = {topic_dist_data};
+const PALETTE = {json.dumps(PALETTE)};
+(function(){{
+  const sel = document.getElementById('td_filter');
+  for(let t=0;t<TD.n_topics;t++){{
+    const o=document.createElement('option');
+    o.value=t; o.textContent=TD.lda_names?TD.lda_names[t]:`Topic ${{t+1}}`;
+    sel.appendChild(o);
+  }}
+}})();
+function updateTopicDist(){{
+  const filterTopic = +document.getElementById('td_filter').value;
+  const sortMode    = document.getElementById('td_sort').value;
+  let idx = TD.doc_topic.map((_,i)=>i);
+  if(filterTopic >= 0) idx = idx.filter(i => TD.dominant[i] === filterTopic);
+  if(sortMode === 'dom'){{
+    idx.sort((a,b)=>{{
+      const da=TD.dominant[a], db=TD.dominant[b];
+      if(da!==db) return da-db;
+      return TD.doc_topic[b][da]-TD.doc_topic[a][da];
+    }});
+  }} else {{ idx.sort((a,b)=>TD.titles[a].localeCompare(TD.titles[b])); }}
+  const labels = idx.map(i=>TD.titles[i].length>45?TD.titles[i].substring(0,45)+'…':TD.titles[i]);
+  const ocrLabels = idx.map(i=>{{ const ob=TD.ocr_bands[i]; return ob==='high'?' ⚠ OCR:High':ob==='medium'?' ~ OCR:Med':''; }});
+  const traces = [];
+  for(let t=0;t<TD.n_topics;t++){{
+    const tnm = TD.lda_names?TD.lda_names[t]:`Topic ${{t+1}}`;
+    traces.push({{ x:idx.map(i=>+TD.doc_topic[i][t].toFixed(3)), y:labels, customdata:ocrLabels,
+      type:'bar', orientation:'h', name:tnm, marker:{{color:PALETTE[t%PALETTE.length]}},
+      hovertemplate:`<b>%{{y}}</b>%{{customdata}}<br>${{tnm}}: %{{x:.1%}}<extra></extra>` }});
+  }}
+  const h = Math.max(300, idx.length * 18 + 100);
+  Plotly.react('topic_bar_chart', traces, {{
+    barmode:'stack', height:h, margin:{{t:10,b:60,l:300,r:20}},
+    xaxis:{{title:'Topic proportion', tickformat:'.0%', range:[0,1]}},
+    yaxis:{{autorange:'reversed', tickfont:{{size:9}}}},
+    legend:{{orientation:'h', y:-0.1, font:{{size:10}}}},
+    paper_bgcolor:'transparent', plot_bgcolor:'#f8fafc',
+    hoverlabel:{{bgcolor:'#1e293b',font:{{color:'white',size:12}}}},
+  }});
+}}
+updateTopicDist();"""
+
+# ── clusters.html — Scatter + Cluster table ───────────────────────────────────
+_content_clusters = f"""
 <section id="scatter">
   <h2>2 · 2D Cluster Scatter (interactive)</h2>
   <div class="plotly-chart">
@@ -421,21 +482,68 @@ tr:hover td{{background:#f1f5f9}}
         <option value="cluster">Cluster</option>
       </select>
       <label style="margin-left:.8rem">Filter:</label>
-      <select id="scatter_filter" onchange="updateScatter()">
-        <option value="all">All</option>
-      </select>
+      <select id="scatter_filter" onchange="updateScatter()"><option value="all">All</option></select>
     </div>
     <div id="scatter_chart"></div>
     <div class="fig-caption">LSA 2D projection — hover for title, author, topic &amp; cluster</div>
   </div>
 </section>
-
 <section id="clusters">
   <h2>3 · Clusters</h2>
   <table><thead><tr><th>Cluster</th><th>Books</th><th>Titles</th></tr></thead>
   <tbody>{cluster_rows}</tbody></table>
-</section>
+</section>"""
 
+_scripts_clusters = f"""
+const SD = {scatter_data};
+const PALETTE = {json.dumps(PALETTE)};
+function buildScatterTraces(colourBy, filterVal) {{
+  const groupKey = colourBy === 'topic' ? SD.topics : SD.clusters;
+  const nGroups  = colourBy === 'topic' ? SD.n_topics : SD.best_k;
+  const traces = [];
+  for (let g = 0; g < nGroups; g++) {{
+    if (filterVal !== 'all' && String(g) !== String(filterVal)) continue;
+    const idx = groupKey.map((v,i) => v===g ? i : -1).filter(i=>i>=0);
+    traces.push({{
+      x: idx.map(i=>SD.x[i]), y: idx.map(i=>SD.y[i]),
+      mode:'markers', type:'scatter',
+      name: colourBy==='topic' ? (SD.lda_names?SD.lda_names[g]:`Topic ${{g+1}}`) : `Cluster ${{g+1}}`,
+      marker:{{ color:PALETTE[g%PALETTE.length], size:8, opacity:0.8, line:{{color:'white',width:0.5}} }},
+      text: idx.map(i=>{{
+        const ob=SD.ocr_bands[i];
+        const ocr=ob==='high'?'<br>⚠ OCR: High likelihood':ob==='medium'?'<br>~ OCR: Medium likelihood':'';
+        return `<b>${{SD.titles[i].substring(0,50)}}</b><br>${{SD.authors[i]}}<br>Topic ${{SD.topics[i]+1}} · Cluster ${{SD.clusters[i]+1}}${{ocr}}`;
+      }}),
+      hovertemplate:'%{{text}}<extra></extra>'
+    }});
+  }}
+  return traces;
+}}
+function populateScatterFilter() {{
+  const mode = document.getElementById('scatter_colour').value;
+  const sel  = document.getElementById('scatter_filter');
+  const n = mode==='topic' ? SD.n_topics : SD.best_k;
+  sel.innerHTML = '<option value="all">All</option>' +
+    Array.from({{length:n}},(_,i)=>`<option value="${{i}}">${{mode==='topic'?(SD.lda_names?SD.lda_names[i]:'Topic '+(i+1)):'Cluster '+(i+1)}}</option>`).join('');
+}}
+function updateScatter() {{
+  populateScatterFilter();
+  const mode   = document.getElementById('scatter_colour').value;
+  const filter = document.getElementById('scatter_filter').value;
+  Plotly.react('scatter_chart', buildScatterTraces(mode, filter), {{
+    height:520, margin:{{t:20,b:60,l:60,r:20}},
+    xaxis:{{title:'LSA Dimension 1', zeroline:false}},
+    yaxis:{{title:'LSA Dimension 2', zeroline:false}},
+    legend:{{orientation:'v'}},
+    paper_bgcolor:'transparent', plot_bgcolor:'#f8fafc',
+    hoverlabel:{{bgcolor:'#1e293b',font:{{color:'white',size:12}}}}
+  }});
+}}
+populateScatterFilter();
+updateScatter();"""
+
+# ── cosine.html — Cosine Similarity ──────────────────────────────────────────
+_content_cosine = f"""
 <section id="cosine">
   <h2>4 · Cosine Similarity (interactive heatmap)</h2>
   <div class="plotly-chart">
@@ -454,8 +562,62 @@ tr:hover td{{background:#f1f5f9}}
       <b>Top 50 pairs</b>: most similar individual book pairs.
     </div>
   </div>
-</section>
+</section>"""
 
+_scripts_cosine = f"""
+const CD = {cosine_data};
+function updateCosine() {{
+  const cosineMode = document.getElementById('cosine_mode').value;
+  const hoverStyle = {{bgcolor:'#1e293b', font:{{color:'white', size:12}}}};
+  if (cosineMode === 'cluster') {{
+    Plotly.react('cosine_chart', [{{
+      z:CD.cl_avg, x:CD.cl_labels, y:CD.cl_labels,
+      type:'heatmap', colorscale:'Blues', zmin:0, zmax:1,
+      hovertemplate:'<b>%{{y}}</b><br>vs<br><b>%{{x}}</b><br>Mean similarity: %{{z:.3f}}<extra></extra>'
+    }}], {{
+      height:420, margin:{{t:20,b:160,l:220,r:40}},
+      xaxis:{{tickangle:-40, tickfont:{{size:11}}, side:'bottom', automargin:true}},
+      yaxis:{{tickfont:{{size:11}}, automargin:true}},
+      paper_bgcolor:'transparent', hoverlabel:hoverStyle,
+      annotations: CD.cl_avg.flatMap((row,r)=>row.map((val,c)=>({{
+        x:CD.cl_labels[c], y:CD.cl_labels[r], text:val.toFixed(2), showarrow:false,
+        font:{{size:14, color: val>0.50?'#1e293b':'#fff'}}
+      }})))
+    }});
+  }} else if (cosineMode === 'heatmap') {{
+    Plotly.react('cosine_chart', [{{
+      z:CD.z, x:CD.labels, y:CD.labels,
+      type:'heatmap', colorscale:'Blues', zmin:0, zmax:1,
+      hovertemplate:'<b>%{{y}}</b><br>vs<br><b>%{{x}}</b><br>Similarity: %{{z:.3f}}<extra></extra>'
+    }}], {{
+      height:680, margin:{{t:20,b:20,l:20,r:80}},
+      xaxis:{{showticklabels:false}}, yaxis:{{showticklabels:false}},
+      paper_bgcolor:'transparent', hoverlabel:hoverStyle
+    }});
+  }} else {{
+    const n=CD.labels.length, pairs=[];
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++)
+      pairs.push({{a:CD.labels[i],b:CD.labels[j],s:CD.z[i][j],oa:CD.ocr_bands_sorted[i],ob:CD.ocr_bands_sorted[j]}});
+    pairs.sort((a,b)=>b.s-a.s);
+    const top=pairs.slice(0,50), ocrTag=b=>b==='high'?' ⚠':b==='medium'?' ~':'';
+    Plotly.react('cosine_chart', [{{
+      type:'bar', orientation:'h',
+      x:top.map(p=>p.s), y:top.map(p=>p.a.substring(0,30)+'…'+ocrTag(p.oa)),
+      text:top.map(p=>`vs: ${{p.b.substring(0,35)}}${{ocrTag(p.ob)}}`),
+      marker:{{color:top.map(p=>p.s),colorscale:'Blues',showscale:true,cmin:0,cmax:1}},
+      hovertemplate:'<b>%{{y}}</b><br>%{{text}}<br>Score: %{{x:.3f}}<extra></extra>'
+    }}], {{
+      height:600, margin:{{t:20,b:60,l:280,r:80}},
+      xaxis:{{title:'Cosine Similarity',range:[0,1]}},
+      yaxis:{{autorange:'reversed'}},
+      paper_bgcolor:'transparent', plot_bgcolor:'#f8fafc', hoverlabel:hoverStyle
+    }});
+  }}
+}}
+updateCosine();"""
+
+# ── keyphrases.html — Key Phrases ─────────────────────────────────────────────
+_content_keyphrases = f"""
 <section id="keyphrases">
   <h2>5 · Key Phrases (searchable)</h2>
   <div class="fig">
@@ -476,242 +638,36 @@ tr:hover td{{background:#f1f5f9}}
       <tbody id="kp_tbody"></tbody>
     </table>
   </div>
-</section>
+</section>"""
 
-<section id="summaries">
-  <h2>6 · Book Summaries</h2>
-  <p style="margin-bottom:1.2rem;color:#475569;font-size:.9rem">
-    Toggle summary style · expand chapters to see per-chapter summaries.
-  </p>
-  {book_cards}
-</section>
-
-</div>
-<footer style="text-align:center;padding:1.5rem;color:#94a3b8;font-size:.8rem;border-top:1px solid var(--border);margin-top:2rem">
-  Book NLP Pipeline · LDA + TF-IDF + K-Means · Interactive charts via Plotly.js
-</footer>
-
-<script>
-// ── Data ──────────────────────────────────────────────────────────────────────
-const SD = {scatter_data};
-const CD = {cosine_data};
-const TD = {topic_dist_data};
+_scripts_keyphrases = f"""
 const KD = {kp_data};
 const PALETTE = {json.dumps(PALETTE)};
-
-// ── Interactive scatter ───────────────────────────────────────────────────────
-function buildScatterTraces(colourBy, filterVal) {{
-  const n = filterVal === 'all' ? SD.n_topics : (colourBy === 'topic' ? SD.n_topics : SD.best_k);
-  const groupKey = colourBy === 'topic' ? SD.topics : SD.clusters;
-  const traces = [];
-  for (let g = 0; g < (colourBy === 'topic' ? SD.n_topics : SD.best_k); g++) {{
-    if (filterVal !== 'all' && String(g) !== String(filterVal)) continue;
-    const idx = groupKey.map((v,i) => v===g ? i : -1).filter(i=>i>=0);
-    traces.push({{
-      x: idx.map(i => SD.x[i]), y: idx.map(i => SD.y[i]),
-      mode: 'markers', type: 'scatter', name: colourBy==='topic' ? (SD.lda_names?SD.lda_names[g]:`Topic ${{g+1}}`) : `Cluster ${{g+1}}`,
-      marker: {{ color: PALETTE[g % PALETTE.length], size: 8, opacity: 0.8,
-                 line: {{color:'white', width:0.5}} }},
-      text: idx.map(i => {{
-        const ob = SD.ocr_bands[i];
-        const ocr = ob==='high' ? '<br>⚠ OCR: High likelihood' : ob==='medium' ? '<br>~ OCR: Medium likelihood' : '';
-        return `<b>${{SD.titles[i].substring(0,50)}}</b><br>${{SD.authors[i]}}<br>Topic ${{SD.topics[i]+1}} · Cluster ${{SD.clusters[i]+1}}${{ocr}}`;
-      }}),
-      hovertemplate: '%{{text}}<extra></extra>'
-    }});
-  }}
-  return traces;
-}}
-
-function populateScatterFilter() {{
-  const mode = document.getElementById('scatter_colour').value;
-  const sel  = document.getElementById('scatter_filter');
-  const n = mode === 'topic' ? SD.n_topics : SD.best_k;
-  sel.innerHTML = '<option value="all">All</option>' +
-    Array.from({{length:n}},(_,i)=>`<option value="${{i}}">${{mode==='topic'?(SD.lda_names?SD.lda_names[i]:'Topic '+(i+1)):'Cluster '+(i+1)}}</option>`).join('');
-}}
-
-function updateScatter() {{
-  populateScatterFilter();
-  const mode   = document.getElementById('scatter_colour').value;
-  const filter = document.getElementById('scatter_filter').value;
-  const traces = buildScatterTraces(mode, filter);
-  Plotly.react('scatter_chart', traces, {{
-    height: 520, margin: {{t:20,b:60,l:60,r:20}},
-    xaxis: {{title:'LSA Dimension 1', zeroline:false}},
-    yaxis: {{title:'LSA Dimension 2', zeroline:false}},
-    legend: {{orientation:'v'}},
-    paper_bgcolor:'transparent', plot_bgcolor:'#f8fafc',
-    hoverlabel: {{bgcolor:'#1e293b', font:{{color:'white', size:12}}}}
-  }});
-}}
-populateScatterFilter();
-updateScatter();
-
-// ── Topic distribution bar (horizontal, filterable) ──────────────────────────
 (function(){{
-  const sel = document.getElementById('td_filter');
-  for(let t=0;t<TD.n_topics;t++){{
-    const o=document.createElement('option');
-    o.value=t; o.textContent=TD.lda_names?TD.lda_names[t]:`Topic ${{t+1}}`;
-    sel.appendChild(o);
-  }}
+  const sel_t=document.getElementById('kp_topic');
+  const sel_c=document.getElementById('kp_cluster');
+  for(let t=0;t<KD.n_topics;t++) sel_t.innerHTML+=`<option value="${{t}}">Topic ${{t+1}}</option>`;
+  for(let c=0;c<KD.best_k;c++)   sel_c.innerHTML+=`<option value="${{c}}">Cluster ${{c+1}}</option>`;
 }})();
-
-function updateTopicDist(){{
-  const filterTopic = +document.getElementById('td_filter').value;
-  const sortMode    = document.getElementById('td_sort').value;
-
-  // Build index list, optionally filtered to dominant topic
-  let idx = TD.doc_topic.map((_,i)=>i);
-  if(filterTopic >= 0){{
-    idx = idx.filter(i => TD.dominant[i] === filterTopic);
-  }}
-
-  // Sort
-  if(sortMode === 'dom'){{
-    idx.sort((a,b)=>{{
-      const da=TD.dominant[a], db=TD.dominant[b];
-      if(da!==db) return da-db;
-      return TD.doc_topic[b][da]-TD.doc_topic[a][da];
-    }});
-  }} else {{
-    idx.sort((a,b)=>TD.titles[a].localeCompare(TD.titles[b]));
-  }}
-
-  const labels = idx.map(i=>TD.titles[i].length>45?TD.titles[i].substring(0,45)+'…':TD.titles[i]);
-  const ocrLabels = idx.map(i=>{{
-    const ob = TD.ocr_bands[i];
-    return ob==='high' ? ' ⚠ OCR:High' : ob==='medium' ? ' ~ OCR:Med' : '';
-  }});
-  const traces = [];
-  for(let t=0;t<TD.n_topics;t++){{
-    const tnm = TD.lda_names?TD.lda_names[t]:`Topic ${{t+1}}`;
-    traces.push({{
-      x: idx.map(i=>+TD.doc_topic[i][t].toFixed(3)),
-      y: labels,
-      customdata: ocrLabels,
-      type:'bar', orientation:'h', name:tnm,
-      marker:{{color:PALETTE[t%PALETTE.length]}},
-      hovertemplate:`<b>%{{y}}</b>%{{customdata}}<br>${{tnm}}: %{{x:.1%}}<extra></extra>`,
-    }});
-  }}
-
-  const h = Math.max(300, idx.length * 18 + 100);
-  Plotly.react('topic_bar_chart', traces, {{
-    barmode:'stack', height:h,
-    margin:{{t:10,b:60,l:300,r:20}},
-    xaxis:{{title:'Topic proportion', tickformat:'.0%', range:[0,1]}},
-    yaxis:{{autorange:'reversed', tickfont:{{size:9}}}},
-    legend:{{orientation:'h', y:-0.1, font:{{size:10}}}},
-    paper_bgcolor:'transparent', plot_bgcolor:'#f8fafc',
-    hoverlabel:{{bgcolor:'#1e293b',font:{{color:'white',size:12}}}},
-  }});
-}}
-updateTopicDist();
-
-// ── Cosine similarity heatmap ─────────────────────────────────────────────────
-let cosineMode = 'cluster';
-function updateCosine() {{
-  cosineMode = document.getElementById('cosine_mode').value;
-  const hoverStyle = {{bgcolor:'#1e293b', font:{{color:'white', size:12}}}};
-
-  if (cosineMode === 'cluster') {{
-    // Cluster-averaged matrix — small, fully labelled, readable
-    Plotly.react('cosine_chart', [{{
-      z: CD.cl_avg, x: CD.cl_labels, y: CD.cl_labels,
-      type: 'heatmap', colorscale: 'Blues', zmin:0, zmax:1,
-      hovertemplate: '<b>%{{y}}</b><br>vs<br><b>%{{x}}</b><br>Mean similarity: %{{z:.3f}}<extra></extra>'
-    }}], {{
-      height: 420,
-      margin: {{t:20, b:160, l:220, r:40}},
-      xaxis: {{tickangle:-40, tickfont:{{size:11}}, side:'bottom', automargin:true}},
-      yaxis: {{tickfont:{{size:11}}, automargin:true}},
-      paper_bgcolor:'transparent',
-      hoverlabel: hoverStyle,
-      annotations: CD.cl_avg.flatMap((row, r) =>
-        row.map((val, c) => ({{
-          x: CD.cl_labels[c], y: CD.cl_labels[r],
-          text: val.toFixed(2), showarrow: false,
-          font: {{size:14, color: val > 0.50 ? '#1e293b' : '#fff'}}
-        }}))
-      )
-    }});
-
-  }} else if (cosineMode === 'heatmap') {{
-    // Full 542×542 — labels hidden (too dense), hover still works
-    Plotly.react('cosine_chart', [{{
-      z: CD.z, x: CD.labels, y: CD.labels,
-      type: 'heatmap', colorscale: 'Blues', zmin:0, zmax:1,
-      hovertemplate: '<b>%{{y}}</b><br>vs<br><b>%{{x}}</b><br>Similarity: %{{z:.3f}}<extra></extra>'
-    }}], {{
-      height: 680,
-      margin: {{t:20, b:20, l:20, r:80}},
-      xaxis: {{showticklabels:false}},
-      yaxis: {{showticklabels:false}},
-      paper_bgcolor:'transparent',
-      hoverlabel: hoverStyle
-    }});
-
-  }} else {{
-    // Top-50 pairs bar chart
-    const n = CD.labels.length;
-    const pairs = [];
-    for (let i=0; i<n; i++) for (let j=i+1; j<n; j++)
-      pairs.push({{a:CD.labels[i], b:CD.labels[j], s:CD.z[i][j],
-                  oa:CD.ocr_bands_sorted[i], ob:CD.ocr_bands_sorted[j]}});
-    pairs.sort((a,b)=>b.s-a.s);
-    const top = pairs.slice(0,50);
-    const ocrTag = b => b==='high'?' ⚠':b==='medium'?' ~':'';
-    Plotly.react('cosine_chart', [{{
-      type:'bar', orientation:'h',
-      x: top.map(p=>p.s), y: top.map(p=>p.a.substring(0,30)+'…'+ocrTag(p.oa)),
-      text: top.map(p=>`vs: ${{p.b.substring(0,35)}}${{ocrTag(p.ob)}}`),
-      marker: {{color: top.map(p=>p.s), colorscale:'Blues', showscale:true, cmin:0, cmax:1}},
-      hovertemplate: '<b>%{{y}}</b><br>%{{text}}<br>Score: %{{x:.3f}}<extra></extra>'
-    }}], {{
-      height: 600, margin: {{t:20, b:60, l:280, r:80}},
-      xaxis: {{title:'Cosine Similarity', range:[0,1]}},
-      yaxis: {{autorange:'reversed'}},
-      paper_bgcolor:'transparent', plot_bgcolor:'#f8fafc',
-      hoverlabel: hoverStyle
-    }});
-  }}
-}}
-updateCosine();
-
-// ── Keyphrases table ──────────────────────────────────────────────────────────
-(function() {{
-  const sel_t = document.getElementById('kp_topic');
-  const sel_c = document.getElementById('kp_cluster');
-  for (let t=0; t<KD.n_topics; t++)
-    sel_t.innerHTML += `<option value="${{t}}">Topic ${{t+1}}</option>`;
-  for (let c=0; c<KD.best_k; c++)
-    sel_c.innerHTML += `<option value="${{c}}">Cluster ${{c+1}}</option>`;
-}})();
-
-function filterKP() {{
-  const q  = document.getElementById('kp_search').value.toLowerCase();
-  const ft = document.getElementById('kp_topic').value;
-  const fc = document.getElementById('kp_cluster').value;
-  let html = '', count = 0;
-  KD.book_ids.forEach((bid, i) => {{
-    const t  = KD.topics[i], c = KD.clusters[i];
-    const kps = (KD.keyphrases[bid]||[]).join(', ');
-    const title = KD.titles[i], author = KD.authors[i];
-    if (ft !== 'all' && String(t) !== ft) return;
-    if (fc !== 'all' && String(c) !== fc) return;
-    if (q && !title.toLowerCase().includes(q) && !kps.toLowerCase().includes(q)) return;
-    const tcol = PALETTE[t % PALETTE.length];
-    const ccol = PALETTE[c % PALETTE.length];
-    const tname = KD.lda_names?KD.lda_names[t]:'T'+(t+1);
-    const ob = KD.ocr_bands[bid];
-    const ocrBadge = ob==='high'
-      ? `<span class="ocr-badge ocr-high" title="High OCR likelihood">⚠ OCR</span>`
-      : ob==='medium'
-      ? `<span class="ocr-badge ocr-med" title="Medium OCR likelihood">~ OCR</span>`
-      : '';
-    html += `<tr>
+function filterKP(){{
+  const q=document.getElementById('kp_search').value.toLowerCase();
+  const ft=document.getElementById('kp_topic').value;
+  const fc=document.getElementById('kp_cluster').value;
+  let html='', count=0;
+  KD.book_ids.forEach((bid,i)=>{{
+    const t=KD.topics[i], c=KD.clusters[i];
+    const kps=(KD.keyphrases[bid]||[]).join(', ');
+    const title=KD.titles[i], author=KD.authors[i];
+    if(ft!=='all' && String(t)!==ft) return;
+    if(fc!=='all' && String(c)!==fc) return;
+    if(q && !title.toLowerCase().includes(q) && !kps.toLowerCase().includes(q)) return;
+    const tcol=PALETTE[t%PALETTE.length], ccol=PALETTE[c%PALETTE.length];
+    const tname=KD.lda_names?KD.lda_names[t]:'T'+(t+1);
+    const ob=KD.ocr_bands[bid];
+    const ocrBadge=ob==='high'
+      ?`<span class="ocr-badge ocr-high" title="High OCR likelihood">⚠ OCR</span>`
+      :ob==='medium'?`<span class="ocr-badge ocr-med" title="Medium OCR likelihood">~ OCR</span>`:'';
+    html+=`<tr>
       <td style="font-weight:600;max-width:220px">${{title.substring(0,60)}} ${{ocrBadge}}</td>
       <td style="color:#64748b;font-size:.8em">${{author.substring(0,30)}}</td>
       <td><span class="badge" style="background:${{tcol}}">${{tname}}</span></td>
@@ -720,28 +676,58 @@ function filterKP() {{
     </tr>`;
     count++;
   }});
-  document.getElementById('kp_tbody').innerHTML = html;
-  document.getElementById('kp_count').textContent = `Showing ${{count}} of ${{KD.book_ids.length}} books`;
+  document.getElementById('kp_tbody').innerHTML=html;
+  document.getElementById('kp_count').textContent=`Showing ${{count}} of ${{KD.book_ids.length}} books`;
 }}
-filterKP();
+filterKP();"""
 
-// ── UI helpers ────────────────────────────────────────────────────────────────
-function showTab(btn, id) {{
+# ── books.html — Book Summaries ───────────────────────────────────────────────
+_content_books = f"""
+<section id="summaries">
+  <h2>6 · Book Summaries</h2>
+  <p style="margin-bottom:1.2rem;color:#475569;font-size:.9rem">
+    Toggle summary style · expand chapters to see per-chapter summaries.
+  </p>
+  {book_cards}
+</section>"""
+
+_scripts_books = """
+function showTab(btn, id) {
   const card = btn.closest('.book-card');
   card.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   card.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById(id).classList.add('active');
-}}
-function toggleAcc(btn) {{
+}
+function toggleAcc(btn) {
   const body = btn.nextElementSibling;
   btn.classList.toggle('open', !btn.classList.contains('open'));
   body.classList.toggle('open', !body.classList.contains('open'));
-}}
-</script>
-</body></html>"""
+}"""
 
-out = 'data/outputs/book_nlp_analysis.html'
-with open(out, 'w', encoding='utf-8') as f:
-    f.write(html)
-print(f"Saved: {out}  ({len(html)//1024} KB)")
+# ── Write all five files ──────────────────────────────────────────────────────
+import os
+OUT_DIR = _pl.Path('data/outputs')
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+pages = [
+    ('index.html',      'Topics',       _content_index,      _scripts_index,      True),
+    ('clusters.html',   'Clusters',     _content_clusters,   _scripts_clusters,   True),
+    ('cosine.html',     'Similarity',   _content_cosine,     _scripts_cosine,     True),
+    ('keyphrases.html', 'Key Phrases',  _content_keyphrases, _scripts_keyphrases, False),
+    ('books.html',      'Summaries',    _content_books,      _scripts_books,      False),
+]
+
+total = 0
+for fname, title, content, scripts, plotly in pages:
+    out = OUT_DIR / fname
+    html = _page(fname, title, content, scripts, plotly)
+    # Use json/ staging + rename to avoid fuse-t large-file write failures
+    _tmp = JSON_DIR / fname
+    with open(str(_tmp), 'w', encoding='utf-8') as f:
+        f.write(html)
+    os.replace(str(_tmp), str(out))
+    kb = len(html) // 1024
+    total += kb
+    print(f"Saved: {out}  ({kb} KB)")
+print(f"\nAll pages written — total {total} KB")
