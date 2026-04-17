@@ -21,7 +21,7 @@ JSON_DIR = _pl.Path('json')   # all JSON/JSONL files
 JSON_DIR.mkdir(exist_ok=True)
 
 
-import json, base64, re
+import json, base64, re, html as _html
 import numpy as np
 
 # Generic verbs and filler words that slip through TF-IDF keyphrase extraction
@@ -130,18 +130,24 @@ for c in range(best_k):
     </tr>"""
 
 # ── Book cards ────────────────────────────────────────────────────────────────
+def _esc(text):
+    """HTML-escape user-generated text to prevent OCR garbage from breaking page structure."""
+    return _html.escape(str(text), quote=False)
+
 def chapter_accordion(bid):
     chs = S[bid].get('chapters', [])
     if not chs: return '<p style="color:#64748b;font-size:.85em">No chapter data.</p>'
     items = ''
     for ch in chs:
-        wc   = ch.get('word_count', 0)
-        summ = ch.get('summary','').strip() or '<em>No summary available.</em>'
+        wc    = ch.get('word_count', 0)
+        raw   = ch.get('summary','').strip()
+        summ  = _esc(raw) if raw else '<em>No summary available.</em>'
+        title = _esc(ch['title'])
         items += f"""
         <div class="acc-item">
           <button class="acc-btn" onclick="toggleAcc(this)">
             <span class="ch-num">Ch {ch['index']}</span>
-            <span class="ch-title">{ch['title'][:70]}{'…' if len(ch['title'])>70 else ''}</span>
+            <span class="ch-title">{title[:70]}{'…' if len(ch['title'])>70 else ''}</span>
             <span class="ch-wc">{wc:,} words</span>
             <span class="acc-arrow">▼</span>
           </button>
@@ -162,13 +168,16 @@ for bid in book_ids:
     col  = PALETTE[c % len(PALETTE)]
     tcol = PALETTE[t % len(PALETTE)]
     ocr_badge = _OCR_BADGE.get(ocr_bands[_idx] if _idx < len(ocr_bands) else None, '')
+    _desc = _esc(sv.get('descriptive', 'N/A'))
+    _arg  = _esc(sv.get('argumentative', 'N/A'))
+    _crit = _esc(sv.get('critical', 'N/A'))
     book_cards += f"""
 <div class="book-card" id="book-{bid}">
   <div class="book-header" style="border-left:5px solid {col}">
     <div>
-      <div class="book-title">{sv['title']}</div>
+      <div class="book-title">{_esc(sv['title'])}</div>
       <div class="book-meta">
-        ✍️ {sv['author']} &nbsp;|&nbsp;
+        ✍️ {_esc(sv['author'])} &nbsp;|&nbsp;
         <span class="badge" style="background:{tcol}">{LDA_NAMES[t] if t < len(LDA_NAMES) else 'Topic ' + str(t+1)}</span>
         <span class="badge" style="background:{col}">Cluster {c+1}</span>
         <span class="ch-count-badge">{sv['n_chapters']} chapters</span>
@@ -177,7 +186,7 @@ for bid in book_ids:
     </div>
   </div>
   <div class="book-body">
-    <div class="keyphrases">{''.join(f'<span class="kp">{k}</span>' for k in kp[:8])}</div>
+    <div class="keyphrases">{''.join(f'<span class="kp">{_esc(k)}</span>' for k in kp[:8])}</div>
     <div class="section-label">📖 Whole-Book Summary</div>
     <div class="summary-tabs">
       <div class="tab-btns">
@@ -185,9 +194,9 @@ for bid in book_ids:
         <button class="tab-btn" onclick="showTab(this,'arg-{bid}')">💡 Argumentative</button>
         <button class="tab-btn" onclick="showTab(this,'crit-{bid}')">🔍 Critical</button>
       </div>
-      <div id="desc-{bid}" class="tab-content active">{sv.get('descriptive','N/A')}</div>
-      <div id="arg-{bid}"  class="tab-content">{sv.get('argumentative','N/A')}</div>
-      <div id="crit-{bid}" class="tab-content">{sv.get('critical','N/A')}</div>
+      <div id="desc-{bid}" class="tab-content active">{_desc}</div>
+      <div id="arg-{bid}"  class="tab-content">{_arg}</div>
+      <div id="crit-{bid}" class="tab-content">{_crit}</div>
     </div>
     <div class="section-label" style="margin-top:1rem">📑 Chapter Summaries</div>
     {chapter_accordion(bid)}
