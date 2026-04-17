@@ -216,12 +216,30 @@ scatter_data = json.dumps({
 })
 
 # Cosine sim — round to 3dp to reduce JSON size
+cos_arr     = np.array(cos_sim)
 cos_rounded = [[round(v,3) for v in row] for row in cos_sim]
 # Sort by cluster for better visual grouping
 sort_idx = sorted(range(len(cluster_labels)), key=lambda i: cluster_labels[i])
 cos_sorted  = [[cos_rounded[i][j] for j in sort_idx] for i in sort_idx]
 labs_sorted = [titles_short[i] for i in sort_idx]
-cosine_data = json.dumps({'z': cos_sorted, 'labels': labs_sorted})
+# Cluster-averaged matrix (best_k × best_k) for a readable default view
+_n_clusters = max(cluster_labels) + 1
+_cl_arr     = np.array(cluster_labels)
+_cl_avg     = np.zeros((_n_clusters, _n_clusters))
+for _ci in range(_n_clusters):
+    for _cj in range(_n_clusters):
+        _idx_i = np.where(_cl_arr == _ci)[0]
+        _idx_j = np.where(_cl_arr == _cj)[0]
+        if len(_idx_i) and len(_idx_j):
+            _cl_avg[_ci, _cj] = round(float(cos_arr[np.ix_(_idx_i, _idx_j)].mean()), 3)
+_cl_labels  = [f'Cluster {c+1} (n={int((_cl_arr==c).sum())})' for c in range(_n_clusters)]
+cosine_data = json.dumps({
+    'z':          cos_sorted,
+    'labels':     labs_sorted,
+    'cl_avg':     _cl_avg.tolist(),
+    'cl_labels':  _cl_labels,
+    'best_k':     _n_clusters,
+})
 
 # Topic distribution data for stacked bar
 topic_dist_data = json.dumps({
@@ -407,14 +425,19 @@ tr:hover td{{background:#f1f5f9}}
   <h2>4 · Cosine Similarity (interactive heatmap)</h2>
   <div class="plotly-chart">
     <div class="chart-controls">
-      <label>Show top N most similar pairs:</label>
+      <label>View:</label>
       <select id="cosine_mode" onchange="updateCosine()">
-        <option value="heatmap">Full heatmap (sorted by cluster)</option>
-        <option value="top50">Top 50 pairs table</option>
+        <option value="cluster">Cluster averages</option>
+        <option value="heatmap">Full matrix (542 × 542, no labels)</option>
+        <option value="top50">Top 50 pairs</option>
       </select>
     </div>
     <div id="cosine_chart"></div>
-    <div class="fig-caption">Hover for book names and similarity score</div>
+    <div class="fig-caption">
+      <b>Cluster averages</b>: mean cosine similarity between every pair of clusters — hover for score.
+      <b>Full matrix</b>: all 542 × 542 book pairs sorted by cluster; hover for title and score.
+      <b>Top 50 pairs</b>: most similar individual book pairs.
+    </div>
   </div>
 </section>
 
@@ -560,23 +583,44 @@ function updateTopicDist(){{
 updateTopicDist();
 
 // ── Cosine similarity heatmap ─────────────────────────────────────────────────
-let cosineMode = 'heatmap';
+let cosineMode = 'cluster';
 function updateCosine() {{
   cosineMode = document.getElementById('cosine_mode').value;
-  if (cosineMode === 'heatmap') {{
+  const hoverStyle = {{bgcolor:'#1e293b', font:{{color:'white', size:12}}}};
+
+  if (cosineMode === 'cluster') {{
+    // Cluster-averaged matrix — small, fully labelled, readable
+    Plotly.react('cosine_chart', [{{
+      z: CD.cl_avg, x: CD.cl_labels, y: CD.cl_labels,
+      type: 'heatmap', colorscale: 'Blues', zmin:0, zmax:1,
+      hovertemplate: '<b>%{{y}}</b><br>vs<br><b>%{{x}}</b><br>Mean similarity: %{{z:.3f}}<extra></extra>',
+      texttemplate: '%{{z:.2f}}', textfont: {{size:13}}
+    }}], {{
+      height: 420,
+      margin: {{t:20, b:160, l:220, r:40}},
+      xaxis: {{tickangle:-40, tickfont:{{size:11}}, side:'bottom', automargin:true}},
+      yaxis: {{tickfont:{{size:11}}, automargin:true}},
+      paper_bgcolor:'transparent',
+      hoverlabel: hoverStyle
+    }});
+
+  }} else if (cosineMode === 'heatmap') {{
+    // Full 542×542 — labels hidden (too dense), hover still works
     Plotly.react('cosine_chart', [{{
       z: CD.z, x: CD.labels, y: CD.labels,
       type: 'heatmap', colorscale: 'Blues', zmin:0, zmax:1,
       hovertemplate: '<b>%{{y}}</b><br>vs<br><b>%{{x}}</b><br>Similarity: %{{z:.3f}}<extra></extra>'
     }}], {{
-      height: 680, margin: {{t:20,b:140,l:220,r:80}},
-      xaxis: {{tickangle:-55, tickfont:{{size:7}}, side:'bottom'}},
-      yaxis: {{tickfont:{{size:7}}}},
+      height: 680,
+      margin: {{t:20, b:20, l:20, r:80}},
+      xaxis: {{showticklabels:false}},
+      yaxis: {{showticklabels:false}},
       paper_bgcolor:'transparent',
-      hoverlabel: {{bgcolor:'#1e293b', font:{{color:'white', size:12}}}}
+      hoverlabel: hoverStyle
     }});
+
   }} else {{
-    // Build top-50 pairs
+    // Top-50 pairs bar chart
     const n = CD.labels.length;
     const pairs = [];
     for (let i=0; i<n; i++) for (let j=i+1; j<n; j++)
@@ -587,15 +631,14 @@ function updateCosine() {{
       type:'bar', orientation:'h',
       x: top.map(p=>p.s), y: top.map(p=>p.a.substring(0,30)+'…'),
       text: top.map(p=>`vs: ${{p.b.substring(0,35)}}`),
-      marker: {{color: top.map(p=>p.s), colorscale:'Blues', showscale:true,
-               cmin:0, cmax:1}},
+      marker: {{color: top.map(p=>p.s), colorscale:'Blues', showscale:true, cmin:0, cmax:1}},
       hovertemplate: '<b>%{{y}}</b><br>%{{text}}<br>Score: %{{x:.3f}}<extra></extra>'
     }}], {{
-      height: 600, margin: {{t:20,b:60,l:280,r:80}},
+      height: 600, margin: {{t:20, b:60, l:280, r:80}},
       xaxis: {{title:'Cosine Similarity', range:[0,1]}},
       yaxis: {{autorange:'reversed'}},
       paper_bgcolor:'transparent', plot_bgcolor:'#f8fafc',
-      hoverlabel: {{bgcolor:'#1e293b', font:{{color:'white', size:12}}}}
+      hoverlabel: hoverStyle
     }});
   }}
 }}
