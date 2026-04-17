@@ -54,6 +54,10 @@ came seem seems seemed need needs needed know knows knew
 think thinks thought want wants wanted call called become
 becomes became keep keeps kept show shows showed turn turns
 turned leave leaves left move moves moved back still around
+must past example something great thing things page pages
+good best better true large small possible general certain
+google digitize digitized digitised original california
+university california digitized google original
 """.split())
 
 # ── CLI flags ────────────────────────────────────────────────────────────────

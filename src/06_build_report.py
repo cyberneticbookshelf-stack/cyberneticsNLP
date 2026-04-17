@@ -26,16 +26,32 @@ import numpy as np
 
 # Generic verbs and filler words that slip through TF-IDF keyphrase extraction
 _KP_BLOCKLIST = {
+    # Generic verbs
     'give', 'gives', 'given', 'take', 'takes', 'taken', 'make', 'makes', 'made',
     'come', 'comes', 'came', 'seem', 'seems', 'seemed', 'need', 'needs', 'needed',
     'know', 'knows', 'knew', 'think', 'thinks', 'thought', 'want', 'wants', 'wanted',
     'call', 'called', 'become', 'becomes', 'became', 'keep', 'keeps', 'kept',
     'show', 'shows', 'showed', 'turn', 'turns', 'turned', 'leave', 'leaves', 'left',
-    'move', 'moves', 'moved', 'back', 'still', 'around',
+    'move', 'moves', 'moved', 'must',
+    # Generic nouns / adjectives
+    'back', 'still', 'around', 'past', 'example', 'something', 'great', 'thing', 'things',
+    'page', 'pages', 'good', 'best', 'better', 'true', 'large', 'small', 'possible',
+    'general', 'certain',
+    # Google Books digitization artefacts
+    'google', 'digitize', 'digitized', 'digitised', 'original', 'california',
 }
 
 def _clean_kp(kp_list):
-    return [k for k in kp_list if not any(w in _KP_BLOCKLIST for w in k.split())]
+    # Filter any phrase that contains a blocklisted word, and drop duplicate-word phrases
+    out = []
+    for k in kp_list:
+        words = k.split()
+        if any(w in _KP_BLOCKLIST for w in words):
+            continue
+        if len(words) > 1 and len(set(words)) < len(words):  # e.g. "page page"
+            continue
+        out.append(k)
+    return out
 
 with open(str(JSON_DIR / 'nlp_results.json'))   as f: R     = json.load(f)
 with open(str(JSON_DIR / 'summaries.json'))     as f: S     = json.load(f)

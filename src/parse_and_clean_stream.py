@@ -133,6 +133,18 @@ _INLINE = re.compile(
     r'|(https?://\S+|www\.\S+)'                # URLs
     r'|(\bpage\s+intentionally\s+left\s+blank\b)'
 )
+
+# Google Books invisible text-layer artefacts.
+# PDFs digitised by Google carry metadata in the embedded text layer that is
+# not visible on-screen but is indexed by Calibre's full-text search engine.
+# These patterns strip the most common forms before text reaches the vectoriser.
+_GOOGLE_BOOKS = re.compile(
+    r'(?i)'
+    r'(digitized\s+by\s+google[\w\s,]*)'
+    r'|(original\s+from\s+(the\s+)?university\s+of\s+california[\w\s,]*)'
+    r'|(generated\s+by\s+(?:google|abc\s+amber\s+lit\s+converter)[\w\s,]*)'
+    r'|(google\s+books[\w\s]*)'
+)
 _SECTION_HDR = re.compile(
     r'(?im)^[\s]*(?:table\s+of\s+contents?|list\s+of\s+(?:tables?|figures?)'
     r'|(?:author[\'\s]s?\s+)?preface|foreword|prologue|acknowledgements?'
@@ -154,6 +166,8 @@ def clean(text):
     text = re.sub(r'\n{3,}', '\n\n', text)
     # 3. Strip inline boilerplate
     text = _INLINE.sub(' ', text)
+    # 3b. Strip Google Books text-layer artefacts (invisible in PDF viewer)
+    text = _GOOGLE_BOOKS.sub(' ', text)
     # 4. Remove boilerplate sections (state machine)
     lines = text.split('\n')
     out, skip, budget = [], False, 0
