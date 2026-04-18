@@ -13,11 +13,17 @@ File reference format:
 
 ## Project snapshot
 
-**Version:** 0.4.3 (tagged, pushed to origin/main — confirmed 16 April 2026)
+**Version:** 0.4.6 (committed `526e964`, pushed to origin/main — 18 April 2026)
 **Repo:** `~/CyberneticsNLP/` on Cybersonic (accessed via sshfs mount inside vault)
 **Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
-**Canonical run:** Run C — `json/nlp_results_k9.json` — 542 books, k=9, 5/9 stable,
-mean stability=0.327. Run C locked as canonical 14 April 2026.
+**Canonical run:** Run C — `json/nlp_results_k9.json` — 542 books parsed, 541 analysed
+(1 excluded: [2133] Cybernation and Social Change — OCR), k=9, **6/9 stable**,
+**mean stability=0.357**. Run C updated to reflect sixth-batch rerun (18 April 2026);
+decision pending on whether to formally supersede the 14 April lock.
+**Canonical `run_all.sh`:** Step 14 runs **without** `--no-windows` (18 April 2026).
+Paragraph-window edges are included in all canonical builds. Network: 1,620 nodes
+(concepts=739), 11,501 edges (book=10,362 + para=1,139). Runs with `--no-windows`
+produce a materially different, smaller network (concepts=500) and are not canonical.
 **Master project doc:** `02 Projects/CyberneticsNLP/CyberneticsNLP.md` in vault
 (full sprint list, topic solutions, session log, known issues)
 
@@ -64,6 +70,41 @@ See `docs/ROADMAP.md` item #15.
 
 ---
 
+## Release goal — Book-level HTML for colleague sharing
+
+**Target:** Release the book-level analysis HTML files to colleagues after presentation.
+**Standard:** Defensible — genuine effort at error reduction; not certified error-free.
+This is consistent with the standing methodological principle (all outputs are provisional)
+and the provenance notice already in all reports.
+
+**Files in scope for release:**
+- `data/outputs/index.html` — main report (Fig 1–6 + topic proportions)
+- `data/outputs/books.html` — per-book summaries and topic assignments
+- `data/outputs/clusters.html` — cluster composition
+- `data/outputs/keyphrases.html` — keyphrase analysis
+- `data/outputs/cosine.html` — cosine similarity
+- `data/outputs/book_nlp_entity_network.html` — entity relational network
+
+**Known issues affecting these files (prioritised):**
+
+| Priority | Issue | File | Status |
+|----------|-------|------|--------|
+| High | ROADMAP #16: Fig 3 topic filter uses stale NMF names | index.html | Open |
+| High | KI-10: concept node count 746→500 on fresh rebuild — resolved (`--no-windows` removed from `run_all.sh`) | entity_network.html | ✅ Resolved |
+| Medium | KI-09: ~150 singular/plural node pairs split PMI signal | entity_network.html | Deferred |
+| Low | Chapter NMF T4 contains metadata noise words | (chapter reports, not in scope) | Note only |
+
+**What "defensible" means here:**
+- All known systematic errors (platform contamination, EOLSS noise, trailing fragments,
+  node misclassifications) are fixed or mitigated — done.
+- Provenance notice visible at all scroll positions — done.
+- Topic names in all reports match the current provisional LDA names — needs ROADMAP #16 fix.
+- Entity network validated against domain knowledge — done (KI-07 resolved).
+- KI-10 understood well enough to decide whether 500 or 746 concepts is correct — pending.
+- No individual certified finding; results framed as automated provisional analysis — done.
+
+---
+
 ## Current sprint — Topic naming reliability
 
 All four items remain open:
@@ -82,6 +123,29 @@ All four items remain open:
 
 4. **Revise naming status** — current k=9 names are provisional (single run, single
    rater). Names stable only after ≥3 runs and ≥2 raters agree.
+
+---
+
+## Active issue — OCR exclusion: Cybernation and Social Change (KI-08 — RESOLVED)
+
+**Book:** [2133] *Cybernation and Social Change* — short monograph with severe OCR
+corruption. Identified as the source of the 541 vs 542 book count discrepancy.
+
+**Root cause:** OCR errors in this monograph were infecting the cleaned corpus with noise
+vocabulary and spurious co-occurrences. The book is too short and too corrupted to
+contribute reliable signal; its presence degrades both topic and entity outputs.
+
+**Fix:** Added [2133] to an explicit `ocr-excluded` list in the pipeline. The book is
+parsed and cleaned normally but excluded before LDA/TF-IDF fitting and entity network
+construction. Log confirms: `[ocr-excluded] excluded 1 book(s) from explicit exclusion
+list (542 → 541)` — `data/outputs/runlog20260418-2.csv` line 204–205.
+
+**Documentation required:** This exclusion should be recorded in `docs/methodology.md`
+under data quality decisions. The canonical corpus is 542 books parsed, 541 analysed.
+The corpus count framing for dissemination should use "541 monographs and collected works
+analysed" rather than "542-book corpus" to reflect the exclusion accurately.
+
+**Status: RESOLVED 18 April 2026.**
 
 ---
 
@@ -111,12 +175,22 @@ duplicate person; ~50 trailing-function-word fragments ("evolution of", "wiener 
    in source — survives cache wipes and `--refresh`.
 
 **Rerun completed 18 April 2026 (fifth batch session):**
-- Final node count: **1,627** (persons=656, orgs=154, locations=71, concepts=746)
+- Node count after fifth batch: **1,627** (persons=656, orgs=154, locations=71, concepts=746)
 - Previous baseline: 1,708 (concepts=827 after fourth batch rerun)
 - Concept reduction: 827 → 746 (81 fewer; 8 of 89 suppressed terms not present in network)
 - Network: density=0.0087, LCC=1625/1627 (100%), APL=3.248, diameter=5, max degree=283
 
-**Status: RESOLVED — entity network ready for colleague sharing.**
+**Full pipeline rerun 18 April 2026 (sixth batch — `runlog20260418-2.csv`):**
+- Node count after fresh rebuild: **1,380** (persons=656, orgs=154, locations=70, concepts=500)
+- Concept reduction from fifth batch: 746 → 500 (246 fewer) — **requires investigation**
+  Most likely cause: regex pre-filters (`_TRAILING_FUNC` etc.) applied before cache lookup
+  on fresh build suppress terms that the fifth batch's patch-based approach left in the
+  cache as classified. Could also reflect [2133]'s removal reducing some concepts below
+  co-occurrence threshold. See KI-10 (new).
+- Network: density=0.0109, LCC=1378/1380 (100%), APL=3.24, diameter=7, max degree=248
+- Note: higher density and larger diameter than fifth batch; persons/orgs unchanged.
+
+**Status: RESOLVED — but KI-10 opened for concept count investigation.**
 
 ---
 
@@ -200,6 +274,29 @@ Manual spot-check found residual issues, leading to full entity cache audit.
 **Open discrepancy:** pipeline logged 541 books for LDA; canonical corpus is 542.
 One book dropped at runtime — not yet investigated (KI-08).
 
+## Files modified this session (18 April 2026 — sixth batch)
+
+**Context:** Full pipeline rerun (`runlog20260418-2.csv`) after fifth batch commit `526e964`.
+OCR exclusion of [2133] Cybernation and Social Change confirmed in pipeline output.
+
+**No source files modified this session.** Pipeline run only. Outputs regenerated:
+- `data/outputs/runlog20260418-2.csv` — full run log, 05:37–05:56 AEST
+- `json/nlp_results.json` — 541-book corpus, k=9, mean stability=0.357, 6/9 stable
+- `json/entity_network.json` — 1,380 nodes; density=0.0109; APL=3.24; diameter=7
+- `data/outputs/book_nlp_entity_network.html` — regenerated (1651 KB)
+- All other HTML/Excel outputs in `data/outputs/` — regenerated
+
+**Findings from runlog review:**
+- KI-08 resolved: [2133] excluded via `ocr-excluded` list (542→541 confirmed)
+- Topic stability improved: mean 0.357 (was 0.327), 6/9 stable (was 5/9)
+- Entity network concept nodes dropped 746→500; KI-10 opened to investigate
+- Chapter NMF topic T4 contains metadata noise: "minor sections", "sections", "rights"
+  — suggests publication boilerplate leaking into chapter summaries (minor issue)
+- One benign numpy warning in `src/05_visualize_chapters.py` (`where` without `out`)
+- sklearn stop-word warning (contractions) is pre-existing and benign
+
+---
+
 ## Files modified this session (18 April 2026 — fifth batch)
 
 **Context:** Degree 1–2 concept node review. Paul confirmed all recommendations from
@@ -219,33 +316,77 @@ One book dropped at runtime — not yet investigated (KI-08).
 - `json/entity_network.json` — rebuilt: 1,627 nodes (persons=656, orgs=154,
   locations=71, concepts=746); 11,558 edges; density=0.0087; APL=3.248; diameter=5.
 - `data/outputs/book_nlp_entity_network.html` — regenerated (1,849 KB).
-- Patch scripts (vault, not in repo):
-  - `02 Projects/CyberneticsNLP/patch_apply.py` — applied 15_entity_classify.py
-    changes and initial (broken) _PROV_NOTICE update.
-  - `02 Projects/CyberneticsNLP/fix_prov_notice.py` — fixed the broken _PROV_NOTICE
-    using line-scanner instead of re.sub.
-  - `02 Projects/CyberneticsNLP/patch_15_entity_classify.py` — intermediate draft,
-    superseded by patch_apply.py.
+- Patch scripts (vault, moved to bin after use — not in repo).
+- **Committed `526e964`, pushed to origin/main 18 April 2026.**
 
 ---
 
 ## Next session agenda
 
-1. **Commit fifth batch changes on Cybersonic:**
-   `git add src/14_entity_network.py src/15_entity_classify.py src/06_build_report.py`
-   `src/06_build_report_chapters.py src/08_build_timeseries.py src/10_build_index_report.py`
-   `src/11_embedding_comparison.py src/12_index_grounding.py src/13_weighted_comparison.py`
-   `src/build_embed_report.py && git commit -m "fix: degree 1-2 concept node suppressions and sticky provenance banner (v0.4.6)"`
-2. **Investigate KI-08** — 541 vs 542 book count: which book is dropped at LDA runtime
-   and whether this is intentional or a bug.
-3. **Review draft scripts** in vault `02 Projects/CyberneticsNLP/docs/src_draft/`:
+*Items 1–3 are release-blocking for colleague HTML sharing. Items 4+ are lower priority.*
+
+1. **Fix ROADMAP #16** *(release-blocking for index.html)* — Fig 3 topic filter dropdown
+   uses stale NMF names. Fix in `src/06_build_report.py` to read `topic_names` from
+   `json/nlp_results.json` at build time. Requires Cybersonic script run after fix.
+
+3. **Canonical run decision** — formally update canonical run from 14 April lock
+   (mean stability=0.327, 5/9) to sixth-batch figures (mean stability=0.357, 6/9).
+   Depends on KI-10 resolution. Once locked, update snapshot in this file.
+
+4. **Document KI-08 in methodology** — add a data quality entry for [2133] Cybernation
+   and Social Change to `docs/methodology.md`: nature of OCR corruption, why excluded,
+   what "infects the collection" means operationally.
+
+5. **Entity network interface review** — review `book_nlp_entity_network.html` for any
+   remaining presentation-quality issues before colleague release.
+
+6. **Topic name validation method** — review and develop the validation approach;
+   connect to topic naming reliability sprint items (run-records, multi-rater protocol).
+
+7. **Conceptual writing** — draft or develop sections on:
+   - Epistemic affordances of the pipeline
+   - Human–AI collaboration framing for the methodology
+   - Data quality issues and the algorithm infection principle
+   Target: `docs/methodology.md` or standalone memo(s).
+
+8. **Review draft scripts** in vault `02 Projects/CyberneticsNLP/docs/src_draft/`:
    - `compare_topic_runs.py` — assess readiness to graduate to `src/`
    - `record_topic_run.py` — assess readiness to graduate to `src/`
-4. **Continue topic naming reliability sprint** — all four items still open (see above).
-5. **Future structural item:** plural-dedup normalisation step in `src/14_entity_network.py`
+
+9. **Future structural item:** plural-dedup normalisation step in `src/14_entity_network.py`
    (~150 same-kind singular/plural pairs; defer until entity network otherwise stable).
-6. **Share entity network HTML** with colleagues — network now clean enough for external
-   viewing. Provenance banner visible at top of page on all scroll positions.
+
+---
+
+## HTML report bugs
+
+Bug tracking for the HTML outputs. Canonical list in `docs/ROADMAP.md` (backlog items).
+KI numbers in this file refer to pipeline/data issues; ROADMAP # refers to code/UI bugs.
+Note: the ROADMAP's old KI-01–KI-09 list is stale (v0.4.2) and should not be confused
+with the active KI-04–KI-10 tracking in this file.
+
+| ROADMAP # | Report file | Description | Status |
+|-----------|-------------|-------------|--------|
+| #16 | `data/outputs/index.html` Fig 3 + `keyphrases.html` | Topic filter dropdowns used stale names. Root cause: `patch_topic_names.py` TAXONOMY had 3 April names, overwriting `nlp_results.json` on every run. Fixed: TAXONOMY updated to 18 April taxonomy; `_LDA_BASE` fallback updated; `lda_names` added to `kp_data`; keyphrases JS fixed. HTML regenerated. | ✅ Done |
+| #17 | `data/outputs/book_nlp_entity_network.html` | Provenance notice (`position:fixed;top:0`) covers app header in full-viewport flex layout. Fixed in source (`src/14_entity_network.py`): notice is now a `flex-shrink:0` static element injected before `<div class="header">`. | ✅ Verified 18 April 2026 |
+
+---
+
+## Session startup protocol
+
+**Before each session:** Run a fresh `run_all.sh` on Cybersonic and save the log to
+`data/outputs/runlog_YYYYMMDD.csv` (or similar). At session start, read the latest
+runlog and do a quick review of:
+- Book count and any exclusions
+- Topic stability figures (mean stability, n stable / 9)
+- Entity network summary (node counts by kind, edge counts by level, LCC %)
+- Any warnings or errors in the log
+
+This ensures the session begins from a known, current pipeline state and provides a
+permanent machine-readable record of each day's run. Network stats from standalone
+script reruns (e.g. `python3 src/14_entity_network.py` without `run_all.sh`) are not
+captured in the runlog — if a standalone rerun is done mid-session, note the stats
+manually (e.g. in CLAUDE.md or ROADMAP).
 
 ---
 
@@ -281,7 +422,8 @@ One book dropped at runtime — not yet investigated (KI-08).
 | KI-05 | T9: book [249] loading=1.000 dominates | Document in paper; may resolve after exclusion filter |
 | KI-06 | Proceedings/handbook books not yet filtered from pipeline | Pending signal inventory + document unit decision (moratorium) |
 | KI-07 | ~130 misclassified nodes + EOLSS contamination + plural/comma fragments | **Fully resolved 18 April 2026** — all fixes in `src/14` and `src/15`; rerun complete; final network 1,627 nodes |
-| KI-08 | 541 vs 542 book count in LDA — one book dropped at runtime | **Open** — not yet investigated |
+| KI-08 | 541 vs 542 book count in LDA — one book dropped at runtime | **Resolved 18 April 2026** — [2133] Cybernation and Social Change excluded via `ocr-excluded` list; OCR corruption infects collection |
 | KI-09 | ~150 singular/plural node pairs (e.g. algorithm/algorithms) — split PMI signal | **Open** — structural fix (lemmatisation in `src/14`) deferred as future sprint item |
+| KI-10 | Entity network concepts dropped 746→500 on fresh rebuild (sixth batch) | **Resolved 18 April 2026** — `run_all.sh` was running step 14 with `--no-windows`, excluding ~239 concept nodes that only have paragraph-level edges (no qualifying book-level co-occurrence). Not a data bug; two internally consistent networks. Fix: removed `--no-windows` from `run_all.sh` so paragraph windows always run. Canonical network: 1,620 nodes, 739 concepts. |
 
-*Updated 18 April 2026 — Cowork session (fifth batch)*
+*Updated 18 April 2026 — Cowork session (sixth batch)*

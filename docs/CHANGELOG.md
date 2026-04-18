@@ -6,6 +6,181 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.4.6] — 2026-04-18
+
+> Session: 18 April 2026 (Cowork) — fourth batch
+
+### Fixed — Entity network HTML: four bugs repaired, release-ready
+
+**`src/14_entity_network.py`**
+
+1. **Provenance notice covers header (ROADMAP #17)** — `position:fixed;top:0` overlay does not
+   work with the network viewer's full-viewport flex layout; `body{padding-top:54px}` does not
+   push flex children down. Fixed: `_PROV_NOTICE` changed to a `flex-shrink:0` static element
+   injected before `<div class="header">` rather than before `</body>`. Amber banner now appears
+   above the toolbar without obscuring it. Verified.
+
+2. **p99 degree filter always showing all nodes (ROADMAP #18)** — `'p99'` was present in the
+   dropdown but absent from the `_deg_percentiles` dict passed to `STATS`. JavaScript
+   `STATS.deg_percentiles?.['p99']` returned `undefined`, fell through `|| 0`, setting threshold
+   to 0 (show all). Fixed: added `'p99': float(_np.percentile(_degs, 99))` to `_deg_percentiles`.
+   p99 threshold = 114.6 (degree ≥ 115). Verified.
+
+3. **Degree filter not applied to node set; orphan nodes shown at high thresholds (ROADMAP #19)**
+   — Two bugs: (a) `filterGraph()` else-branch set `activeNodes = new Set(NODES.map(n=>n.id))`
+   (all nodes), completely discarding the correctly-built `allowedNodes`; (b) nodes whose
+   neighbours all fall below the threshold appeared as isolated orphans, degrading ink-to-signal
+   ratio. Fixed: (a) else-branch now uses `activeNodes = allowedNodes`; (b) when `degThresh > 0`,
+   a second pass builds `connectedIds` from `activeEdges` and removes any node with no remaining
+   edge. Reflects hub-and-spoke topology: hubs connect primarily to peripheral nodes, not to each
+   other. Node sizes unchanged — orphan removal affects only render set, not the degree value that
+   determines node radius. Requires rerun.
+
+4. **Reader's guide link added to header** — `📖 Reader's guide` anchor linking to
+   `book_nlp_entity_network_guide.html` injected into the header div alongside the title.
+   Requires rerun.
+
+### Added
+
+- **`data/outputs/book_nlp_entity_network_guide.html`** — new standalone explanatory document
+  for colleagues and public viewers. Plain-language overview and technical appendix covering:
+  node kinds and colour coding, edge semantics (book-level PMI × reliability), all 7 interactive
+  filters (Search, Show/hide, Min weight, Charge, Min degree, Level, Layout) with interpretive
+  guidance, four layout algorithms with amber "Layout is not data" callout (algorithmic layout has
+  no 1-to-1 correspondence with network features), hub-and-spoke topology explanation, corpus
+  scope and exclusions (541 books), entity extraction pipeline summary, node counts table,
+  PMI formula, network statistics table, and filter mechanics. Linked from network viewer header.
+  Back-link to network viewer included. Provenance notice consistent with all report HTML.
+
+### Documentation
+
+- **`docs/ROADMAP.md`** — items #16–#22 added:
+  - #16: Fig 3 `index.html` topic filter dropdown uses stale NMF names — fix needed in `src/06_build_report.py` (open)
+  - #17: Provenance notice covers header — fixed (this release)
+  - #18: p99 filter broken — fixed (this release)
+  - #19: Degree filter not applied + orphan nodes — fixed in source, rerun needed
+  - #20: Reader's guide created and linked — done, rerun needed
+  - #21: "event" as new node kind — design-first, open
+  - #22: Paragraph co-occurrence frequency as evidence of epistemic affordance — theoretical
+    proposition with explicit assumptions; awaits ROADMAP #12 (paragraph-window edge computation)
+  - #12: Updated with full epistemic affordance motivation (argumentative co-deployment proxy;
+    extends §15.2 of `docs/memo_media_aware_nlp_epistemic_affordances.md`)
+
+- **KI-08 documented** — [2133] *Cybernation and Social Change* confirmed as the drop book:
+  OCR-corrupted short monograph, already excluded via `ocr-excluded` list in pipeline.
+  Confirmed in `data/outputs/runlog20260418-2.csv` (541 books processed).
+
+### Changed — Topic taxonomy revised after ordering shuffle detected (18 April 2026)
+
+Full `run_all.sh` rerun (`runlog20260418-3.csv`) confirmed mean stability=0.357, 0/9
+unstable — but title-sweep of top-loading books revealed the topic ordering had shuffled
+from Run C (14 April). Only T6 (Formal Foundations) held its position. `patch_topic_names.py`
+and `_LDA_BASE` in `06_build_report.py` updated to reflect revised names.
+
+**Previous taxonomy (Run C, 14 April 2026) → New taxonomy (18 April 2026):**
+
+| Index | Run C name (14 Apr) | 18 Apr name | Change |
+|-------|---------------------|-------------|--------|
+| T1 | History and Biography of Cybernetics | Cybernetics of Political Economy | Shuffled |
+| T2 | Cybernetics of Psychology | Cybernetics and Circularity | Shuffled |
+| T3 | Extensions of Cybernetics | Biological Systems Cybernetics | Shuffled |
+| T4 | Cybernetic Management Theory | Applied Engineering Cybernetics | Shuffled |
+| T5 | Biological Systems Cybernetics | Cultural Applications of Cybernetics | Shuffled |
+| T6 | Formal Foundations of Cybernetics | Formal Foundations of Cybernetics | **Stable** |
+| T7 | Cross-Domain Applications of Cybernetics | History and Biography of Cybernetics | Shuffled |
+| T8 | Cybernetics of Posthumanism | Cybernetic Management Theory | Shuffled |
+| T9 | Cultural Applications of Cybernetics | Residual / Outlier Cluster | Shuffled |
+
+**Diagnosis:** LDA topic ordering is non-deterministic between runs. Mean stability and
+individual cluster content are consistent, but index positions rotate. `patch_topic_names.py`
+applies names by index, so a fresh `run_all.sh` without a title-sweep check silently
+misassigns names. This confirms the need for the topic name validation sprint (run-records
+system, multi-rater protocol — CLAUDE.md current sprint). All names remain provisional.
+
+**Stability comparison (same mean, reshuffled per-topic):**
+
+| Index | Run C stability | 18 Apr stability |
+|-------|----------------|-----------------|
+| T1 | 0.131 | 0.232 |
+| T2 | 0.559 | 0.224 |
+| T3 | 0.153 | 0.551 |
+| T4 | 0.349 | 0.437 |
+| T5 | 0.224 | 0.374 |
+| T6 | 0.289 | 0.349 |
+| T7 | 0.306 | 0.464 |
+| T8 | 0.306 | 0.319 |
+| T9 | 0.622 | 0.261 |
+| **Mean** | **0.357** | **0.357** |
+
+**18 April topic detail (top words and top 5 books, from `runlog20260418-3.csv`):**
+
+T1 — Cybernetics of Political Economy (stability=0.232)
+Words: decision, border, investment, security, price, market, stock, information
+Top books: [2269] Cybernetic Circulation Complex (2025) · [2607] Constructing Soviet Cultural Policy (2008) · [2331] The Cybernetic Border: Drones (2024) · [2352] Balkan Cyberia: Cold War Computing (2023) · [2449] Imaginary Futures (2007)
+
+T2 — Cybernetics and Circularity (stability=0.224)
+Words: information, function, element, value, number, probability, define, entropy
+Top books: [2733] The Question Concerning Technology in China (2016) · [2699] Recursivity and Contingency (2019) · [2447] Documentarity (2019) · [2187] Ontology of Complexity: Bateson (2014) · [2181] Philosophical Posthumanism (2019)
+
+T3 — Biological Systems Cybernetics (stability=0.551)
+Words: control, model, behavior, variable, input, cell, level, output
+Top books: [2702] Rethinking Homeostasis (2003) · [2721] The Discovery of the Artificial (2010) · [2740] The Things We Do (2000) · [2577] Adaptation and Well-Being: Social Allostasis (2011) · [2502] Information Theory and Evolution (2012)
+
+T4 — Applied Engineering Cybernetics (stability=0.437)
+Words: wiener, bateson, science, cybernetic, theory, world, nature, year
+Top books: [2737] Study of Living Control Systems (2021) · [2678] Neural Networks as Cybernetic Systems (1996) · [2356] Engineering Cybernetics (1954) · [2194] Biological Feedback (1990) · [2744] Cybernetic Modeling for Bioreaction Engineering (2018)
+
+T5 — Cultural Applications of Cybernetics (stability=0.374)
+Words: year, people, look, right, trurl, tell, every, hand
+Top books: [2657] History of Computer Art (2020) · [2047] The Composer's Black Box (2025) · [2398] Cybernethisms: Aldo Giorgini's Computer Art Legacy (2015) · [2166] Computers, Automation, and Cybernetics at the Hagley Museum (1989) · [2448] Digital Performance (2007)
+
+T6 — Formal Foundations of Cybernetics (stability=0.349) ← stable from Run C
+Words: machine, human, computer, brain, problem, control, language, program
+Top books: [2097] The Mathematical Theory of Semantic Communication (2025) · [2670] Mathematical Structure of Finite Random Cybernetic Systems (1972) · [2453] Intangible Life (2017) · [2435] Relative Information (2011) · [2665] Information and Reflection (2012)
+
+T7 — History and Biography of Cybernetics (stability=0.464)
+Words: human, theory, social, world, concept, self, science, communication
+Top books: [2560] @Heaven: The Online Death of a Cybernetic Futurist (2015) · [2677] Norbert Wiener—A Life in Cybernetics (2018) · [2637] Dark Hero of the Information Age (2009) · [2298] Full Circles Overlapping Lives (2000) · [2709] Success Cybernetics (2022)
+
+T8 — Cybernetic Management Theory (stability=0.319)
+Words: cybernetic, social, information, organization, technology, design, control, management
+Top books: [2244] Health as a Social System: Luhmann (2023) · [2727] The Management Process, Management Information and Control (1969) · [2683] Organizational Systems: VSM (2011) · [2682] Organization Structure: Cybernetic Systems Foundation (2012) · [2420] The Viability of Organizations Vol. 3 (2019)
+
+T9 — Residual / Outlier Cluster (stability=0.261)
+Words: people, family, person, life, experience, therapy, child, client
+Top books: [2467] The Cyberiad (1974, loading=1.000) · [2764] The Cyberiad: Stories (2002, loading=1.000) · [2703] R.U.R. (2004) · [2333] Return to China One Day: Qian Xuesen (2023) · [2103] The Communication Systems of the Body (1964)
+
+### Changed — `run_all.sh` canonical step 14 now includes paragraph windows
+
+`src/run_all.sh` line 133 changed from:
+```
+python3 src/14_entity_network.py --no-windows
+```
+to:
+```
+python3 src/14_entity_network.py
+```
+
+**Rationale:** `--no-windows` excluded ~239 concept nodes that only have paragraph-level
+edges (no qualifying book-level co-occurrence). This produced a materially different,
+smaller network (1,380 nodes, concepts=500) than the paragraph-inclusive build
+(1,620 nodes, concepts=739). The canonical release HTML is the paragraph-inclusive
+network; running `run_all.sh` with `--no-windows` would produce a divergent result on
+every future run. Paragraph windows add ~5 minutes to the pipeline run.
+
+**Canonical `run_all.sh` network (from 18 April 2026):**
+1,620 nodes (persons=656, concepts=739, orgs=154, locations=71), 11,501 edges
+(book=10,362 + para=1,139), density=0.009, LCC=1,618/1,620, APL=3.26, diameter=6.
+
+**Resolution of KI-10:** The 746→500 concept count drop seen in the sixth-batch runlog
+was not a data bug but a direct consequence of `--no-windows`. KI-10 closed.
+
+### Status
+
+Entity network HTML release-ready. Rerun completed 18 April 2026.
+
+---
+
 ## [0.4.5] — 2026-04-18
 
 > Session: 18 April 2026 (Cowork) — second batch

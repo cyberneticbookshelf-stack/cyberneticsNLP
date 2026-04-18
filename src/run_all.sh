@@ -130,8 +130,7 @@ run build_embed_report.py
 # Run 15 once; subsequent runs skip already-classified entities (cached).
 # Step 14 --no-windows is fast (~30s); omit flag for paragraph-window edges (~5 min)
 run 15_entity_classify.py
-python3 "$SCRIPT_DIR/14_entity_network.py" --no-windows   # fast book-level only
-# python3 "$SCRIPT_DIR/14_entity_network.py"              # + paragraph windows
+python3 "$SCRIPT_DIR/14_entity_network.py"                # book-level + paragraph windows
 
 
 echo ""

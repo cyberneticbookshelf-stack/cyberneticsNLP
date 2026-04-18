@@ -13,118 +13,108 @@ if not target.exists():
 
 data = json.load(open(target))
 
+# ── Run C canonical taxonomy (542-book corpus, agreed 14 April 2026) ──────────
+# Names agreed by Paul Wong via title-sweep inspection of top-loading books.
+# Stability scores from 5-seed run: mean=0.327 (superseded by sixth-batch
+# rerun mean=0.357, 6/9 stable — 18 April 2026).
+# Notes are provisional; full rationale in docs/memo_lda_k_selection.md.
 TAXONOMY = {
     'T1': {
-        'proposed_name': 'Management Cybernetics',
+        'proposed_name': 'Cybernetics of Political Economy',
         'notes': (
-            'VSM lineage and operational cybernetics. Mathematical vocabulary '
-            '(function, equation, input, output, value) reflects Operations '
-            'Research heritage that Beer drew on explicitly. Covers structural '
-            'design and viable systems applications. Temporally spans 1986–2022 '
-            'showing tradition remains active.'
+            'Cybernetics applied to political and economic contexts: Cold War '
+            'computing history, governance, tech policy, internet capitalism, '
+            'cybernetics and state power. Top words: decision, border, '
+            'investment, security, price, market, stock. Stability 0.232. '
+            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
         ),
     },
     'T2': {
-        'proposed_name': 'Second-Order Cybernetics Applied to Social Systems',
+        'proposed_name': 'Cybernetics and Circularity',
         'notes': (
-            'Dominated by Luhmann but reflects appropriation of second-order '
-            'cybernetics (von Foerster) into sociology and constructivism. '
-            'Luhmann is not himself a second-order cybernetician — he applied '
-            'the concepts to social systems theory. Also picks up autopoiesis '
-            '(Maturana), constructivism, and actor-network theory. Represents '
-            'the downstream social-scientific reception of second-order '
-            'cybernetics. Contrast with T6 (mathematical origins).'
+            'Philosophical and theoretical cybernetics: second-order '
+            'cybernetics, recursion, autopoiesis, posthumanism, systems '
+            'ontology. Bateson, Yuk Hui, Maturana, constructivism. Top words: '
+            'information, function, element, value, number, probability, '
+            'entropy. Stability 0.224. '
+            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
         ),
     },
     'T3': {
-        'proposed_name': 'Dynamical Systems, Homeostasis & Biological Regulation',
+        'proposed_name': 'Biological Systems Cybernetics',
         'notes': (
-            'Forrester system dynamics, allostasis research, systems biology, '
-            'positive feedback in natural systems. Intellectually coherent '
-            'despite low stability (0.049) — instability reflects vocabulary '
-            'overlap with T1 (systems design) and T5 (engineering cybernetics). '
-            'Cross-topic instability is itself a finding: dynamical systems '
-            'thinking appears across multiple cybernetics traditions '
-            'simultaneously. Not a model failure — a field characteristic.'
+            'Biological and physiological cybernetics: homeostasis, allostasis, '
+            'evolution, neuroscience. Top books: Rethinking Homeostasis, '
+            'Information Theory and Evolution, Minds and Machines (1954). '
+            'Top words: control, model, behavior, variable, input, cell, output. '
+            'Stability 0.551. '
+            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
         ),
     },
     'T4': {
-        'proposed_name': 'Psychological Cybernetics',
+        'proposed_name': 'Applied Engineering Cybernetics',
         'notes': (
-            'Two co-located traditions sharing register: Perceptual Control '
-            'Theory (Powers and derivatives — Making Sense of Behavior, Method '
-            'of Levels) and popular/self-help cybernetics (Psycho-Cybernetics, '
-            'Freedom From Stress, Volleyball Cybernetics). Both use plain '
-            'everyday language by design — PCT for psychological accessibility, '
-            'popular books for general audiences. Share vocabulary register '
-            'rather than necessarily concepts. Potential split candidate if k '
-            'is ever increased.'
+            'Engineering and applied cybernetics: PCT (Perceptual Control '
+            'Theory), neural networks, bioreaction, marine control, von '
+            'Foerster. Mix of formal control engineering and applied biological '
+            'cybernetics. Top words: wiener, bateson, science, cybernetic, '
+            'theory, world. Stability 0.437. '
+            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
         ),
     },
     'T5': {
-        'proposed_name': 'Non-Anglophone Engineering Cybernetics',
+        'proposed_name': 'Cultural Applications of Cybernetics',
         'notes': (
-            'Cybernetics from non-English national traditions: Soviet/Ukrainian '
-            '(Glushkov), Soviet/Latvian (Yakubaitis), Chinese (Qian Xuesen), '
-            'Polish (Lange), Romanian (Guiasu), Czechoslovak (Kovar & Valach), '
-            'German (Cruse), Japanese (Kimura). Parallel cybernetics development '
-            'largely independent of Wiener/American lineage (T6). Vocabulary '
-            'clustering may partly reflect shared translation artefacts as well '
-            'as genuine intellectual tradition. Note: Qian Xuesen appears in '
-            'T5 (technical works) and T9 (biography) — consistent with '
-            'corpus split between an author\'s work and their reception.'
+            'Cybernetics in cultural and artistic domains: computer art, '
+            'digital performance, music, Lem (trurl vocabulary). Top books: '
+            'History of Computer Art, Digital Performance, Relational '
+            'Improvisation. Top words: year, people, look, right, trurl, tell. '
+            'Stability 0.374. '
+            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
         ),
     },
     'T6': {
-        'proposed_name': 'Mathematical Foundations of Cybernetics',
+        'proposed_name': 'Formal Foundations of Cybernetics',
         'notes': (
-            'Wiener cluster: biography, intellectual history, and his '
-            'mathematical works (Generalized Harmonic Analysis, Hopf-Wiener '
-            'Integral). Both books *about* Wiener and Wiener\'s own technical '
-            'publications. The Cybernetics Moment (2015) correctly placed here '
-            'as historical account of the cybernetics founding. Represents '
-            'the Anglophone mathematical origin of cybernetics — contrast with '
-            'T5 (non-Anglophone engineering tradition) and T2 (social systems '
-            'downstream application).'
+            'Mathematical and formal foundations: information theory, '
+            'Spencer-Brown (Laws of Form), Rosen (relational biology), '
+            'semantic communication. Top words: machine, human, computer, '
+            'brain, problem, control, language, program. Stability 0.349. '
+            'Held stable from Run C. Name confirmed 18 April 2026.'
         ),
     },
     'T7': {
-        'proposed_name': 'Cultural Cybernetics, Posthumanism & Digital Media',
+        'proposed_name': 'History and Biography of Cybernetics',
         'notes': (
-            'Humanities reception of cybernetics: performance studies, Latin '
-            'American posthumanism, science fiction studies, avant-garde art, '
-            'digital culture, anime studies. Temporally concentrated 2005–2024 '
-            '— the recent cultural turn in cybernetics reception. Heavily '
-            'weighted toward curated_pure inclusion stratum: books that engage '
-            'cybernetics as cultural phenomenon without doing cybernetics '
-            'research. Evidence of cybernetic concept diffusion into humanities '
-            'and cultural studies.'
+            'Biographical and historical accounts of cybernetics figures: '
+            'Wiener biographies (Dark Hero, Life in Cybernetics), Mary '
+            'Catherine Bateson memoirs, popular cybernetics (Volleyball '
+            'Cybernetics, Success Cybernetics). Top words: human, theory, '
+            'social, world, concept, self. Stability 0.464. '
+            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
         ),
     },
     'T8': {
-        'proposed_name': 'Applied Cybernetics & Computers in Society',
+        'proposed_name': 'Cybernetic Management Theory',
         'notes': (
-            'Applied period 1959–1989: management cybernetics, automation, '
-            'computers and society. Beer\'s applied works (Diagnosing the '
-            'System, Heart of Enterprise) sit here rather than T1 — T1 has '
-            'the structural/theoretical VSM; T8 has the applied/historical '
-            'VSM and broader social context. Whole Earth Software Catalog '
-            'correctly placed at intersection of cybernetics and personal '
-            'computing culture. Tight temporal range is itself a finding.'
+            'VSM lineage and organisational cybernetics: Beer (Viability of '
+            'Organizations, Diagnosing the System), Luhmann (Health as Social '
+            'System), applied systems theory, intelligent construction. '
+            'Top words: cybernetic, social, information, organization, '
+            'technology, design, management. Stability 0.319. '
+            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
         ),
     },
     'T9': {
         'proposed_name': 'Residual / Outlier Cluster',
         'notes': (
-            'Not a genuine intellectual tradition. [249] Reflexion and Control: '
-            'Mathematical Models dominates at stability=1.000 — idiosyncratic '
-            'vocabulary not absorbed by any of the nine main topics. Remaining '
-            'books (marine control, Qian Xuesen biography, Lem fiction, Rise '
-            'of the Machines) are diverse outliers. Document in paper as model '
-            'residual. [249] warrants individual inspection — possible '
-            'translation artefact or genuinely peripheral mathematical work. '
-            'Lem fiction vocabulary (helena, trurl, klapaucius) confirms '
-            'science fiction register does not cleanly separate at k=9.'
+            'Not a genuine intellectual tradition. Lem\'s Cyberiad dominates '
+            '(loading=1.000 for two editions); R.U.R. (Čapek), Qian Xuesen '
+            'biography, Uexküll. Therapy vocabulary (people, family, person, '
+            'life, experience, therapy) suggests PCT/behavioural outliers also '
+            'present. Top words: people, family, person, life, experience, '
+            'therapy, child, client. Stability 0.261. '
+            'Provisional name — pending confirmation 18 April 2026.'
         ),
     },
 }

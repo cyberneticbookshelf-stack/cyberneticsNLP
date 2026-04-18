@@ -40,9 +40,7 @@ Usage:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _PROV_NOTICE = (
-    '<style>body{padding-top:54px!important}</style>'
-    '<div style="position:fixed;top:0;left:0;right:0;z-index:9999;'
-    'background:#fef3c7;border-bottom:3px solid #d97706;'
+    '<div style="flex-shrink:0;background:#fef3c7;border-bottom:3px solid #d97706;'
     'padding:0.55rem 1.25rem;font-size:.82rem;color:#78350f;'
     'line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.12)">'
     '<strong>Provenance notice:</strong> Results are derived from '
@@ -510,6 +508,7 @@ _deg_percentiles = {
     'p75': float(_np.percentile(_degs, 75)),
     'p90': float(_np.percentile(_degs, 90)),
     'p95': float(_np.percentile(_degs, 95)),
+    'p99': float(_np.percentile(_degs, 99)),
     'max': int(_degs.max()),
     'mean': round(float(_degs.mean()), 2),
     'min': int(_degs.min()),
@@ -687,6 +686,7 @@ svg{{width:100%;height:100%}}
     <span><span class="dot" style="background:#7c3aed"></span>Organisation</span>
     <span><span class="dot" style="background:#d97706"></span>Location</span>
   </div>
+  <a href="book_nlp_entity_network_guide.html" style="color:#bfdbfe;font-size:.82rem;text-decoration:none;white-space:nowrap" title="How to read this network">📖 Reader's guide</a>
 </div>
 <div class="controls">
   <label>Filter: <input type="text" id="search" placeholder="Search person/concept…" oninput="filterGraph()"></label>
@@ -905,7 +905,23 @@ function filterGraph() {{
       return matchedIds.has(sid) && matchedIds.has(tid);
     }});
   }} else {{
-    activeNodes = new Set(NODES.map(n => n.id));
+    activeNodes = allowedNodes;
+
+    // When a degree filter is active, remove nodes that have no visible
+    // edges after all filters are applied. Orphan nodes at high degree
+    // thresholds add no connectivity information and degrade ink-to-signal
+    // ratio: a high-degree node whose neighbours all fall below the threshold
+    // is correctly excluded from this view.
+    if (degThresh > 0) {{
+      const connectedIds = new Set();
+      activeEdges.forEach(e => {{
+        const sid = typeof e.source === 'object' ? e.source.id : e.source;
+        const tid = typeof e.target === 'object' ? e.target.id : e.target;
+        connectedIds.add(sid);
+        connectedIds.add(tid);
+      }});
+      activeNodes = new Set([...activeNodes].filter(id => connectedIds.has(id)));
+    }}
   }}
 
   drawGraph();
@@ -1135,7 +1151,7 @@ filterGraph();
 </body>
 </html>"""
 
-html = html.replace('</body>', _PROV_NOTICE + '\n</body>', 1)
+html = html.replace('<div class="header">', _PROV_NOTICE + '\n<div class="header">', 1)
 os.makedirs('data/outputs', exist_ok=True)
 out = 'data/outputs/book_nlp_entity_network.html'
 with open(out, 'w', encoding='utf-8') as f:

@@ -103,15 +103,18 @@ _OCR_BADGE = {
     'low':    '',
     None:     '',
 }
+# Run C canonical taxonomy (542-book corpus, agreed 14 April 2026).
+# This is a fallback only — nlp_results.json['topic_names'] takes precedence
+# (written by patch_topic_names.py after each run_all.sh).
 _LDA_BASE = [
-    'Management Cybernetics',
-    'Second-Order Cybernetics Applied to Social Systems',
-    'Dynamical Systems, Homeostasis & Biological Regulation',
-    'Psychological Cybernetics',
-    'Non-Anglophone Engineering Cybernetics',
-    'Mathematical Foundations of Cybernetics',
-    'Cultural Cybernetics, Posthumanism & Digital Media',
-    'Applied Cybernetics & Computers in Society',
+    'Cybernetics of Political Economy',
+    'Cybernetics and Circularity',
+    'Biological Systems Cybernetics',
+    'Applied Engineering Cybernetics',
+    'Cultural Applications of Cybernetics',
+    'Formal Foundations of Cybernetics',
+    'History and Biography of Cybernetics',
+    'Cybernetic Management Theory',
     'Residual / Outlier Cluster',
 ]
 _carried = R.get('topic_names') or _LDA_BASE
@@ -305,6 +308,7 @@ kp_data = json.dumps({
     'ocr_bands': _ocr_by_bid,
     'n_topics':  n_topics,
     'best_k':    best_k,
+    'lda_names': LDA_NAMES,
 })
 
 # ── Shared CSS ────────────────────────────────────────────────────────────────
@@ -675,7 +679,7 @@ const PALETTE = {json.dumps(PALETTE)};
 (function(){{
   const sel_t=document.getElementById('kp_topic');
   const sel_c=document.getElementById('kp_cluster');
-  for(let t=0;t<KD.n_topics;t++) sel_t.innerHTML+=`<option value="${{t}}">Topic ${{t+1}}</option>`;
+  for(let t=0;t<KD.n_topics;t++) sel_t.innerHTML+=`<option value="${{t}}">${{KD.lda_names?KD.lda_names[t]:'Topic '+(t+1)}}</option>`;
   for(let c=0;c<KD.best_k;c++)   sel_c.innerHTML+=`<option value="${{c}}">Cluster ${{c+1}}</option>`;
 }})();
 function filterKP(){{
