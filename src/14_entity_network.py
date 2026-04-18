@@ -40,19 +40,22 @@ Usage:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _PROV_NOTICE = (
-    '\n<div style="margin:1.5rem 1rem 0.5rem;padding:0.9rem 1.25rem;'
-    'background:#fef3c7;border-left:4px solid #d97706;border-radius:4px;'
-    'font-size:.82rem;color:#78350f;line-height:1.6">'
-    '<strong>Provenance notice:</strong> Results are derived from automated '
-    'analysis of a 542-book corpus and should be treated as provisional. '
-    'Known data quality issues have been characterised and mitigated; residual '
-    'errors of uncharacterised distribution remain. Individual associations '
-    'should be verified against source material before being treated as '
-    'established findings. '
-    'See <em>docs/methodology.md</em> §&ldquo;Implication for dissemination '
-    '&mdash; all outputs are provisional&rdquo;.</div>'
+    '<style>body{padding-top:54px!important}</style>'
+    '<div style="position:fixed;top:0;left:0;right:0;z-index:9999;'
+    'background:#fef3c7;border-bottom:3px solid #d97706;'
+    'padding:0.55rem 1.25rem;font-size:.82rem;color:#78350f;'
+    'line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.12)">'
+    '<strong>Provenance notice:</strong> Results are derived from '
+    'automated analysis of the CyberneticsNLP corpus and should be '
+    'treated as provisional. '
+    'Known data quality issues have been characterised and mitigated; '
+    'residual errors of uncharacterised distribution remain. '
+    'Individual associations should be verified against source material '
+    'before being treated as established findings. '
+    'See <em>docs/methodology.md</em> &sect;&ldquo;Implication for '
+    'dissemination &mdash; all outputs are provisional&rdquo;.'
+    '</div>'
 )
-
 import json, re, math, sys, os
 from collections import defaultdict
 
@@ -205,14 +208,33 @@ _TRAILING_FUNC = re.compile(
 
 # Back-matter / CTA strings that NER misidentifies as named entities.
 # Applied before cache lookup.  Added 18 April 2026.
+# "about the authors" (plural) added 18 April 2026.
 _CTA_BACK_MATTER = re.compile(
     r'^(?:sign\s+up|discover\s+your|all\s+rights\s+reserved|'
-    r'about\s+the\s+author|first\s+edition|copyright\s+\d|'
+    r'about\s+the\s+authors?|first\s+edition|copyright\s+\d|'
     r'published\s+by|printed\s+in|table\s+of\s+contents|'
     r'terms\s+of\s+(?:use|service)|click\s+here|'
     r'download\s+now|get\s+started)',
     re.I
 )
+
+# EOLSS encyclopedia noise: volume-title strings, editor attribution lines, and
+# encyclopedia section headers leaking from EOLSS volumes in the corpus.
+# Patterns: contains "eolss"; contains em-dash + "volume"; starts with
+# "editor:" or "editors:"; DESWARE encyclopedia header.
+# Applied before cache lookup.  Added 18 April 2026.
+_EOLSS_NOISE = re.compile(
+    r'eolss'
+    r'|–\s*volume\b'
+    r'|^\s*editors?\s*:'
+    r'|encyclopedia\s+of\s+desalination',
+    re.I
+)
+
+# Trailing-colon fragments: index sub-entry headers where the colon leaked
+# through NER as apparent named entities ("approach:", "cybernetics:", etc.).
+# Applied before cache lookup.  Added 18 April 2026.
+_TRAILING_COLON = re.compile(r':\s*$')
 
 persons       = {}
 organisations = {}
@@ -226,7 +248,9 @@ for tl, v in vocab.items():
     if tl.lower() in NOISE_TERMS: continue
     if tl.lower() in KNOWN_TECH_PLATFORMS: continue  # KI-04: suppress before PMI
     if _TRAILING_FUNC.search(t): continue             # fragment: "evolution of", "wiener and"
-    if _CTA_BACK_MATTER.match(t): continue            # back-matter: "sign up now", "about the author"
+    if _CTA_BACK_MATTER.match(t): continue            # back-matter: "sign up now", "about the authors?"
+    if _EOLSS_NOISE.search(t): continue               # EOLSS vol titles, editor attributions
+    if _TRAILING_COLON.search(t): continue            # index sub-entry headers: "approach:", etc.
     if len(t) < 3: continue
     # Skip clearly garbled OCR entries
     if re.search(r'\d{3,}|[^\w\s\-\',\.\(\)\/&]', t): continue

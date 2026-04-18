@@ -40,10 +40,14 @@ cannot certify the absence of subtler, undetectable ones.
   associations, not individually certified facts.
 
 **Paper/report framing to use:**
-> *Results are derived from automated analysis of a 542-book corpus and should be treated
-> as provisional. Known data quality issues have been characterised and mitigated; residual
-> errors of uncharacterised distribution remain. Individual associations should be verified
-> against source material before being treated as established findings.*
+> *Results are derived from automated analysis of the CyberneticsNLP corpus and should be
+> treated as provisional. Known data quality issues have been characterised and mitigated;
+> residual errors of uncharacterised distribution remain. Individual associations should be
+> verified against source material before being treated as established findings.*
+
+Note: hardcoded corpus counts (e.g. "542-book") have been removed from the provenance
+statement — the count is fragile (KI-08 unresolved) and a precise number in a data-quality
+warning is itself a data-quality risk.
 
 Full methodological argument: `docs/methodology.md` §"Implication for dissemination —
 all outputs are provisional" (added 18 April 2026).
@@ -81,7 +85,7 @@ All four items remain open:
 
 ---
 
-## Active issue — Node misclassification sweep (KI-07 — RESOLVED in data, awaiting rerun)
+## Active issue — Node misclassification sweep (KI-07 — FULLY RESOLVED)
 
 **Symptom:** Comprehensive review of all 1860 nodes (18 April 2026) found ~130 misclassified
 nodes. Examples: Perceptron [81] as location; Manhattan Project [86] as location; New York
@@ -90,7 +94,7 @@ Voltaire/Homer/Sophocles as concepts; Lorente de Nó as organisation; Weiner Nor
 duplicate person; ~50 trailing-function-word fragments ("evolution of", "wiener and",
 "free will and", "ai and", "definition of", etc.) surviving as concept/location/org nodes.
 
-**Two-part fix — applied 18 April 2026:**
+**Two-part fix — applied 18 April 2026 (third/fourth batch):**
 
 1. **`src/14_entity_network.py`** — two new module-level regexes, applied *before* cache
    lookup (so they cannot be overridden by stale cache entries):
@@ -98,37 +102,21 @@ duplicate person; ~50 trailing-function-word fragments ("evolution of", "wiener 
      ("of", "and", "on", "the", "to", "for", …). Catches ~50 fragment nodes.
    - `_CTA_BACK_MATTER` — suppresses "sign up now", "about the author", "all rights
      reserved", "first edition", "published by", etc.
+   - `_EOLSS_NOISE` — suppresses EOLSS contamination terms at runtime.
+   - `_TRAILING_COLON` — suppresses index sub-entry header fragments ending with `:`.
 
-2. **`json/entity_types_cache.json`** — 101 entries corrected (all pre-existing, wrong):
-   - location → organisation: New York Times, San Francisco Chronicle, Vienna Circle
-   - location → concept: Manhattan Project, Perceptron, Big Bang, Hippocampus, Algorithm, Truth
-   - location → suppress: Systém (Czech OCR), Tortoise, ai and
-   - org → person: Lorente de Nó Rafael, Cicero, St. Augustine, Epictetus, Rutherford
-   - org → concept: Principia Mathematica, design for a brain, quantum computing,
-     social sciences, Synergy, Brain, Neurotransmitters, Retina, Slavery, Synthesis,
-     quantum entanglement, Speech, Healthcare, Recognition, actor-network theory, + 13 more
-   - org → suppress: Laboratory, Bishop, University), Self-, and 15 more generic nouns
-   - concept → person: Voltaire, Homer, Sophocles, Bernard (Claude Bernard)
-   - concept → org: Life Magazine, CoEvolution Quarterly, Ramparts
-   - concept → suppress: Galileo Galilei (dup), Stengers (dup), wiener (standalone fragment)
-   - person → suppress: Weiner Norbert (misspelling), Drop, Norbert (fragment),
-     One Park Avenue NY (address), Foerster Heinz von (dup), Neumann John von (dup),
-     Clark (ambiguous), Humphreys (ambiguous)
-   - person → location: New York NY, Cambridge Massachusetts
-   - person → concept: brain human, Grammar
-   - person → org: Gordon and Breach Science Publishers, Whole Earth Catalog The
-   - org → suppress (duplicates): kluckhohn, von bertalanffy, vinge, waddington, free will and
+2. **`src/15_entity_classify.py`** — MANUAL_CORRECTIONS: 101 pre-existing cache errors
+   corrected; 18 new entries (fourth batch); 89 further suppressions (fifth batch,
+   18 April 2026 — degree 1–2 concept node review). Full correction set now hardcoded
+   in source — survives cache wipes and `--refresh`.
 
-**Code committed:** `aae3877` — "fix: harden entity network classification against misclassification (KI-07)"
-Both `src/14_entity_network.py` and `src/15_entity_classify.py` pushed to origin/main 18 April 2026.
-`entity_types_cache.json` updated locally but remains gitignored.
+**Rerun completed 18 April 2026 (fifth batch session):**
+- Final node count: **1,627** (persons=656, orgs=154, locations=71, concepts=746)
+- Previous baseline: 1,708 (concepts=827 after fourth batch rerun)
+- Concept reduction: 827 → 746 (81 fewer; 8 of 89 suppressed terms not present in network)
+- Network: density=0.0087, LCC=1625/1627 (100%), APL=3.248, diameter=5, max degree=283
 
-**Remaining action:** Rerun `python3 src/15_entity_classify.py` then `python3 src/14_entity_network.py`
-on Cybersonic to regenerate `json/entity_network.json` with corrected classifications.
-
-**Two minor issues noted 17 April — still open:**
-- "evolution of" node — now caught by `_TRAILING_FUNC` ✓ (was previously unfixed)
-- "New York Times" → organisation — now fixed in cache ✓ (was previously unfixed)
+**Status: RESOLVED — entity network ready for colleague sharing.**
 
 ---
 
@@ -150,31 +138,11 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
    Internet Archive attribution strings ("Digitized by the Internet Archive...
    Kahle/Austin Foundation") appear in 67 books. Fix: extend noise filters.
 
-**Fixes implemented 17 April 2026 — awaiting rerun on Cybersonic:**
-
-- `src/09b_build_index_analysis.py` — `is_noise_term` extended with `_STRUCT_NAV`
-  (structural document navigation terms) and `_PLATFORM` (digitisation attribution
-  strings). Also added structural terms to `NOISE_TERMS` in `14` as belt-and-suspenders.
-
-- `src/14_entity_network.py` — `KNOWN_TECH_PLATFORMS` set added (Google, Amazon,
-  Facebook, Meta, Twitter, Apple, Microsoft, OpenAI, etc.), checked before entity
-  classification loop. Platforms never enter book sets or PMI computation. `src/14_entity_network.py:155` (classification loop) and new constant above it.
-
-- `src/02_clean_text.py` — Internet Archive / Kahle–Austin / Kindle / Google Play
-  patterns added to `INLINE_PATTERNS`. Affects future regeneration of
-  `json/books_clean.json` only (existing file not invalidated for current work).
-
-**Applied and verified on Cybersonic 17 April 2026:**
-- Reran `09b` and `14` twice (once after initial fixes, once after second-pass fixes)
-- Final network: 1860 nodes, 12799 edges (was 1888/13061)
-- Wiener top edges: cybernetics (108), communication (60), control (32) — all correct
-- All EOLSS, platform, and structural noise terms confirmed absent
-- Committed: `9daf49c` — "fix: clean entity network noise and document data quality methodology"
-
-**Two minor issues noted for future attention (low priority):**
-- "New York Times" classified as `location` — should be `organisation`
-- "evolution of" appears as a node — fragment starting with "evolution" slips
-  `_FUNC_FRAG` because filter only catches terms that *start* with a function word
+**Fixes implemented 17 April 2026 — applied and verified on Cybersonic:**
+- `src/14_entity_network.py` — `KNOWN_TECH_PLATFORMS` set added.
+- `src/09b_build_index_analysis.py` — `is_noise_term` extended.
+- `src/02_clean_text.py` — Internet Archive / platform strings added to `INLINE_PATTERNS`.
+- Committed: `9daf49c`
 
 ---
 
@@ -192,7 +160,7 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
 - `json/book_styles.json` — EOLSS vols 1–3 (IDs 2232/2233/2711) reclassified
   `reference`, `verified=True` (not committed — json/ is gitignored)
 
-## Files modified this session (18 April 2026 — continued)
+## Files modified this session (18 April 2026 — third batch)
 
 - `src/14_entity_network.py` — `_TRAILING_FUNC` and `_CTA_BACK_MATTER` regexes added
   after `KNOWN_TECH_PLATFORMS` (~line 167–185); both wired into classification loop
@@ -208,32 +176,76 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
   see KI-07 above for full list). Not committed — json/ is gitignored.
 - `docs/CHANGELOG.md` — [0.4.4] entry added.
 - `CLAUDE.md` — KI-07 added; files-modified and next-session sections updated.
-- `src/06_build_report.py`, `src/06_build_report_chapters.py`, `src/08_build_timeseries.py`,
-  `src/10_build_index_report.py`, `src/11_embedding_comparison.py`, `src/12_index_grounding.py`,
-  `src/13_weighted_comparison.py`, `src/14_entity_network.py`, `src/build_embed_report.py` —
-  All 9 HTML-generating scripts: (a) Python comment block added at top/after docstring, stating
-  algorithm infection principle and pointing to methodology.md; (b) `_PROV_NOTICE` constant
-  defined (amber-bordered HTML div with provenance statement); (c) `html.replace('</body>',
-  _PROV_NOTICE + '\n</body>', 1)` inserted just before each `f.write(html)`, so every generated
-  HTML report displays the disclaimer to viewers. Pattern survives `run_all.sh` reruns.
+- All 9 HTML-generating scripts — `_PROV_NOTICE` constant added; `html.replace('</body>',
+  _PROV_NOTICE + '\n</body>', 1)` inserted before each `f.write(html)`. Committed `e2273e7`.
+
+## Files modified this session (18 April 2026 — fourth batch)
+
+**Context:** run_all.sh rerun (KI-07) completed. runlog20260418.csv reviewed.
+Confirmed: pipeline ran 01:53–02:12 AEST, completed cleanly, node count 1,860 → 1,459.
+Manual spot-check found residual issues, leading to full entity cache audit.
+
+- `src/14_entity_network.py` — `_CTA_BACK_MATTER`: `author` → `authors?`; new
+  `_EOLSS_NOISE` and `_TRAILING_COLON` regexes added and wired in.
+- `src/15_entity_classify.py` — MANUAL_CORRECTIONS fourth batch: 7 singular/plural
+  misclassifications, `brain, human` concept→suppress, `about the author/authors`,
+  `not`, `requisite variety, law of`, `perceptrons` → suppress (18 new entries).
+- `data/outputs/concept_node_review.csv` (vault) — 294-row review spreadsheet of all
+  degree 1–2 concept nodes; columns: term, degree, n_books, ner_source, recommendation,
+  reason, paul_decision. 89 Suppress / 205 Keep recommended.
+
+**Output file note:** `book_nlp_results.html` split into `index.html`, `books.html`,
+`clusters.html`, `keyphrases.html`, `cosine.html` in `data/outputs/`.
+
+**Open discrepancy:** pipeline logged 541 books for LDA; canonical corpus is 542.
+One book dropped at runtime — not yet investigated (KI-08).
+
+## Files modified this session (18 April 2026 — fifth batch)
+
+**Context:** Degree 1–2 concept node review. Paul confirmed all recommendations from
+`concept_node_review.csv`. 89 suppressions implemented. Provenance notice redesigned.
+
+- `src/15_entity_classify.py` — MANUAL_CORRECTIONS fifth batch: 89 suppressions
+  (17 bare adjectives, 28 noise/irrelevant, 36 too-generic, 6 near-duplicates).
+  Applied via `patch_apply.py` run on Cybersonic.
+- All 9 HTML-generating scripts — `_PROV_NOTICE` updated:
+  (a) Hardcoded corpus count removed ("542-book corpus" → "the CyberneticsNLP corpus").
+      Rationale: KI-08 unresolved; fragile count in a data-quality notice is itself
+      a data-quality risk.
+  (b) `position:fixed;top:0` replaces static bottom placement — banner now visible
+      at all scroll positions. `body{padding-top:54px}` added to prevent content overlap.
+  Applied via `fix_prov_notice.py` (corrected version of `patch_apply.py`, which had
+  a `re.sub` backslash-processing bug causing unterminated string literals).
+- `json/entity_network.json` — rebuilt: 1,627 nodes (persons=656, orgs=154,
+  locations=71, concepts=746); 11,558 edges; density=0.0087; APL=3.248; diameter=5.
+- `data/outputs/book_nlp_entity_network.html` — regenerated (1,849 KB).
+- Patch scripts (vault, not in repo):
+  - `02 Projects/CyberneticsNLP/patch_apply.py` — applied 15_entity_classify.py
+    changes and initial (broken) _PROV_NOTICE update.
+  - `02 Projects/CyberneticsNLP/fix_prov_notice.py` — fixed the broken _PROV_NOTICE
+    using line-scanner instead of re.sub.
+  - `02 Projects/CyberneticsNLP/patch_15_entity_classify.py` — intermediate draft,
+    superseded by patch_apply.py.
 
 ---
 
 ## Next session agenda
 
-1. **Rerun pipeline on Cybersonic** — `python3 src/15_entity_classify.py` then
-   `python3 src/14_entity_network.py`. Verify corrected node counts and spot-check:
-   Perceptron → concept, Brain → concept, New York Times → organisation, no fragment nodes.
-   (KI-07 code committed `aae3877`; pipeline rerun still pending.)
-2. **Commit HTML provenance changes** — `src/06_build_report.py`, `src/06_build_report_chapters.py`,
-   `src/08_build_timeseries.py`, `src/10_build_index_report.py`, `src/11_embedding_comparison.py`,
-   `src/12_index_grounding.py`, `src/13_weighted_comparison.py`, `src/14_entity_network.py`,
-   `src/build_embed_report.py` — all 9 HTML scripts updated with algorithm infection comment +
-   _PROV_NOTICE disclaimer injected into output. Not yet committed.
+1. **Commit fifth batch changes on Cybersonic:**
+   `git add src/14_entity_network.py src/15_entity_classify.py src/06_build_report.py`
+   `src/06_build_report_chapters.py src/08_build_timeseries.py src/10_build_index_report.py`
+   `src/11_embedding_comparison.py src/12_index_grounding.py src/13_weighted_comparison.py`
+   `src/build_embed_report.py && git commit -m "fix: degree 1-2 concept node suppressions and sticky provenance banner (v0.4.6)"`
+2. **Investigate KI-08** — 541 vs 542 book count: which book is dropped at LDA runtime
+   and whether this is intentional or a bug.
 3. **Review draft scripts** in vault `02 Projects/CyberneticsNLP/docs/src_draft/`:
    - `compare_topic_runs.py` — assess readiness to graduate to `src/`
    - `record_topic_run.py` — assess readiness to graduate to `src/`
-4. **Continue topic naming reliability sprint** — all four items still open (see above)
+4. **Continue topic naming reliability sprint** — all four items still open (see above).
+5. **Future structural item:** plural-dedup normalisation step in `src/14_entity_network.py`
+   (~150 same-kind singular/plural pairs; defer until entity network otherwise stable).
+6. **Share entity network HTML** with colleagues — network now clean enough for external
+   viewing. Provenance banner visible at top of page on all scroll positions.
 
 ---
 
@@ -254,6 +266,10 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
   "Session VM process not available" on FUSE/sshfs mounts. Use vault-internal mount
   as workaround.
 - **Python environment:** Cybersonic, `~/CyberneticsNLP/`. Use `pip install --break-system-packages`.
+- **Patch scripts:** when sshfs mount goes read-only mid-session, write patch scripts
+  to vault (not cybersonic/) and run them on Cybersonic. Use str.replace() or line
+  scanners rather than re.sub() for source-code patching — re.sub processes backslash
+  sequences in replacement strings, which corrupts Python string literals.
 
 ---
 
@@ -264,6 +280,8 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
 | KI-04 | Amazon/Google as high-degree nodes — ebook metadata noise | **Resolved 17 April 2026** — `KNOWN_TECH_PLATFORMS` in `src/14_entity_network.py`; noise filters in `src/09b`; committed `9daf49c` |
 | KI-05 | T9: book [249] loading=1.000 dominates | Document in paper; may resolve after exclusion filter |
 | KI-06 | Proceedings/handbook books not yet filtered from pipeline | Pending signal inventory + document unit decision (moratorium) |
-| KI-07 | ~130 misclassified nodes in entity network | **Resolved in data 18 April 2026** — `_TRAILING_FUNC`/`_CTA_BACK_MATTER` in `src/14`; 101 cache entries corrected. **Awaiting rerun + commit.** |
+| KI-07 | ~130 misclassified nodes + EOLSS contamination + plural/comma fragments | **Fully resolved 18 April 2026** — all fixes in `src/14` and `src/15`; rerun complete; final network 1,627 nodes |
+| KI-08 | 541 vs 542 book count in LDA — one book dropped at runtime | **Open** — not yet investigated |
+| KI-09 | ~150 singular/plural node pairs (e.g. algorithm/algorithms) — split PMI signal | **Open** — structural fix (lemmatisation in `src/14`) deferred as future sprint item |
 
-*Updated 18 April 2026 — Cowork session*
+*Updated 18 April 2026 — Cowork session (fifth batch)*

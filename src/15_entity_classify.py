@@ -271,7 +271,8 @@ MANUAL_CORRECTIONS = {
     "san francisco chronicle": ("organisation","newspaper"),
     "vienna circle":           ("organisation","philosophical group/movement"),
 
-    # location → concept
+    # location/organisation → concept (historical programmes/events misread by spaCy as ORG/LOC)
+    "marshall plan":     ("concept","historical economic programme"),
     "manhattan project": ("concept","historical programme/event"),
     "perceptron":        ("concept","ML model/concept"),
     "big bang":          ("concept","cosmological event/concept"),
@@ -376,8 +377,10 @@ MANUAL_CORRECTIONS = {
     "humphreys":       ("suppress","surname only; ambiguous"),
 
     # person → concept
-    "brain, human": ("concept","anatomical concept"),
     "grammar":      ("concept","linguistic concept"),
+
+    # person → suppress (index sub-entry comma form — not a standalone entity)
+    "brain, human": ("suppress","index sub-entry fragment"),
 
     # person → organisation
     "whole earth catalog, the":             ("organisation","publication by Stewart Brand"),
@@ -399,6 +402,138 @@ MANUAL_CORRECTIONS = {
     # 14_entity_network.py catches these at runtime; cache entries here ensure
     # they are suppressed even if 14 is run without the code fix)
     "free will and": ("suppress","trailing-function-word fragment"),
+
+    # ── Misclassified singular/plural pairs — 18 April 2026 ──────────────────
+    # spaCy NER misclassifies the singular or plural form; correct both.
+    # Singular/plural variants that share the same kind are handled separately
+    # by the plural-dedup note in CLAUDE.md (future structural fix in 14).
+
+    # spaCy → org, correct: concept
+    "node":       ("concept","spaCy misclassified as org; plural 'nodes' already concept"),
+    "objectives": ("concept","spaCy misclassified as org; singular 'objective' already concept"),
+    "subsystem":  ("concept","spaCy misclassified as org; plural 'subsystems' already concept"),
+    "viewpoint":  ("concept","spaCy misclassified as org; plural 'viewpoints' already concept"),
+
+    # spaCy → location, correct: concept
+    "schemas":  ("concept","spaCy misclassified as location; singular 'schema' already concept"),
+    "symbol":   ("concept","spaCy misclassified as location; plural 'symbols' already concept"),
+    "theorems": ("concept","spaCy misclassified as location; singular 'theorem' already concept"),
+
+    # ── Back-matter / function-word fragments — 18 April 2026 ────────────────
+    # Belt-and-suspenders: _CTA_BACK_MATTER in 14 catches "about the authors?"
+    # at runtime; this entry ensures suppression if 14 is run without the fix.
+    "about the authors": ("suppress","back-matter string"),
+    "about the author":  ("suppress","back-matter string"),
+    "not":               ("suppress","function word — spaCy false positive"),
+
+    # ── Duplicate concept forms — 18 April 2026 ───────────────────────────────
+    # Suppress the less canonical surface form; keep the more standard one.
+    "requisite variety, law of": ("suppress","variant — canonical is 'law of requisite variety'"),
+
+    # ── Plural dedup (targeted) — 18 April 2026 ──────────────────────────────
+    # perceptron/perceptrons flagged in network review. Suppress plural to
+    # consolidate PMI signal on the canonical form. Broader plural-dedup
+    # (normalisation step in 14) deferred as a structural sprint item.
+    "perceptrons": ("suppress","plural variant — canonical is 'perceptron'"),
+    # ── Degree 1–2 concept node review — 18 April 2026 (fifth batch) ─────────
+    # 89 suppressions confirmed after full review of all 294 degree 1–2 concept
+    # nodes. Categories: bare adjectives, too-generic nouns, noise/irrelevant
+    # terms, near-duplicates of higher-degree canonical nodes.
+
+    # Bare adjectives (spaCy false positives — no entity, just a modifier)
+    "capitalist":   ("suppress","bare adjective"),
+    "generative":   ("suppress","bare adjective"),
+    "regulatory":   ("suppress","bare adjective"),
+    "sexual":       ("suppress","bare adjective"),
+    "concrete":     ("suppress","bare adjective"),
+    "embodied":     ("suppress","bare adjective"),
+    "passive":      ("suppress","bare adjective"),
+    "conscious":    ("suppress","bare adjective"),
+    "closed":       ("suppress","bare adjective"),
+    "logical":      ("suppress","bare adjective"),
+    "statistical":  ("suppress","bare adjective"),
+    "industrial":   ("suppress","bare adjective"),
+    "physical":     ("suppress","bare adjective"),
+    "scientific":   ("suppress","bare adjective"),
+    "natural":      ("suppress","bare adjective"),
+    "cybernetic":   ("suppress","bare adjective"),
+    "procedural":   ("suppress","bare adjective"),
+
+    # Noise / irrelevant (appear in corpus but not meaningful network nodes)
+    "scaffolding":     ("suppress","noise/irrelevant"),
+    "branding":        ("suppress","noise/irrelevant"),
+    "quoted":          ("suppress","noise/irrelevant"),
+    "her (film)":      ("suppress","noise/irrelevant"),
+    "containerization":("suppress","noise/irrelevant"),
+    "methane":         ("suppress","noise/irrelevant"),
+    "mediatization":   ("suppress","noise/irrelevant"),
+    "abiogenesis":     ("suppress","noise/irrelevant"),
+    "newspapers":      ("suppress","noise/irrelevant"),
+    "monotheism":      ("suppress","noise/irrelevant"),
+    "arts":            ("suppress","noise/irrelevant"),
+    "facilitation":    ("suppress","noise/irrelevant"),
+    "atheism":         ("suppress","noise/irrelevant"),
+    "astronautics":    ("suppress","noise/irrelevant"),
+    "teledildonics":   ("suppress","noise/irrelevant"),
+    "rats":            ("suppress","noise/irrelevant"),
+    "chimpanzees":     ("suppress","noise/irrelevant"),
+    "success":         ("suppress","noise/irrelevant"),
+    "happiness":       ("suppress","noise/irrelevant"),
+    "street":          ("suppress","noise/irrelevant"),
+    "content":         ("suppress","noise/irrelevant"),
+    "hurricanes":      ("suppress","noise/irrelevant"),
+    "maintenance":     ("suppress","noise/irrelevant"),
+    "individual":      ("suppress","noise/irrelevant"),
+    "quality":         ("suppress","noise/irrelevant"),
+    "group":           ("suppress","noise/irrelevant"),
+    "networking":      ("suppress","noise/irrelevant"),
+    "compuserve":      ("suppress","noise/irrelevant — early internet service, not a concept"),
+
+    # Too generic (valid English words but no discriminating power in this network)
+    "organisation":  ("suppress","too generic — use specific org names"),
+    "signals":       ("suppress","too generic — use 'signal'"),
+    "image":         ("suppress","too generic"),
+    "integration":   ("suppress","too generic"),
+    "methods":       ("suppress","too generic"),
+    "performance":   ("suppress","too generic"),
+    "law":           ("suppress","too generic — use specific law names"),
+    "values":        ("suppress","too generic"),
+    "production":    ("suppress","too generic"),
+    "writing":       ("suppress","too generic"),
+    "observation":   ("suppress","too generic"),
+    "revolution":    ("suppress","too generic — use specific revolutions"),
+    "action":        ("suppress","too generic"),
+    "world":         ("suppress","too generic"),
+    "analysis":      ("suppress","too generic"),
+    "machine":       ("suppress","too generic"),
+    "processes":     ("suppress","too generic"),
+    "thinking":      ("suppress","too generic"),
+    "management":    ("suppress","too generic"),
+    "model":         ("suppress","too generic"),
+    "simulation":    ("suppress","too generic"),
+    "definition":    ("suppress","too generic"),
+    "mechanisms":    ("suppress","too generic"),
+    "direction":     ("suppress","too generic"),
+    "capital":       ("suppress","too generic"),
+    "reconstruction":("suppress","too generic"),
+    "connectivity":  ("suppress","too generic"),
+    "images":        ("suppress","too generic"),
+    "studies":       ("suppress","too generic"),
+    "change":        ("suppress","too generic"),
+    "pattern":       ("suppress","too generic"),
+    "purpose":       ("suppress","too generic"),
+    "regulation":    ("suppress","too generic"),
+    "universal":     ("suppress","too generic — bare adjective / abstract noun"),
+    "behavior":      ("suppress","too generic"),
+    "development":   ("suppress","too generic"),
+
+    # Near-duplicates (lower-degree variant; canonical higher-degree node retained)
+    "cybernetic systems": ("suppress","near-duplicate — canonical is 'cybernetics'"),
+    "complex systems":    ("suppress","near-duplicate — canonical is 'complexity'"),
+    "decision making":    ("suppress","near-duplicate — canonical is 'decision-making'"),
+    "thermostats":        ("suppress","near-duplicate — canonical is 'thermostat'"),
+    "requisite variety":  ("suppress","near-duplicate — canonical is 'law of requisite variety'"),
+    "computer":           ("suppress","near-duplicate — canonical is 'computers'"),
 }
 
 for _tl, (_kind, _note) in MANUAL_CORRECTIONS.items():

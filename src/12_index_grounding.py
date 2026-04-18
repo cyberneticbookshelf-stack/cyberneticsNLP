@@ -27,19 +27,22 @@ Three analyses:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _PROV_NOTICE = (
-    '\n<div style="margin:1.5rem 1rem 0.5rem;padding:0.9rem 1.25rem;'
-    'background:#fef3c7;border-left:4px solid #d97706;border-radius:4px;'
-    'font-size:.82rem;color:#78350f;line-height:1.6">'
-    '<strong>Provenance notice:</strong> Results are derived from automated '
-    'analysis of a 542-book corpus and should be treated as provisional. '
-    'Known data quality issues have been characterised and mitigated; residual '
-    'errors of uncharacterised distribution remain. Individual associations '
-    'should be verified against source material before being treated as '
-    'established findings. '
-    'See <em>docs/methodology.md</em> §&ldquo;Implication for dissemination '
-    '&mdash; all outputs are provisional&rdquo;.</div>'
+    '<style>body{padding-top:54px!important}</style>'
+    '<div style="position:fixed;top:0;left:0;right:0;z-index:9999;'
+    'background:#fef3c7;border-bottom:3px solid #d97706;'
+    'padding:0.55rem 1.25rem;font-size:.82rem;color:#78350f;'
+    'line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.12)">'
+    '<strong>Provenance notice:</strong> Results are derived from '
+    'automated analysis of the CyberneticsNLP corpus and should be '
+    'treated as provisional. '
+    'Known data quality issues have been characterised and mitigated; '
+    'residual errors of uncharacterised distribution remain. '
+    'Individual associations should be verified against source material '
+    'before being treated as established findings. '
+    'See <em>docs/methodology.md</em> &sect;&ldquo;Implication for '
+    'dissemination &mdash; all outputs are provisional&rdquo;.'
+    '</div>'
 )
-
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
 CSV_DIR  = _pl.Path('csv')    # input CSVs:  csv/books_metadata_full.csv, csv/books_text_*.csv
