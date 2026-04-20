@@ -14,6 +14,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STREAM=0
 for arg in "$@"; do [ "$arg" = "--stream" ] && STREAM=1; done
 
+# ── Runlog: capture all pipeline output to a dated CSV in data/outputs/ ───────
+# Naming: runlogYYYYMMDD.csv for the first run of a day;
+#         runlogYYYYMMDD-2.csv, -3.csv ... for subsequent runs.
+mkdir -p data/outputs
+_RL_DATE=$(date +%Y%m%d)
+RUNLOG="data/outputs/runlog${_RL_DATE}.csv"
+_RL_N=2
+while [ -f "$RUNLOG" ]; do
+    RUNLOG="data/outputs/runlog${_RL_DATE}-${_RL_N}.csv"
+    _RL_N=$((_RL_N + 1))
+done
+exec > >(tee "$RUNLOG") 2>&1
+# ─────────────────────────────────────────────────────────────────────────────
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PRE-PROCESSING: Book style enrichment pipeline (run once before main pipeline)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -88,10 +102,11 @@ fi
 #       section at the bottom of this script.
 # ── Book-level topics ────────────────────────────────────────────────────────
 python3 "$SCRIPT_DIR/03_nlp_pipeline.py" --min-chars 10000 --lemmatize --topics 9 --seeds 5
-# Validate topics and apply agreed taxonomy names immediately after LDA
-# so all downstream reports use named topics rather than Topic 1, Topic 2 etc.
-python3 "$SCRIPT_DIR/09c_validate_topics.py" --top 10 --md
+# Apply agreed taxonomy names before validating, so 09c writes named topics
+# to docs/topic_validation.md rather than raw LDA ordering labels.
 python3 "$SCRIPT_DIR/patch_topic_names.py"
+python3 "$SCRIPT_DIR/check_stale_vars.py" --fix
+python3 "$SCRIPT_DIR/09c_validate_topics.py" --top 10 --md
 run 04_summarize.py
 run 05_visualize.py
 run 06_build_report.py
@@ -140,6 +155,7 @@ echo "  book_nlp_analysis.html              book_nlp_results.xlsx"
 echo "  book_nlp_analysis_chapters.html     book_nlp_chapters.xlsx"
 echo "  book_nlp_timeseries.html            book_nlp_index_analysis.html"
 echo "  book_nlp_index_grounding.html       book_nlp_embedding_comparison.html"
+echo "Runlog: $RUNLOG"
 # ══════════════════════════════════════════════════════════════════════════════
 # OPTIONAL: Index-term weighted second pass
 # ══════════════════════════════════════════════════════════════════════════════

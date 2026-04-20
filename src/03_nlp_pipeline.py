@@ -58,6 +58,7 @@ must past example something great thing things page pages
 good best better true large small possible general certain
 google digitize digitized digitised original california
 university california digitized google original
+aren couldn didn doesn hadn hasn haven mustn shan shouldn wasn weren wouldn
 """.split())
 
 # ── CLI flags ────────────────────────────────────────────────────────────────

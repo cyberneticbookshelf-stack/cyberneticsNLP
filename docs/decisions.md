@@ -1897,3 +1897,114 @@ unavailable to individual reading. The methodology section should acknowledge bo
 pipeline preserves (vocabulary patterns, concept distribution, temporal trends, network
 structure) and what it loses (argument structure, rhetorical register, intertextual
 specificity).
+
+---
+
+## KI-09: singular/plural concept node deduplication — design decisions
+**Date:** 20 April 2026 | **Session:** Cowork (fifth batch)
+
+### Problem
+Index vocabularies routinely contain both singular and plural forms of the same concept
+(`algorithm`/`algorithms`, `network`/`networks`, `feedback loop`/`feedback loops`).
+Treating them as separate nodes splits their PMI signal — books indexed under the plural
+form do not contribute to the singular node's book-set — artificially weakening edge
+weights for both. Approximately 150 such pairs were present in the pre-fix network.
+
+### Decision: merge at concept classification time, not post-hoc
+Plural forms are removed from the `concepts` dict immediately after classification and
+before book-set construction. Their book-sets are unioned into the canonical singular's
+set. This is preferable to post-hoc graph merging because: (a) it keeps the data model
+clean — the network always has one node per concept, not two with a merge annotation;
+(b) book-set union is correct only before book-set construction, not after.
+
+### Decision: conservative "both must exist" guard
+A plural–singular merge fires only when BOTH forms are independently present as concept
+nodes after all upstream filters (NOISE_TERMS, KNOWN_TECH_PLATFORMS, `_TRAILING_FUNC`,
+cache suppression, etc.). No merge is inferred — every pair is confirmed by presence in
+the data. This prevents false merges where only one form appears.
+
+### Decision: `_CONCEPT_PLURAL_EXCEPTIONS` for -ics field names
+35 discipline/field names ending in `-ics` are exempt from `_singular_form()` derivation:
+`cybernetics`, `thermodynamics`, `semantics`, `dynamics`, `linguistics`, etc. These are
+not grammatical plurals of their adjectival `-ic` forms — they are mass nouns denoting
+fields of study. Treating `cybernetics → cybernetic` as a valid merge would be a category
+error. The exceptions list is explicit and documented in source.
+
+### Decision: paragraph-window normalisation
+The `target_tls` list for paragraph co-occurrence is normalised through `concept_plural_map`
+so that a paragraph containing the plural form is counted as a co-occurrence of the
+canonical singular. `dict.fromkeys` deduplication prevents double-counting when a book
+indexes both forms.
+
+---
+
+## Why fix `_canonical_term()` in `09_extract_index.py` rather than patching downstream
+**Date:** 20 April 2026 | **Session:** Cowork (fifth batch)
+
+### Problem
+Multi-word proper names containing English function words (`in`, `and`, `of`, `the`,
+`from`, etc.) were being systematically lowercased by `_canonical_term()`. For example:
+`Experiments in Art and Technology` → `experiments in art and technology`,
+`Laws of Form` → `laws of form`, `Macy Conferences on Cybernetics` → `macy conferences
+on cybernetics`. The root cause was that `_ok()` did not recognise function words as
+legitimately lowercase in title-case proper nouns.
+
+### Alternative considered: blocklist in `14_entity_network.py`
+Individual term-level corrections could have been added to `MANUAL_CORRECTIONS` or a
+dedicated `CASING_CORRECTIONS` dict in the entity network script. This would fix the
+visible symptom (incorrect casing in the network) for known terms.
+
+### Decision: fix upstream in `09_extract_index.py`
+The corpus is designed to grow. A downstream patch applies only to terms already known to
+be incorrectly cased — any new book added to the collection that indexes a multi-word
+proper name containing a function word would encounter the same casing error, propagate
+it through `index_vocab.json`, and reach the entity network uncorrected. The fix in
+`_canonical_term()` applies to all present and future index terms without any per-term
+maintenance. This is the canonical application of the "fix upstream, not downstream"
+engineering principle recorded in CLAUDE.md.
+
+### Fix design
+Three changes to `_canonical_term()`:
+1. `LOWER_IN_TITLE` set — articles, coordinating conjunctions, and common prepositions
+   are now recognised as legitimately lowercase in well-formed title-case proper nouns.
+2. All-caps pre-processing — multi-word ALL-CAPS strings (OCR artefacts) are lowercased
+   before the canonical check if any word exceeds 3 characters, exempting genuine
+   acronym sequences (e.g. `DNA RNA`).
+3. "Best casing wins" in vocab builder — if a term is stored in all-lowercase form and a
+   later book supplies a mixed-case form, the stored entry is upgraded. Handles cases
+   where the first book to index a term rendered it in all-caps or all-lowercase.
+
+---
+
+## Why "University of California" is accepted as a known network artefact
+**Date:** 20 April 2026 | **Session:** Cowork (fifth batch)
+
+### Observation
+"University of California" appears in the entity network as an isolated organisation node
+connected only to Tylor, E. B. (Victorian anthropologist). Both nodes are stranded — no
+co-occurrence with any concept, person, or location that survived the network's filters.
+Present in the index of *Philosophical Posthumanism* (2019), *Living Systems* (1978), and
+*Gregory Bateson: The Legacy of a Scientist* (1982); and separately in *Cyburbia* (2009).
+
+### Alternative considered: upstream filter
+Adding "University of California" to a publisher/affiliation blocklist in
+`09_extract_index.py` would remove it from index extraction entirely.
+
+### Decision: accept as known artefact, do not filter
+"University of California" is a legitimately ambiguous string. In different books it may
+appear as: (a) a publisher credit (University of California Press); (b) an institutional
+affiliation (Bateson held positions at UC); (c) a genuine subject reference (a book may
+discuss UC's role in cybernetics research). A surface-form filter cannot distinguish these
+senses because the distinguishing information — sentence context — is absent at the point
+of index extraction. Filtering would suppress legitimate institutional references in
+future books. The isolated node is a cosmetic artefact and does not affect any analysis.
+
+This decision is an application of the **Principle of Context (incomplete information)**
+recorded in CLAUDE.md: when linguistic items are stripped of context, the ability to
+determine meaning is degraded for both humans and algorithms. When a filter would
+correctly block one sense but incorrectly suppress another, accept the noise and record
+the ambiguity as a known artefact rather than introduce a systematic false-negative.
+
+### Status
+Recorded in ROADMAP as a known artefact. No action required unless the node count of
+isolated pairs grows substantially as the collection expands.

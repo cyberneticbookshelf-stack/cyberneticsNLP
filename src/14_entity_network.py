@@ -95,14 +95,14 @@ N          = len(BC)
 n_topics   = R['n_topics']
 
 _LDA_BASE = [
-    'Management Cybernetics',
-    'Second-Order Cybernetics Applied to Social Systems',
-    'Dynamical Systems, Homeostasis & Biological Regulation',
-    'Psychological Cybernetics',
-    'Non-Anglophone Engineering Cybernetics',
-    'Mathematical Foundations of Cybernetics',
-    'Cultural Cybernetics, Posthumanism & Digital Media',
-    'Applied Cybernetics & Computers in Society',
+    'Cybernetics of Political Economy',
+    'Cybernetics and Circularity',
+    'Biological Systems Cybernetics',
+    'Applied Engineering Cybernetics',
+    'Cultural Applications of Cybernetics',
+    'Formal Foundations of Cybernetics',
+    'History and Biography of Cybernetics',
+    'Cybernetic Management Theory',
     'Residual / Outlier Cluster',
 ]
 _carried = R.get('topic_names') or _LDA_BASE
@@ -177,6 +177,28 @@ NOISE_TERMS = {
     'chapter', 'section', 'volume', 'introduction', 'conclusion',
     'appendix', 'bibliography', 'foreword', 'preface', 'series',
     'below', 'above', 'contents', 'glossary',
+}
+
+# Discipline/field names ending in -ics: NOT genuine plural/singular pairs.
+# "cybernetics" is not the plural of "cybernetic"; "thermodynamics" is not the
+# plural of "thermodynamic".  The simple strip-trailing-s rule in
+# _singular_form() would incorrectly propose these merges, splitting -ics field
+# names into their adjectival forms and corrupting book-set unions.
+# Note: genuine count-noun plurals that end in -ics (e.g. "topics" → "topic")
+# are NOT in this list and will be merged normally.  Added 20 April 2026 (KI-09).
+_CONCEPT_PLURAL_EXCEPTIONS = {
+    # Cybernetics and systems disciplines
+    'cybernetics', 'systematics', 'bionics', 'mechatronics', 'informatics',
+    # Physical and life sciences
+    'thermodynamics', 'dynamics', 'genetics', 'physics', 'electronics',
+    'optics', 'acoustics', 'mechanics', 'hydraulics', 'robotics',
+    # Formal and mathematical sciences
+    'mathematics', 'stochastics', 'statistics', 'logistics',
+    # Humanities and social sciences
+    'economics', 'linguistics', 'semantics', 'pragmatics', 'semiotics',
+    'dialectics', 'aesthetics', 'analytics', 'biopolitics', 'politics',
+    # Broad descriptors that appear as field labels
+    'graphics', 'symbolics', 'basics', 'characteristics', 'heuristics',
 }
 
 # Modern technology platforms: excluded from the entity network entirely
@@ -288,7 +310,71 @@ persons = persons_dedup
 print(f"  Persons:        {len(persons):,}  (after dedup)")
 print(f"  Organisations:  {len(organisations):,}")
 print(f"  Locations:      {len(locations):,}")
-print(f"  Concepts:       {len(concepts):,}")
+print(f"  Concepts:       {len(concepts):,}  (before plural dedup)")
+
+# ── Concept plural deduplication (KI-09) ─────────────────────────────────────
+# Index vocabularies routinely contain both singular and plural forms of the
+# same concept (algorithm/algorithms, network/networks, feedback loop/feedback
+# loops).  Treating them as separate nodes splits their PMI signal: books
+# indexed under the plural form do not contribute to the singular node's
+# book-set and vice versa, artificially weakening edge weights.
+#
+# Strategy: for each plural concept, compute a candidate singular form; if that
+# singular is also a concept node, merge the plural into the singular by unioning
+# their book-sets.  The singular is always kept as the canonical node; the plural
+# is removed.  n_books for the canonical node is updated to len(union book-set).
+#
+# _CONCEPT_PLURAL_EXCEPTIONS blocks -ics field names (cybernetics, thermodynamics,
+# etc.) which are NOT grammatical plurals of their adjectival -ic forms.
+#
+# The "only merge if both exist" guard makes the algorithm conservative: even if
+# the suffix rule produces a plausible-looking candidate, the merge only fires
+# when that exact string is already a concept node in the network.
+#
+# Added 20 April 2026 (KI-09).
+
+def _singular_form(tl):
+    """Return the candidate singular form of a term-lower string, or None.
+
+    Handles multi-word terms by recursing on the last word only (so
+    "feedback loops" → "feedback loop", "turing machines" → "turing machine").
+    Returns None when the term is a known field/discipline name (e.g. "cybernetics")
+    that should never be treated as a plural.
+    """
+    if tl in _CONCEPT_PLURAL_EXCEPTIONS:
+        return None
+    if ' ' in tl:                                    # multi-word: recurse on last word
+        head, tail = tl.rsplit(' ', 1)
+        sing_tail = _singular_form(tail)
+        return (head + ' ' + sing_tail) if sing_tail else None
+    # -ies → -y  (theories → theory, properties → property)
+    if tl.endswith('ies') and len(tl) > 4:
+        return tl[:-3] + 'y'
+    # -ses / -xes / -zes → drop -es  (processes → process, boxes → box)
+    if tl.endswith('sses') or tl.endswith('xes') or tl.endswith('zes'):
+        return tl[:-2]
+    # -ches / -shes → drop -es  (approaches → approach, branches → branch)
+    if tl.endswith('ches') or tl.endswith('shes'):
+        return tl[:-2]
+    # Simple trailing -s → drop it  (algorithms → algorithm, networks → network)
+    # Guard: don't strip -ss endings (class, mass, process) or single-char stems.
+    if tl.endswith('s') and not tl.endswith('ss') and len(tl) > 3:
+        return tl[:-1]
+    return None
+
+concept_plural_map = {}    # {plural_tl: singular_tl}
+for tl in list(concepts.keys()):
+    sing = _singular_form(tl)
+    if sing and sing in concepts:
+        concept_plural_map[tl] = sing
+
+# Remove plural keys — they will be folded into their canonical singular node.
+for plural_tl in concept_plural_map:
+    del concepts[plural_tl]
+
+if concept_plural_map:
+    print(f"  Concept plural merges: {len(concept_plural_map)}")
+print(f"  Concepts:       {len(concepts):,}  (after plural dedup)")
 
 # ── Build book-set lookup ─────────────────────────────────────────────────────
 print("Building book sets...")
@@ -302,6 +388,16 @@ person_booksets       = {tl: book_set(tl) for tl in persons}
 organisation_booksets = {tl: book_set(tl) for tl in organisations}
 location_booksets     = {tl: book_set(tl) for tl in locations}
 concept_booksets      = {tl: book_set(tl) for tl in concepts}
+
+# Union plural book-sets into their canonical singular (KI-09).
+# book_set() is called fresh for the plural form even though it was removed
+# from concepts — book_lower still records which books indexed the plural term.
+# vocab[sing_tl]['n_books'] is updated to the union size so that node labels
+# in the HTML report show the correct (merged) book count.
+for plural_tl, sing_tl in concept_plural_map.items():
+    plural_bs = book_set(plural_tl)
+    concept_booksets[sing_tl] = concept_booksets[sing_tl] | plural_bs
+    vocab[sing_tl]['n_books'] = len(concept_booksets[sing_tl])
 
 # ── Book-level PMI × reliability ─────────────────────────────────────────────
 def pmi_score(a_books, b_books, min_both=3):
@@ -420,10 +516,20 @@ if not NO_WINDOWS:
         for bid in scan_bids:
             text = BC.get(bid, {}).get('clean_text', '')
             if not text: continue
-            # Collect target terms present in this book
+            # Collect target terms present in this book.
+            # Also include plural forms that have been merged into a canonical
+            # singular (concept_plural_map) so their paragraph co-occurrences
+            # are credited to the canonical node (KI-09).  Deduplication with
+            # dict.fromkeys preserves order and drops duplicate canonicals (e.g.
+            # a book that indexes both "algorithm" and "algorithms" should only
+            # generate one edge, not two, to the "algorithm" node).
             book_tls = book_lower.get(bid, set())
-            target_tls = [tl for tl in book_tls
-                          if tl in concept_booksets or tl in location_booksets]
+            target_tls = list(dict.fromkeys(
+                concept_plural_map.get(tl, tl)
+                for tl in book_tls
+                if tl in concept_booksets or tl in location_booksets
+                or tl in concept_plural_map
+            ))
             counts = para_cooccur(text, p_v['term'].split(',')[0], target_tls)
             for tl, c in counts.items():
                 window_counts[tl] += c

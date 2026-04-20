@@ -1,6 +1,6 @@
 # Topic Validation Report
 
-**Date:** 2026-04-17  
+**Date:** 2026-04-20  
 **k:** 9  
 **Corpus:** 541 books  
 **Method:** LDA top words + 5-seed stability (Hungarian alignment) + title verification  

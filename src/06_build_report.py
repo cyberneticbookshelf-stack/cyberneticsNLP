@@ -387,7 +387,7 @@ _PAGES = [
     ('clusters.html',   '🗺 Clusters'),
     ('cosine.html',     '🔗 Similarity'),
     ('keyphrases.html', '🔑 Keyphrases'),
-    ('books.html',      '📝 Summaries'),
+    ('book_nlp_entity_network.html', '🕸 Network'),
 ]
 _STATS_N_CHAPTERS = sum(S[b]['n_chapters'] for b in book_ids)
 
@@ -523,6 +523,14 @@ _content_clusters = f"""
 </section>
 <section id="clusters">
   <h2>3 · Clusters</h2>
+  <div style="background:#fefce8;border:1px solid #fde047;border-radius:.5rem;padding:.85rem 1.1rem;margin-bottom:1rem;font-size:.875rem;color:#713f12">
+    <b>⚠ Interpretive caution:</b> K-Means silhouette scores for this corpus are
+    very low (all k values: 0.013–0.021), indicating no statistically valid cluster
+    structure in the high-dimensional space. The {best_k} clusters shown here are
+    exploratory partitions only — useful for browsing, not for drawing strong
+    conclusions about group membership. A different run of <code>run_all.sh</code>
+    may produce a different k or different cluster assignments.
+  </div>
   <table><thead><tr><th>Cluster</th><th>Books</th><th>Titles</th></tr></thead>
   <tbody>{cluster_rows}</tbody></table>
 </section>"""
@@ -584,14 +592,14 @@ _content_cosine = f"""
       <label>View:</label>
       <select id="cosine_mode" onchange="updateCosine()">
         <option value="cluster">Cluster averages</option>
-        <option value="heatmap">Full matrix (542 × 542, no labels)</option>
+        <option value="heatmap">Full matrix ({len(book_ids)} × {len(book_ids)}, no labels)</option>
         <option value="top50">Top 50 pairs</option>
       </select>
     </div>
     <div id="cosine_chart"></div>
     <div class="fig-caption">
       <b>Cluster averages</b>: mean cosine similarity between every pair of clusters — hover for score.
-      <b>Full matrix</b>: all 542 × 542 book pairs sorted by cluster; hover for title and score.
+      <b>Full matrix</b>: all {len(book_ids)} × {len(book_ids)} book pairs sorted by cluster; hover for title and score.
       <b>Top 50 pairs</b>: most similar individual book pairs.
     </div>
   </div>

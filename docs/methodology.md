@@ -2174,3 +2174,43 @@ This does not invalidate the pipeline's findings. It does establish that:
 3. The paper should state that entity network results are conditional on index vocabulary
    quality and that temporal co-occurrence across a 70-year corpus is a known limitation
    of book-level PMI without temporal stratification.
+
+### Implication for dissemination — all outputs are provisional
+
+*Added 18 April 2026*
+
+The argument above about residual error applies not only to the entity network but to all
+pipeline outputs. Because the distribution of residual errors is unknown, and because each
+algorithm in the pipeline makes different simplifying assumptions, the degree to which any
+specific result is corrupted by residual error cannot be determined in advance. Domain
+knowledge can flag individual artefacts (as with Wiener–Google), but cannot certify the
+absence of subtler, undetectable artefacts elsewhere.
+
+This has a direct consequence for dissemination: **all pipeline outputs should be treated
+as provisional results subject to validation, not as findings.** This applies equally to:
+
+- **Interactive HTML reports shared with collaborators or the public** — viewers may
+  identify misclassifications or implausible associations, and this is to be expected and
+  welcomed. A mechanism for viewers to submit corrections is planned (see ROADMAP #15);
+  in the meantime, any flagged issue should be checked against the source data before
+  being dismissed or accepted.
+
+- **Peer review** — reviewers should be told explicitly that (a) the pipeline operates
+  at a scale that precludes manual verification of every output; (b) known error classes
+  have been characterised and mitigated (OCR quality bands, platform contamination,
+  fragment nodes, entity misclassification); (c) unknown residual errors remain and their
+  distribution is uncharacterised; (d) results should therefore be interpreted as
+  large-scale patterns that are robust in aggregate and indicative at the level of
+  individual associations, rather than as individually certified facts.
+
+The practical formulation for paper and report framing:
+
+> *Results are derived from automated analysis of a 542-book corpus and should be treated
+> as provisional. Known data quality issues have been characterised and mitigated; residual
+> errors of uncharacterised distribution remain. Individual associations should be verified
+> against source material before being treated as established findings.*
+
+This is not a weakness to be minimised in the write-up. It is an honest account of what
+corpus-scale computational analysis can and cannot claim — and it is consistent with the
+broader argument in §15 of `docs/memo_media_aware_nlp_epistemic_affordances.md` that the
+pipeline produces a form of *corpus-scale epistemic access* rather than ground truth.

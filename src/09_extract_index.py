@@ -13,6 +13,19 @@ Data-quality fixes (v0.4.1):
     title-cased, multi-word phrases lowercased, preserving genuine title-case
     proper nouns. Deduplication now operates on canonical forms so
     'Cybernetics', 'cybernetics', 'CYBERNETICS' all resolve to 'Cybernetics'.
+
+Data-quality fixes (v0.4.7, 20 April 2026):
+  - _canonical_term(): LOWER_IN_TITLE set added — common English function words
+    (in, and, of, the, from, …) are now recognised as legitimately lowercase in
+    title-case proper nouns, so 'Experiments in Art and Technology', 'Laws of
+    Form', 'Order from Noise', 'Macy Conferences on Cybernetics' etc. are
+    preserved rather than lowercased wholesale.
+  - _canonical_term(): all-caps pre-processing added — multi-word ALL-CAPS
+    strings (e.g. 'LAWS OF FORM' from OCR) are lowercased before the canonical
+    check; genuine multi-word acronym sequences (e.g. 'DNA RNA') are exempted.
+  - index_vocab builder: "best casing wins" logic — if a later book supplies a
+    mixed-case form of a term whose entry is currently all-lowercase, the entry
+    is upgraded to the better-cased version.
 """
 # ── Directory layout ─────────────────────────────────────────────────────────
 import pathlib as _pl
@@ -94,15 +107,39 @@ def _canonical_term(t: str) -> str:
     - Single-word terms: title-case  ('cybernetics' → 'Cybernetics',
                                        'CYBERNETICS' → 'Cybernetics')
     - Multi-word terms:  preserve if already well-formed title-case or proper
-      name (including lowercase particles: von, de, van, di, etc.);
+      name (including lowercase particles: von, de, van, di, etc., and common
+      English function words that are legitimately lowercase in title-case proper
+      nouns: in, of, and, the, from, etc.);
       otherwise lowercase ('GENERAL SYSTEMS THEORY' → 'general systems theory').
 
     This gives consistent deduplication without losing genuine proper nouns
-    (e.g. 'Wiener', 'Shannon', 'von Neumann', 'General Systems Theory').
+    (e.g. 'Wiener', 'Shannon', 'von Neumann', 'General Systems Theory',
+    'Experiments in Art and Technology', 'Laws of Form').
+
+    Bug fixed 20 April 2026: PARTICLES previously omitted common English function
+    words (in, and, of, the, from, …), causing any multi-word proper name
+    containing them to be lowercased wholesale — e.g. 'Experiments in Art and
+    Technology' → 'experiments in art and technology'.  LOWER_IN_TITLE corrects
+    this; only the content words need to be title-cased for the term to be
+    recognised as well-formed.
     """
-    # Particles permitted lowercase inside a proper name
+    # Name particles permitted lowercase inside a proper name (European surnames)
     PARTICLES = {'von', 'van', 'de', 'di', 'du', 'der', 'den',
                  'la', 'le', 'el', 'al', 'bin', 'bint'}
+
+    # English function words that are legitimately lowercase in title-case
+    # proper nouns and organisation names.  A term is "well-formed" if every
+    # word is either title-cased, a name particle, an acronym, OR one of these.
+    LOWER_IN_TITLE = {
+        # Articles
+        'a', 'an', 'the',
+        # Coordinating conjunctions
+        'and', 'but', 'or', 'nor', 'for', 'yet', 'so',
+        # Common prepositions
+        'in', 'on', 'at', 'to', 'of', 'by', 'from', 'with', 'as',
+        'into', 'about', 'over', 'under', 'between', 'among', 'through',
+        'its', 'their',
+    }
 
     words = t.split()
     if not words:
@@ -113,11 +150,25 @@ def _canonical_term(t: str) -> str:
             return w
         return w.capitalize()
 
-    # A word is "well-formed" if it is title-case, a known particle, or
-    # a short all-caps acronym.
+    # Pre-process all-caps multi-word input: these are OCR artefacts where the
+    # typesetter (or scanner) rendered an entire heading in uppercase.
+    # Lowercase before canonical processing so downstream rules work correctly.
+    # Guard: do NOT lowercase genuine multi-word acronym sequences like "DNA RNA"
+    # or "AI ML" — those have every word ≤ 3 chars.  Any word longer than 3
+    # alpha chars signals a real word, not an acronym.  Added 20 April 2026.
+    _alpha = [c for c in t if c.isalpha()]
+    if _alpha and all(c.isupper() for c in _alpha):
+        if any(len(w) > 3 for w in words):
+            t = t.lower()
+            words = t.split()
+
+    # A word is "well-formed" if it is title-case, a name particle, a short
+    # all-caps acronym, or a function word that is legitimately lowercase in
+    # title-case proper nouns (in, of, and, the, from, …).
     def _ok(w):
-        if w in PARTICLES: return True
-        if w.isupper() and len(w) <= 5: return True
+        if w in PARTICLES:        return True   # von, de, van …
+        if w in LOWER_IN_TITLE:   return True   # in, and, of, the, from …
+        if w.isupper() and len(w) <= 5: return True   # DNA, AI, MIT
         return len(w) >= 1 and w[0].isupper() and w[1:].islower()
 
     if all(_ok(w) for w in words):
@@ -247,11 +298,23 @@ for k,v in stats.items():
     print(f"  {k:12s}: {v}")
 
 # Overall vocabulary stats
+# "Best casing wins": if a later book supplies a mixed-case (non-all-lowercase)
+# form of a term whose entry is currently stored in all-lowercase, upgrade it.
+# This handles cases where the first book to index a term happened to print it
+# in lowercase or all-caps (which _canonical_term lowercases), but a later book
+# provides the properly title-cased form.  Added 20 April 2026.
 all_terms = {}
 for bid, d in index_data.items():
     for t in d['terms']:
         tl = t.lower()
-        if tl not in all_terms: all_terms[tl] = {'term': t, 'books': [], 'count': 0}
+        if tl not in all_terms:
+            all_terms[tl] = {'term': t, 'books': [], 'count': 0}
+        else:
+            # Upgrade stored term if current version is all-lowercase and this
+            # occurrence has mixed casing (i.e. at least one uppercase letter).
+            existing = all_terms[tl]['term']
+            if existing == existing.lower() and t != t.lower():
+                all_terms[tl]['term'] = t
         all_terms[tl]['books'].append(bid)
         all_terms[tl]['count'] += 1
 

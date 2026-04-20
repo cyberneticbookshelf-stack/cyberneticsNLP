@@ -13,17 +13,17 @@ File reference format:
 
 ## Project snapshot
 
-**Version:** 0.4.6 (committed `526e964`, pushed to origin/main — 18 April 2026)
+**Version:** 0.4.7 (source edits applied 20 April 2026; commit pending rerun)
 **Repo:** `~/CyberneticsNLP/` on Cybersonic (accessed via sshfs mount inside vault)
 **Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
-**Canonical run:** Run C — `json/nlp_results_k9.json` — 542 books parsed, 541 analysed
-(1 excluded: [2133] Cybernation and Social Change — OCR), k=9, **6/9 stable**,
-**mean stability=0.357**. Run C updated to reflect sixth-batch rerun (18 April 2026);
-decision pending on whether to formally supersede the 14 April lock.
+**Canonical run:** `runlog20260418-3.csv` — 542 books parsed, 541 analysed
+(1 excluded: [2133] Cybernation and Social Change — OCR), k=9, **0/9 unstable**,
+**mean stability=0.357**. Topic ordering shuffled from Run C (14 April); 18 April
+title-sweep confirmed new names (see CHANGELOG [0.4.6]). Committed `491991e`.
 **Canonical `run_all.sh`:** Step 14 runs **without** `--no-windows` (18 April 2026).
-Paragraph-window edges are included in all canonical builds. Network: 1,620 nodes
-(concepts=739), 11,501 edges (book=10,362 + para=1,139). Runs with `--no-windows`
-produce a materially different, smaller network (concepts=500) and are not canonical.
+Paragraph-window edges included in all canonical builds. Network: 1,638 nodes
+(persons=656, concepts=758, orgs=154, locations=70), 11,563 edges
+(book=10,362 + para=1,201), density=0.009, LCC=1,636/1,638, APL=3.27, diameter=6.
 **Master project doc:** `02 Projects/CyberneticsNLP/CyberneticsNLP.md` in vault
 (full sprint list, topic solutions, session log, known issues)
 
@@ -60,6 +60,75 @@ all outputs are provisional" (added 18 April 2026).
 
 ---
 
+## Standing interpretive principle — principle of context (incomplete information)
+
+Linguistic items stripped of their context lose determinate meaning. This applies
+equally to human readers and to algorithms: without the surrounding text, both face
+genuine ambiguity that cannot be resolved by surface form alone.
+
+**Pipeline consequence:** index terms, entity labels, and vocabulary entries are
+inherently decontextualised. A string like "University of California" can be a
+publisher credit, an institutional affiliation, a subject of study, or a funding
+body — the index entry carries none of that distinction. Filtering or classifying
+such items on the basis of string form alone will always produce a mixture of correct
+decisions and errors, because the signal needed to decide is absent at the point of
+decision.
+
+**Practical implications:**
+- Upstream filters (regex blocklists, NER classifiers, entity type rules) operate on
+  decontextualised strings and will therefore always have a residual error rate that
+  cannot be driven to zero without access to full sentence context.
+- When a filter would correctly block one sense of a term but incorrectly block
+  another legitimate sense, the right response is usually to leave the term unfiltered
+  and accept the noise, rather than introduce a systematic false-negative for the
+  legitimate sense. Record the ambiguity in ROADMAP as a known artefact.
+- Corpus-scale NLP results should be understood as reflecting the distribution of
+  surface co-occurrences, not the distribution of intended meanings. Individual
+  associations require verification against source text before being treated as
+  semantically grounded.
+- This is not a pipeline failure — it is an inherent property of working with
+  decontextualised linguistic data at scale.
+
+**Motivating instance (20 April 2026):** "University of California" appears in the
+entity network as an isolated organisation node, connected only to Tylor, E. B.
+It is present in the index of *Living Systems*, *Gregory Bateson: The Legacy of a
+Scientist*, and *Cyburbia* — where it may be a publisher credit, an institutional
+affiliation, or a genuine subject reference. No upstream filter can resolve this
+without sentence context. Accepted as a known artefact; not filtered.
+
+---
+
+## Standing engineering principle — fix upstream, not downstream
+
+The corpus will grow over time. Any fix that patches a downstream script rather than
+the script responsible for producing the relevant data will fail silently for every
+new book added to the collection — the same malformed input will propagate the same
+error through every downstream stage without warning.
+
+**Rule:** when a data-quality problem is identified, the fix must go into the earliest
+script in the pipeline that can intercept it. Downstream scripts must handle the
+exception at source, not compensate for it.
+
+**Practical consequence:**
+- A regex filter in `09_extract_index.py` (e.g. `FOREIGN_HEADER_RE`, `_canonical_term()`)
+  is the right place to fix an index-extraction artefact — not in `14_entity_network.py`
+  by blacklisting the resulting bad term.
+- A casing normalisation in `_canonical_term()` is the right place to fix lowercased
+  proper names — not by patching individual entries in `index_vocab.json`.
+- A stopword addition in `03_nlp_pipeline.py` is the right place to suppress a noise
+  term — not by post-filtering topics in `06_build_report.py`.
+
+**When a downstream patch is unavoidable** (e.g. the upstream fix is blocked by
+missing data or pending API access), record it explicitly in ROADMAP.md with a note
+that it is a temporary workaround and a pointer to the upstream script that should
+eventually own the fix.
+
+This principle was made explicit 20 April 2026 after the `_canonical_term()` casing
+bug: the fix in `09_extract_index.py` was the right intervention point; any entity
+network node-level patch would have been a stopgap that new books would bypass.
+
+---
+
 ## Backlog item — User correction mechanism (ROADMAP #15)
 
 Entity network HTML is shared publicly. Viewers will spot misclassifications.
@@ -77,31 +146,33 @@ See `docs/ROADMAP.md` item #15.
 This is consistent with the standing methodological principle (all outputs are provisional)
 and the provenance notice already in all reports.
 
-**Files in scope for release:**
+**Files in scope for release (nav links to entity network, not summaries):**
 - `data/outputs/index.html` — main report (Fig 1–6 + topic proportions)
-- `data/outputs/books.html` — per-book summaries and topic assignments
 - `data/outputs/clusters.html` — cluster composition
 - `data/outputs/keyphrases.html` — keyphrase analysis
 - `data/outputs/cosine.html` — cosine similarity
 - `data/outputs/book_nlp_entity_network.html` — entity relational network
 
+`books.html` (per-book summaries) is not in the current release scope — summary quality is not yet at release standard. All four navigable pages link to the entity network via the nav tab.
+
 **Known issues affecting these files (prioritised):**
 
 | Priority | Issue | File | Status |
 |----------|-------|------|--------|
-| High | ROADMAP #16: Fig 3 topic filter uses stale NMF names | index.html | Open |
-| High | KI-10: concept node count 746→500 on fresh rebuild — resolved (`--no-windows` removed from `run_all.sh`) | entity_network.html | ✅ Resolved |
-| Medium | KI-09: ~150 singular/plural node pairs split PMI signal | entity_network.html | Deferred |
+| High | ROADMAP #16: topic filter dropdowns stale | index.html, keyphrases.html | ✅ Resolved 18 April |
+| High | KI-10: concept count 746→500 on fresh rebuild | entity_network.html | ✅ Resolved 18 April |
+| Medium | KI-09: ~150 singular/plural node pairs split PMI signal | entity_network.html | ✅ Resolved 20 April |
 | Low | Chapter NMF T4 contains metadata noise words | (chapter reports, not in scope) | Note only |
 
 **What "defensible" means here:**
 - All known systematic errors (platform contamination, EOLSS noise, trailing fragments,
   node misclassifications) are fixed or mitigated — done.
 - Provenance notice visible at all scroll positions — done.
-- Topic names in all reports match the current provisional LDA names — needs ROADMAP #16 fix.
+- Topic names in all reports match current provisional LDA names — done (18 April).
 - Entity network validated against domain knowledge — done (KI-07 resolved).
-- KI-10 understood well enough to decide whether 500 or 746 concepts is correct — pending.
 - No individual certified finding; results framed as automated provisional analysis — done.
+
+**Release status: All source-level fixes applied 20 April 2026. Full rerun of `run_all.sh` required (rebuild from step 09 due to `09_extract_index.py` casing fix).**
 
 ---
 
@@ -220,141 +291,106 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
 
 ---
 
-## Files modified this session (17 April 2026)
+## Files modified this session (18–20 April 2026 — fifth batch, v0.4.7)
 
-- `docs/methodology.md` — new section ~line 2074:
-  §"Residual error propagation and the limits of upstream cleaning"
-- `src/09b_build_index_analysis.py` — `is_noise_term` extended; `_AUTHAFFIL` fixed;
-  book-level exclusion from `book_styles.json` added (~line 94–220)
-- `src/14_entity_network.py` — `KNOWN_TECH_PLATFORMS` + structural terms added to
-  `NOISE_TERMS`; wired into classification loop (~line 141–162)
-- `src/02_clean_text.py` — Internet Archive / platform strings added to
-  `INLINE_PATTERNS` (~line 387)
-- `CLAUDE.md` — created this session
-- `json/book_styles.json` — EOLSS vols 1–3 (IDs 2232/2233/2711) reclassified
-  `reference`, `verified=True` (not committed — json/ is gitignored)
+**Context:** Fifth-batch Cowork session spanning 18–20 April 2026. Two sub-sessions:
+(a) 18 April — stale-var automation, runlog, keyphrases repair (see CHANGELOG [0.4.7]);
+(b) 20 April — five source-level fixes for release-targeted HTML files + KI-09 resolution
++ `09_extract_index.py` systematic casing fix.
+Commit pending; full rerun of `run_all.sh` required (rebuild from step 09 onwards).
 
-## Files modified this session (18 April 2026 — third batch)
+**18 April sub-session:**
 
-- `src/14_entity_network.py` — `_TRAILING_FUNC` and `_CTA_BACK_MATTER` regexes added
-  after `KNOWN_TECH_PLATFORMS` (~line 167–185); both wired into classification loop
-  before cache lookup (~line 200). Suppresses ~50 trailing-function-word fragment nodes
-  and CTA/back-matter strings regardless of cache content.
-- `src/15_entity_classify.py` — two changes:
-  (a) Stage 2 spaCy loop: guard added (`if cache.get(tl,{}).get('source')=='manual': continue`)
-      so spaCy never overwrites MANUAL_CORRECTIONS entries, even on `--refresh` runs.
-  (b) `MANUAL_CORRECTIONS` dict: 98 new entries + 1 existing entry corrected
-      (`macy conferences on cybernetics` concept→suppress). Full KI-07 correction set
-      now hardcoded in source — survives cache wipes and `--refresh`. (183 total entries.)
-- `json/entity_types_cache.json` — 101 entries corrected (all pre-existing wrong entries;
-  see KI-07 above for full list). Not committed — json/ is gitignored.
-- `docs/CHANGELOG.md` — [0.4.4] entry added.
-- `CLAUDE.md` — KI-07 added; files-modified and next-session sections updated.
-- All 9 HTML-generating scripts — `_PROV_NOTICE` constant added; `html.replace('</body>',
-  _PROV_NOTICE + '\n</body>', 1)` inserted before each `f.write(html)`. Committed `e2273e7`.
+- `src/check_stale_vars.py` — new utility created: checks `_LDA_BASE` in 8 scripts
+  against `json/nlp_results.json['topic_names']`; cross-verifies TAXONOMY; flags
+  corpus-count literals. `--fix` mode uses line-scanner (not `re.sub()`). First run:
+  7 scripts fixed, 1 already current. Integrated into `run_all.sh`.
 
-## Files modified this session (18 April 2026 — fourth batch)
+- `src/run_all.sh` — (a) runlog generation via `exec > >(tee "$RUNLOG") 2>&1` added
+  after `STREAM` setup; (b) `python3 "$SCRIPT_DIR/check_stale_vars.py" --fix` added
+  after `patch_topic_names.py`.
 
-**Context:** run_all.sh rerun (KI-07) completed. runlog20260418.csv reviewed.
-Confirmed: pipeline ran 01:53–02:12 AEST, completed cleanly, node count 1,860 → 1,459.
-Manual spot-check found residual issues, leading to full entity cache audit.
+- `figures/fig7_keyphrases.png` — regenerated with 18 April canonical topic names.
 
-- `src/14_entity_network.py` — `_CTA_BACK_MATTER`: `author` → `authors?`; new
-  `_EOLSS_NOISE` and `_TRAILING_COLON` regexes added and wired in.
-- `src/15_entity_classify.py` — MANUAL_CORRECTIONS fourth batch: 7 singular/plural
-  misclassifications, `brain, human` concept→suppress, `about the author/authors`,
-  `not`, `requisite variety, law of`, `perceptrons` → suppress (18 new entries).
-- `data/outputs/concept_node_review.csv` (vault) — 294-row review spreadsheet of all
-  degree 1–2 concept nodes; columns: term, degree, n_books, ner_source, recommendation,
-  reason, paul_decision. 89 Suppress / 205 Keep recommended.
+- `data/outputs/keyphrases.html` — repaired (was blank after sshfs write error);
+  reconstructed by running `06_build_report.py` from sandbox.
 
-**Output file note:** `book_nlp_results.html` split into `index.html`, `books.html`,
-`clusters.html`, `keyphrases.html`, `cosine.html` in `data/outputs/`.
+**20 April sub-session:**
 
-**Open discrepancy:** pipeline logged 541 books for LDA; canonical corpus is 542.
-One book dropped at runtime — not yet investigated (KI-08).
+- `src/03_nlp_pipeline.py` — 13 contraction stems added to STOPWORDS (`aren, couldn,
+  didn, doesn, hadn, hasn, haven, mustn, shan, shouldn, wasn, weren, wouldn`). These
+  bypass the stop list because the lemmatiser strips `"'t"` before CountVectorizer runs.
 
-## Files modified this session (18 April 2026 — sixth batch)
+- `src/06_build_report.py` — three changes:
+  (a) `_PAGES` nav: `('books.html', '📝 Summaries')` → `('book_nlp_entity_network.html',
+      '🕸 Network')` — all four release pages now link to entity network.
+  (b) Cosine: both `542 × 542` literals → `{len(book_ids)} × {len(book_ids)}`.
+  (c) Clusters: yellow interpretive caveat box added before cluster table (silhouette
+      scores 0.013–0.021; no valid cluster structure; exploratory only; k may vary).
 
-**Context:** Full pipeline rerun (`runlog20260418-2.csv`) after fifth batch commit `526e964`.
-OCR exclusion of [2133] Cybernation and Social Change confirmed in pipeline output.
+- `src/run_all.sh` — `09c_validate_topics.py --top 10 --md` moved to after
+  `patch_topic_names.py` and `check_stale_vars.py --fix`. `topic_validation.md` now
+  written with canonical names, not raw LDA labels.
 
-**No source files modified this session.** Pipeline run only. Outputs regenerated:
-- `data/outputs/runlog20260418-2.csv` — full run log, 05:37–05:56 AEST
-- `json/nlp_results.json` — 541-book corpus, k=9, mean stability=0.357, 6/9 stable
-- `json/entity_network.json` — 1,380 nodes; density=0.0109; APL=3.24; diameter=7
-- `data/outputs/book_nlp_entity_network.html` — regenerated (1651 KB)
-- All other HTML/Excel outputs in `data/outputs/` — regenerated
+- `src/14_entity_network.py` — KI-09 resolved: `_CONCEPT_PLURAL_EXCEPTIONS` set (35
+  `-ics` field names); `_singular_form()` function (5 morphological rules + multi-word
+  recursion); `concept_plural_map` built after concept classification; plural nodes
+  removed from `concepts` dict; book-set union into singulars post `concept_booksets`;
+  `vocab[sing_tl]['n_books']` updated; `target_tls` normalised via `concept_plural_map`.
 
-**Findings from runlog review:**
-- KI-08 resolved: [2133] excluded via `ocr-excluded` list (542→541 confirmed)
-- Topic stability improved: mean 0.357 (was 0.327), 6/9 stable (was 5/9)
-- Entity network concept nodes dropped 746→500; KI-10 opened to investigate
-- Chapter NMF topic T4 contains metadata noise: "minor sections", "sections", "rights"
-  — suggests publication boilerplate leaking into chapter summaries (minor issue)
-- One benign numpy warning in `src/05_visualize_chapters.py` (`where` without `out`)
-- sklearn stop-word warning (contractions) is pre-existing and benign
+- `src/09_extract_index.py` — systematic casing fix for `_canonical_term()`:
+  (a) `LOWER_IN_TITLE` set added (articles, conjunctions, prepositions); `_ok()`
+  updated — terms like `Experiments in Art and Technology`, `Laws of Form`,
+  `Macy Conferences on Cybernetics` now preserved correctly;
+  (b) all-caps pre-processing — multi-word ALL-CAPS strings lowercased before canonical
+  check if any word > 3 chars (exempts genuine acronym sequences like `DNA RNA`);
+  (c) "best casing wins" in `all_terms` vocab builder — stored all-lowercase entries
+  upgraded when a later book supplies mixed-case form.
+  **Rebuild from step 09 required** (`09_extract_index.py` → `09b` → `09c` → `10`
+  → `12` → `14` → `15`).
 
----
-
-## Files modified this session (18 April 2026 — fifth batch)
-
-**Context:** Degree 1–2 concept node review. Paul confirmed all recommendations from
-`concept_node_review.csv`. 89 suppressions implemented. Provenance notice redesigned.
-
-- `src/15_entity_classify.py` — MANUAL_CORRECTIONS fifth batch: 89 suppressions
-  (17 bare adjectives, 28 noise/irrelevant, 36 too-generic, 6 near-duplicates).
-  Applied via `patch_apply.py` run on Cybersonic.
-- All 9 HTML-generating scripts — `_PROV_NOTICE` updated:
-  (a) Hardcoded corpus count removed ("542-book corpus" → "the CyberneticsNLP corpus").
-      Rationale: KI-08 unresolved; fragile count in a data-quality notice is itself
-      a data-quality risk.
-  (b) `position:fixed;top:0` replaces static bottom placement — banner now visible
-      at all scroll positions. `body{padding-top:54px}` added to prevent content overlap.
-  Applied via `fix_prov_notice.py` (corrected version of `patch_apply.py`, which had
-  a `re.sub` backslash-processing bug causing unterminated string literals).
-- `json/entity_network.json` — rebuilt: 1,627 nodes (persons=656, orgs=154,
-  locations=71, concepts=746); 11,558 edges; density=0.0087; APL=3.248; diameter=5.
-- `data/outputs/book_nlp_entity_network.html` — regenerated (1,849 KB).
-- Patch scripts (vault, moved to bin after use — not in repo).
-- **Committed `526e964`, pushed to origin/main 18 April 2026.**
+- `docs/CHANGELOG.md` — [0.4.7] entry updated with `09_extract_index.py` casing fix.
+- `docs/contributions.md` — 20 April session row updated with all changes.
+- `CLAUDE.md` — release status and files-modified section updated.
 
 ---
 
 ## Next session agenda
 
-*Items 1–3 are release-blocking for colleague HTML sharing. Items 4+ are lower priority.*
+*Session startup: run fresh `run_all.sh`, save runlog, review key stats before proceeding.*
 
-1. **Fix ROADMAP #16** *(release-blocking for index.html)* — Fig 3 topic filter dropdown
-   uses stale NMF names. Fix in `src/06_build_report.py` to read `topic_names` from
-   `json/nlp_results.json` at build time. Requires Cybersonic script run after fix.
+1. **Topic name validation sprint** *(high priority)* — topic ordering shuffled this
+   session without warning; the run-records system would have caught it. Start with
+   `src/record_topic_run.py` (draft in vault `docs/src_draft/`): record run parameters,
+   top words, top books, assigned names, rater, date → `json/topic_run_records.json`.
+   Then `src/compare_topic_runs.py` — cross-run comparison report. Multi-rater protocol
+   to follow.
 
-3. **Canonical run decision** — formally update canonical run from 14 April lock
-   (mean stability=0.327, 5/9) to sixth-batch figures (mean stability=0.357, 6/9).
-   Depends on KI-10 resolution. Once locked, update snapshot in this file.
-
-4. **Document KI-08 in methodology** — add a data quality entry for [2133] Cybernation
+2. **Document KI-08 in methodology** — add data quality entry for [2133] Cybernation
    and Social Change to `docs/methodology.md`: nature of OCR corruption, why excluded,
-   what "infects the collection" means operationally.
+   what "infects the collection" means operationally. Canonical corpus framing:
+   "541 monographs and collected works analysed".
 
-5. **Entity network interface review** — review `book_nlp_entity_network.html` for any
-   remaining presentation-quality issues before colleague release.
+3. **Classifier track** — second review round: `csv/monograph_sample_*.csv` awaiting
+   Paul's review (ROADMAP #1). Feeds classifier retraining (#2, #3).
 
-6. **Topic name validation method** — review and develop the validation approach;
-   connect to topic naming reliability sprint items (run-records, multi-rater protocol).
+4. **Topic name ordering shuffle — note for paper** — the non-determinism of LDA topic
+   ordering between runs is itself a methodological finding worth documenting: stability
+   metrics are preserved but index positions rotate, making run-to-run name comparison
+   unreliable without a tracking system. Relevant to methodology section.
 
-7. **Conceptual writing** — draft or develop sections on:
+5. **Conceptual writing** — draft or develop sections on:
    - Epistemic affordances of the pipeline
-   - Human–AI collaboration framing for the methodology
-   - Data quality issues and the algorithm infection principle
+   - Human–AI collaboration framing
+   - Data quality and the algorithm infection principle
    Target: `docs/methodology.md` or standalone memo(s).
 
-8. **Review draft scripts** in vault `02 Projects/CyberneticsNLP/docs/src_draft/`:
-   - `compare_topic_runs.py` — assess readiness to graduate to `src/`
-   - `record_topic_run.py` — assess readiness to graduate to `src/`
+6. **Review draft scripts** in vault `docs/src_draft/`:
+   - `record_topic_run.py` — graduate to `src/`?
+   - `compare_topic_runs.py` — graduate to `src/`?
 
-9. **Future structural item:** plural-dedup normalisation step in `src/14_entity_network.py`
-   (~150 same-kind singular/plural pairs; defer until entity network otherwise stable).
+7. **Future structural item** — plural-dedup normalisation in `src/14_entity_network.py`
+   (~150 singular/plural pairs; defer until entity network otherwise stable).
 
 ---
 
@@ -423,7 +459,7 @@ manually (e.g. in CLAUDE.md or ROADMAP).
 | KI-06 | Proceedings/handbook books not yet filtered from pipeline | Pending signal inventory + document unit decision (moratorium) |
 | KI-07 | ~130 misclassified nodes + EOLSS contamination + plural/comma fragments | **Fully resolved 18 April 2026** — all fixes in `src/14` and `src/15`; rerun complete; final network 1,627 nodes |
 | KI-08 | 541 vs 542 book count in LDA — one book dropped at runtime | **Resolved 18 April 2026** — [2133] Cybernation and Social Change excluded via `ocr-excluded` list; OCR corruption infects collection |
-| KI-09 | ~150 singular/plural node pairs (e.g. algorithm/algorithms) — split PMI signal | **Open** — structural fix (lemmatisation in `src/14`) deferred as future sprint item |
+| KI-09 | ~150 singular/plural node pairs (e.g. algorithm/algorithms) — split PMI signal | **Resolved 20 April 2026** — `_singular_form()` + `concept_plural_map` in `src/14_entity_network.py`; plurals merged into singulars with book-set union; `_CONCEPT_PLURAL_EXCEPTIONS` blocks 35 `-ics` field names (cybernetics, thermodynamics, etc.) that are not genuine plurals; paragraph-window `target_tls` normalised; rerun required |
 | KI-10 | Entity network concepts dropped 746→500 on fresh rebuild (sixth batch) | **Resolved 18 April 2026** — `run_all.sh` was running step 14 with `--no-windows`, excluding ~239 concept nodes that only have paragraph-level edges (no qualifying book-level co-occurrence). Not a data bug; two internally consistent networks. Fix: removed `--no-windows` from `run_all.sh` so paragraph windows always run. Canonical network: 1,620 nodes, 739 concepts. |
 
-*Updated 18 April 2026 — Cowork session (sixth batch)*
+*Updated 20 April 2026 — Cowork session (fifth batch, v0.4.7; commit pending rerun)*

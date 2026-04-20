@@ -122,14 +122,14 @@ pub_years   = R.get('pub_years', [None]*len(book_ids))
 lda_topics  = R['dominant_topics']
 
 _LDA_BASE = [
-    'Management Cybernetics',
-    'Second-Order Cybernetics Applied to Social Systems',
-    'Dynamical Systems, Homeostasis & Biological Regulation',
-    'Psychological Cybernetics',
-    'Non-Anglophone Engineering Cybernetics',
-    'Mathematical Foundations of Cybernetics',
-    'Cultural Cybernetics, Posthumanism & Digital Media',
-    'Applied Cybernetics & Computers in Society',
+    'Cybernetics of Political Economy',
+    'Cybernetics and Circularity',
+    'Biological Systems Cybernetics',
+    'Applied Engineering Cybernetics',
+    'Cultural Applications of Cybernetics',
+    'Formal Foundations of Cybernetics',
+    'History and Biography of Cybernetics',
+    'Cybernetic Management Theory',
     'Residual / Outlier Cluster',
 ]
 _ntop = R['n_topics']

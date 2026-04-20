@@ -89,14 +89,14 @@ vocab      = IA['vocab']
 book_terms = IA['book_terms']
 
 _LDA_BASE = [
-    'Management Cybernetics',
-    'Second-Order Cybernetics Applied to Social Systems',
-    'Dynamical Systems, Homeostasis & Biological Regulation',
-    'Psychological Cybernetics',
-    'Non-Anglophone Engineering Cybernetics',
-    'Mathematical Foundations of Cybernetics',
-    'Cultural Cybernetics, Posthumanism & Digital Media',
-    'Applied Cybernetics & Computers in Society',
+    'Cybernetics of Political Economy',
+    'Cybernetics and Circularity',
+    'Biological Systems Cybernetics',
+    'Applied Engineering Cybernetics',
+    'Cultural Applications of Cybernetics',
+    'Formal Foundations of Cybernetics',
+    'History and Biography of Cybernetics',
+    'Cybernetic Management Theory',
     'Residual / Outlier Cluster',
 ]
 # Pad with generic labels if the pipeline found more topics than the base list
