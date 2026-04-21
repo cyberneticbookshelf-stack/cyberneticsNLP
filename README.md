@@ -8,7 +8,7 @@ Claude Sonnet 4.6 (Anthropic, claude.ai)²
 ¹ School of Cybernetics, The Australian National University, Canberra, Australia
 ² Large language model; no persistent identity, affiliation, or legal standing
 
-**Date:** 15 April 2026
+**Date:** 21 April 2026
 
 ---
 
@@ -52,6 +52,9 @@ CyberneticsNLP/
 │   └── ...                     ← other pipeline intermediates
 │
 ├── data/
+│   ├── pipeline.db             ← Pipeline SQLite database (8 tables: runs, equivalence classes,
+│   │                              runlog ingestion, survey generation, response collection)
+│   │                              Replaces data/topic_naming.db (3 tables); shared via pipeline_db.py
 │   └── outputs/                ← Generated HTML reports and Excel files (Cybersonic local)
 │       ├── book_nlp_analysis.html
 │       ├── book_nlp_analysis_chapters.html
@@ -101,7 +104,15 @@ CyberneticsNLP/
 │   ├── train_monograph_classifier.py  Monograph binary classifier (logistic regression)
 │   ├── check_integrity.py          Session-start integrity checker
 │   ├── test_pipeline.py            Regression test suite (15 tests)
-│   └── run_all.sh                  End-to-end runner
+│   ├── check_stale_vars.py         Detect and auto-fix stale hardcoded fallback vars (--fix)
+│   ├── record_topic_run.py         Topic naming server — direct DB submission (server/offline/ingest modes)
+│   ├── pipeline_db.py              Shared DB module — 8-table schema, DB path, hash functions
+│   ├── log_pipeline_run.py         Manual run logging — equivalence class tracking; pre-survey gate
+│   ├── migrate_pipeline_db.py      One-shot migration from topic_naming.db → pipeline.db
+│   ├── get_google_token.py         OAuth token generator for Google Forms API (run once on AshbyX)
+│   ├── generate_google_form.py     Google Forms survey creation — 39-item form per pipeline run
+│   ├── ingest_google_responses.py  Google Form response ingester → pipeline.db
+│   └── run_all.sh                  End-to-end runner (--test flag for survey-ineligible test runs)
 │
 ├── docs/
 │   ├── methodology.md          ← full technical methodology (2,000+ lines)
@@ -405,6 +416,24 @@ Or uncomment the pre-written block at the bottom of `src/run_all.sh`.
 ---
 
 ## Recent changes
+
+### v0.5.0 (21 April 2026)
+- **Google Forms survey infrastructure**: complete topic naming reliability system built. `generate_google_form.py` fully rewritten — creates a 39-item form per pipeline run via Google Forms API (`forms.body`, `forms.responses.readonly`, `drive.file` scopes). `ingest_google_responses.py` ingests responses into `pipeline.db`. OAuth via Desktop app; `credentials.json`/`token.json` generated on AshbyX and accessed via sshfs mount.
+- **pipeline.db refactor**: `data/topic_naming.db` (3 tables) replaced by `data/pipeline.db` (8 tables). All scripts share a single `src/pipeline_db.py` module for schema, DB path, and hash functions. `src/migrate_pipeline_db.py` ports existing data.
+- **Equivalence classes**: two runs are equivalent if they share `k`, `n_books`, `max_features`, `pipeline_mode`, `seeds_used`. `run_hash = SHA-256(16)` of canonical JSON of these 5 parameters; `nlp_hash = SHA-256(16)` of `nlp_results.json` contents.
+- **Manual logging gate**: `log_pipeline_run.py` must be run before a survey form can be created; `generate_google_form.py` errors if run is not logged or is flagged `is_test=1`.
+- **First live form**: Form ID `12WRA4eUfWabEEC4grf9LWuJweDYg3RTptw63UbV07z4`, run `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`.
+
+### v0.4.7 (20 April 2026)
+- **`record_topic_run.py`**: topic naming server (server/offline/ingest modes); SQLite `data/topic_naming.db`. First live test 20 April (SSH tunnel; Paul W, run_20260420_k9_s5, 9 topics saved).
+- **`check_stale_vars.py`**: detects and auto-fixes stale `_LDA_BASE` fallback lists across 8 scripts (`--fix`). Integrated into `run_all.sh` after `patch_topic_names.py`.
+- **`run_all.sh`**: automatic runlog capture to `data/outputs/runlogYYYYMMDD.csv`.
+- **Fixes**: contraction stems added to STOPWORDS in `03_nlp_pipeline.py`; cosine section hardcoded counts replaced in `06_build_report.py`; `09_extract_index.py` — systematic lowercasing bug fixed for multi-word proper names containing function words (22/22 tests pass); entity network singular/plural concept node deduplication.
+
+### v0.4.4–v0.4.6 (18 April 2026)
+- **v0.4.6**: Entity network HTML — 4 bugs fixed (provenance notice layout, p99 degree filter, and others); release-ready.
+- **v0.4.5**: Methodological provenance statement (`_PROV_NOTICE`) embedded in all 9 HTML-generating scripts at source level and in generated output.
+- **v0.4.4**: Entity network node misclassification sweep (KI-07) — ~130 corrections; `_TRAILING_FUNC` and `_CTA_BACK_MATTER` suppression filters; 101 cache entries corrected.
 
 ### v0.4.3 (14 April 2026)
 - **Full-text LDA refactor**: `--full-text`, `--run-id`, `--name-topics` flags added to `03_nlp_pipeline.py`; full body text with front/back matter stripped; 15,000-feature vocabulary; spaCy lemmatisation.

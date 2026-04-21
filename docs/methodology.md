@@ -2214,3 +2214,144 @@ This is not a weakness to be minimised in the write-up. It is an honest account 
 corpus-scale computational analysis can and cannot claim — and it is consistent with the
 broader argument in §15 of `docs/memo_media_aware_nlp_epistemic_affordances.md` that the
 pipeline produces a form of *corpus-scale epistemic access* rather than ground truth.
+
+---
+
+## 24. Topic Naming Reliability — Survey Infrastructure
+
+*Added 21 April 2026*
+
+### The problem: LDA topic naming is non-deterministic
+
+LDA topic ordering is non-deterministic between runs. Two runs on the same corpus with
+the same parameters produce the same intellectual content across topics — the same books
+cluster together, the same vocabulary characterises each cluster — but the *index labels*
+assigned to those clusters (T1, T2, ... T9) may rotate between runs. A name assigned to
+"T3" in one run may correctly describe what is "T7" in a subsequent run.
+
+This non-determinism has two consequences for topic naming methodology:
+
+1. **Within-run naming is specific to a run.** A naming survey form is tied to the topic
+   ordering of one specific run. Responses submitted against that form are valid for that
+   run's ordering but cannot be directly compared to responses from a different run
+   without first aligning the topics across runs.
+
+2. **Cross-run agreement requires alignment, not index matching.** "Do raters agree on
+   T3's name across two runs?" is not answerable by comparing T3's responses in both
+   runs — because the two T3s may be different clusters. Cross-run comparison requires
+   first identifying which cluster in run B corresponds to which cluster in run A (via
+   Jaccard similarity of top-word sets, aligned by the Hungarian algorithm).
+
+### Equivalence classes
+
+Two pipeline runs are defined as **equivalent** if they share the same five input
+parameters: `k` (number of topics), `n_books` (corpus size), `max_features` (vocabulary
+size), `pipeline_mode` (full-text or standard), and `seeds_used` (number of random seeds).
+The **run_hash** is SHA-256(16) of the canonical JSON-serialised values of these five
+parameters. All runs sharing the same `run_hash` form an equivalence class.
+
+Within an equivalence class, topics may be permuted but should not differ substantively
+in content (same books, same vocabulary, same intellectual structure). Cross-run name
+stability within an equivalence class is therefore meaningful: a name that survives topic
+alignment across multiple runs in the same class is a stronger candidate than a name
+agreed upon for one run only.
+
+Runs from *different* equivalence classes (e.g. k=9 vs k=10, or different corpus sizes)
+are not directly comparable: the topics themselves may differ in content, not just order.
+
+### Run identity
+
+Each specific pipeline run — each specific realisation of the LDA solution — is
+identified by its **nlp_hash**: SHA-256(16) of the contents of `nlp_results.json`.
+The `nlp_hash` is stable: the same `nlp_results.json` always produces the same hash,
+regardless of when it is computed. If `nlp_results.json` changes (e.g. after a fresh
+pipeline run), the `nlp_hash` changes and the new run is treated as a distinct instance.
+
+The combination of `nlp_hash` (specific instance) and `run_hash` (equivalence class)
+gives each run a two-level identity: which class it belongs to, and which specific
+realisation it is within that class.
+
+### The manual logging gate
+
+Before a naming survey form can be created, the run must be explicitly logged using
+`src/log_pipeline_run.py`. This tool:
+
+1. Reads `nlp_results.json`, computes `nlp_hash` and `run_hash`
+2. Checks whether the run has already been logged (idempotent)
+3. Displays the equivalence class and any sibling runs already in that class
+4. Prompts for a human-readable `run_id` (default: `run_YYYYMMDD_k{k}_s{seeds}`),
+   optional notes, and confirmation
+5. Ingests the most recent runlog CSV into `runlog_entries` and inserts the run into
+   `pipeline_runs`
+
+The `--test` flag marks the run as `is_test=1`, preventing survey form creation.
+Test runs go through the full pipeline and are logged, but cannot be surveyed.
+
+The manual logging step is a quality gate: the researcher reviews the run
+(book count, stability scores, runlog) before committing to a survey. A form
+created for an anomalous run wastes raters' time and pollutes the naming database.
+
+### Google Forms survey workflow
+
+Survey collection uses the Google Forms API. For each logged, non-test pipeline run:
+
+1. `src/generate_google_form.py` creates a Google Form with:
+   - A rater name field (required) and session notes field
+   - Per-topic blocks (one for each of the k topics), each containing:
+     - A text header showing: stability score, canonical top words (from the run),
+       stable core words (appearing in ≥ n_seeds−1 of n_seeds runs), top 8 books
+       with loading, author, and year
+     - Three question fields: proposed name (short answer, required), confidence
+       (radio: high / medium / low), and notes (paragraph)
+   - Total: `3 + 3k` question items (rater, notes, then 3 per topic)
+   - Form is created via the Google Forms API and linked to the run in `pipeline.db`
+   - Form URL is printed for sharing with raters
+
+2. Raters complete the form in their browser (requires a Google account unless the form
+   is set to allow anonymous responses in Google Forms settings).
+
+3. `src/ingest_google_responses.py` fetches all current responses from the Google Forms
+   API and inserts new submissions into `naming_sessions` and `topic_ratings` in
+   `pipeline.db`. The script is idempotent: each response is tracked by its Google
+   `responseId` in `google_form_responses`; duplicate ingestion is silently skipped.
+
+### Database schema (`data/pipeline.db`)
+
+All pipeline and survey state is stored in `data/pipeline.db` (SQLite). The 8-table
+schema:
+
+| Table | Purpose |
+|---|---|
+| `equivalence_classes` | One row per unique `run_hash`; `run_params` JSON blob of the five defining parameters |
+| `pipeline_runs` | One row per logged run; `nlp_hash`, `run_hash` (FK), `is_test`, `k`, `n_books`, `mean_stability`, `topic_names`, `lda_params` blob |
+| `runlog_entries` | Structured lines from the pipeline runlog CSV, linked to `pipeline_runs` |
+| `naming_sessions` | One row per rater response; `rater`, `session_at`, `session_notes`, FK to `run_id` |
+| `topic_ratings` | One row per topic per naming session; `topic_idx`, `proposed_name`, `confidence`, `notes`, `stability_score`, `top_words`, `top_books` |
+| `google_form_configs` | One row per created Google Form; `form_id`, `run_id`, `share_url`, `question_id_map` (JSON), `topic_meta` (JSON) |
+| `google_form_responses` | Deduplication table; `response_id` (Google's ID) uniquely identifies each submitted response |
+
+The database was migrated from `data/topic_naming.db` (3 tables: `runs`,
+`naming_sessions`, `topic_ratings`) using `src/migrate_pipeline_db.py`. Migrated runs
+have `nlp_hash=""` because their original `nlp_results.json` predates the hashing scheme.
+
+### Authentication
+
+The Google Forms API uses OAuth 2.0 with a Desktop app credential
+(`credentials.json`, gitignored). On first use, `src/get_google_token.py` is run on a
+machine with a browser (which has the NLP machine filesystem mounted via sshfs),
+completes the OAuth flow, and saves `token.json` directly to the project
+directory via the sshfs mount. Subsequent script invocations use the saved token,
+refreshing it automatically when it expires. The same token and credential scopes
+(`forms.body`, `forms.responses.readonly`, `drive.file`) are shared by all three Google
+Forms scripts.
+
+### Status and next steps (21 April 2026)
+
+Infrastructure complete. First live form confirmed. Remaining sprint items:
+
+- **Item 2:** `src/compare_topic_runs.py` — cross-run comparison report using topic
+  alignment; book presence matrices, word stability, naming records table.
+- **Item 3:** Multi-rater naming protocol — ≥2 independent raters per topic per run;
+  record disagreements; compute inter-rater agreement (Cohen's kappa or % agreement).
+- **Item 4:** Revise naming status — current k=9 names are provisional (single run,
+  single rater). Names stable only after ≥3 runs and ≥2 raters agree.

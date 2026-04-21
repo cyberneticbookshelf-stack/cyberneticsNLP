@@ -6,11 +6,67 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.5.0] — 2026-04-21
+
+> Session: 21 April 2026 (Cowork) — Google Forms survey infrastructure; pipeline.db refactor
+
+### Added
+
+- **`src/pipeline_db.py`** — central shared DB module. Defines `DB_PATH = data/pipeline.db` (replacing `topic_naming.db`). Full schema for 8 tables: `equivalence_classes`, `pipeline_runs`, `runlog_entries`, `naming_sessions`, `topic_ratings`, `google_form_configs`, `google_form_responses`. Key functions: `open_db()` (creates all tables on first call), `compute_file_hash(path, prefix_len=16)` (SHA-256 hex of file contents, first 16 chars), `compute_run_hash(k, n_books, max_features, pipeline_mode, seeds_used, prefix_len=16)` (SHA-256 of canonical JSON of input parameters — defines an equivalence class), `find_run_by_nlp_hash(nlp_hash, db_path)` (look up a run by its nlp_results.json hash).
+
+  **Schema highlights:**
+  - `equivalence_classes` — groups runs sharing identical input parameters; `run_hash` is the key
+  - `pipeline_runs` — one row per logged run; includes `nlp_hash` (hash of `nlp_results.json` contents), `run_hash` (FK to equivalence_classes), `is_test` flag (test runs cannot be surveyed), and full LDA params blob
+  - `runlog_entries` — structured log lines from `data/outputs/runlogYYYYMMDD.csv`, linked to `pipeline_runs`
+  - `google_form_configs` — one row per created Google Form; stores `form_id`, `run_id`, `share_url`, `question_id_map` (JSON), `topic_meta` (JSON)
+  - `google_form_responses` — response deduplication table; `response_id` (Google's ID) is unique
+
+- **`src/log_pipeline_run.py`** — manual run logging tool. Reads `nlp_results.json`, computes `nlp_hash` and `run_hash`, finds or creates the equivalence class, and inserts the run into `pipeline_runs`. Interactive: shows equivalence class status and sibling runs; prompts for `run_id` (default: `run_YYYYMMDD_k{k}_s{seeds}`), notes, and confirmation. `--yes` flag bypasses confirmation. `--test` marks run as `is_test=1` (survey-ineligible). Auto-detects and ingests the most recent runlog CSV into `runlog_entries`. Commands: `--list` (all runs), `--list-classes` (equivalence classes), `--show RUN_ID`.
+
+  **Design principle:** A run must be manually logged — and must not be a test run — before a Google Form can be generated. This ensures the survey is always tied to a specific, reviewed pipeline run with a known identity.
+
+- **`src/migrate_pipeline_db.py`** — one-shot migration from `data/topic_naming.db` (old schema) to `data/pipeline.db` (new schema). Reads the old `runs`, `naming_sessions`, and `topic_ratings` tables and ports them. Each migrated run has `nlp_hash=""` (unknown — the original `nlp_results.json` may have changed since the run). Computes `run_hash` for each old run, creates `equivalence_classes` rows. `--dry-run` flag.
+
+- **`src/get_google_token.py`** — one-time OAuth token generator. Reads `credentials.json`, calls `flow.run_local_server(port=0)`, saves `token.json` to the project root. Run on a machine with a browser (e.g. via sshfs mount). `--creds` and `--out` flags for custom paths. Scopes: `forms.body`, `forms.responses.readonly`, `drive.file`. This is the recommended one-time setup path.
+
+- **`src/generate_google_form.py`** — **fully rewritten** (previously a stub). Creates a Google Form from the current `nlp_results.json`. Pre-flight: computes `nlp_hash`, calls `find_run_by_nlp_hash()`, errors if the run is not logged or is a test run. Checks for an existing form for the same run (warns unless `--force`). OAuth via `token.json` (written by `get_google_token.py`). Form structure: title, description, rater (required), session notes, then per-topic blocks (stability score, canonical top words, stable core words, top 8 books with loading/author/year) followed by name, confidence (radio: high/medium/low), and notes fields — 39 `batchUpdate` items. Writes form config to `google_form_configs`.
+
+- **`src/ingest_google_responses.py`** — fetches all responses from a Google Form and inserts new submissions into `naming_sessions`, `topic_ratings`, and `google_form_responses`. Reads form config from `google_form_configs` table. `fetch_responses()` paginates the Google Forms API. `parse_response()` extracts rater, session notes, and per-topic name/confidence/notes using `question_id_map`. `ingest_response()` deduplicates by `response_id`. Fully idempotent. `--dry-run` flag. `--list-forms` command. `--form FORM_ID` and `--run RUN_ID` flags to target a specific form; defaults to the most recently created.
+
+### Changed
+
+- **`src/record_topic_run.py`** — refactored to use `pipeline_db`. Local imports of `DB_PATH`, `SCHEMA`, and `open_db` replaced with `from pipeline_db import DB_PATH, open_db, compute_file_hash`. `_save()` now computes `nlp_hash`, looks up the run in `pipeline_runs WHERE nlp_hash = ?`, and errors if the run is not logged or is `is_test=1`. Export query updated to join `pipeline_runs`. Local HTTP server mode unchanged.
+
+- **`src/run_all.sh`** — `--test` flag added (alongside existing `--stream`). Test runs: runlog named `runlogYYYYMMDD_test.csv` (collision-safe suffixes). A `⚠ TEST RUN` banner is printed after the mode line. Completion message: canonical runs print the `python src/log_pipeline_run.py` reminder; test runs print a clear non-eligible warning.
+
+### Infrastructure
+
+- **`data/pipeline.db`** replaces `data/topic_naming.db`. Old three-table schema (`runs`, `naming_sessions`, `topic_ratings`) expanded to 8 tables. Migrate with `python src/migrate_pipeline_db.py`. All scripts updated to import from `pipeline_db.py`.
+
+- **Google OAuth:** `credentials.json` (Desktop app OAuth) is in the project root (gitignored). `token.json` is generated once via `get_google_token.py` on a machine with a browser. Both scripts share identical scopes so the token works for `generate_google_form.py` and `ingest_google_responses.py` without re-authentication.
+
+- **Equivalence classes:** Two runs are in the same equivalence class if they share `k`, `n_books`, `max_features`, `pipeline_mode`, and `seeds_used`. `run_hash = SHA-256(16)` of the canonical JSON of these five parameters. Within an equivalence class, topic ordering may differ between runs (LDA is non-deterministic); surveys are compared across runs in the same class using topic alignment (Hungarian algorithm). Forms are created per-run, not per equivalence class.
+
+### Status
+
+First live form: `CyberneticsNLP — Topic Naming (2026-04-21)` — Form ID `12WRA4eUfWabEEC4grf9LWuJweDYg3RTptw63UbV07z4`. Run: `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`. Form confirmed live. Responses disabled pending further testing.
+
+---
+
 ## [0.4.7] — 2026-04-20
 
 > Session: 18–20 April 2026 (Cowork) — fifth batch
 
 ### Added
+
+- **`src/record_topic_run.py`** — topic naming server (graduated from `docs/src_draft/`). Three modes:
+  - **Server mode** (default): `python src/record_topic_run.py` → http://localhost:7474. Exposes an HTML naming form; submissions stored in SQLite. Share with remote raters via SSH tunnel or tunnel service (e.g. ngrok).
+  - **Offline mode** (`--generate`): produces a self-contained 108 KB HTML file; rater fills in locally, downloads a JSON, returns it.
+  - **Ingest mode** (`--ingest rater_file.json`): inserts an offline JSON response into the DB; duplicate-safe.
+  
+  SQLite database: `data/topic_naming.db` (three tables: `runs`, `naming_sessions`, `topic_ratings`). Captures: rater, confidence (high/medium/low), per-topic notes, stability score, top words, top books, and a full LDA parameter blob. `--test` flag: form live but nothing written to DB. `--query` and `--export json/csv` modes for review.
+  
+  **First live test:** 20 April 2026 — server run on the NLP machine, SSH tunnel established, test naming session submitted by Paul W (run_20260420_k9_s5, 9 topic names saved).
 
 - **`src/check_stale_vars.py`** — new utility to detect and auto-fix stale hardcoded fallback variables across all pipeline scripts. Three checks:
   1. `_LDA_BASE` lists in 8 scripts (`06_build_report.py`, `08_build_timeseries.py`, `09b_build_index_analysis.py`, `10_build_index_report.py`, `11_embedding_comparison.py`, `12_index_grounding.py`, `13_weighted_comparison.py`, `14_entity_network.py`) compared against `json/nlp_results.json['topic_names']` (canonical source); `--fix` mode auto-updates stale lists using a line-scanner (`replace_lda_base()`) rather than `re.sub()` — avoids backslash mangling of Python string literals.
@@ -135,6 +191,8 @@ Rebuild required from step 09 onwards (`09_extract_index.py` → `09b` → `09c`
 ### Status
 
 All source-level fixes applied for the five release-targeted HTML files (`index.html`, `cosine.html`, `clusters.html`, `keyphrases.html`, `book_nlp_entity_network.html`) and for `09_extract_index.py`. Full rerun of `run_all.sh` required to regenerate all outputs from updated sources.
+
+**Naming server deployment — superseded.** Interim SSH-tunnel deployment tested successfully 20 April 2026 (Paul W, run_20260420_k9_s5, 9 topics). Self-hosted permanent deployment was blocked by ISP port restrictions; replaced by Google Forms in v0.5.0 (see decisions.md).
 
 ---
 
@@ -387,8 +445,8 @@ correctly as concepts; classical persons (Voltaire, Cicero, Homer) as persons; d
 eliminated; no trailing-function-word fragments in any category.
 
 ### Next action
-Rerun `python3 src/15_entity_classify.py` then `python3 src/14_entity_network.py` on
-Cybersonic. Then commit both source files — the cache file stays gitignored but the
+Rerun `python3 src/15_entity_classify.py` then `python3 src/14_entity_network.py`.
+Then commit both source files — the cache file stays gitignored but the
 corrections are now permanent in source code.
 
 ---
@@ -477,7 +535,7 @@ corrections are now permanent in source code.
 - Concept density: Frontier band all zero
 - Cluster composition: shows only 3
 - 71 false negative monographs in classifier (recall ceiling with current features)
-- AshbyX/NorbertX `json/` divergence — NorbertX is canonical
+- `json/` divergence between machines — NLP machine is canonical
 
 ### GitHub
 - Commits: `post-v0.4.1: report quality fixes, monograph classifier, heuristic features`
@@ -524,7 +582,7 @@ corrections are now permanent in source code.
 - Alpha-ratio front-matter bias fix (3 April Chat) resolved secondary exclusions for IDs 205, 265, 413, 597, 1261, 1918
 
 ### Infrastructure
-- Full SCOWL en_US-large Hunspell dictionary (76,959 words) installed on AshbyX and NorbertX (⚠️ dictionary inconsistency between machines — monitor for reproducibility)
+- Full SCOWL en_US-large Hunspell dictionary (76,959 words) installed on all development machines (⚠️ dictionary inconsistency between machines — monitor for reproducibility)
 - Full corpus re-clean: 675 books via `02_clean_text.py`; expanded to 695 books via `parse_and_clean_stream.py` (all CSVs)
 - Corpus: 726 books in Calibre; 695 in NLP pipeline (22 excluded by publication type policy; remainder below `--min-chars` threshold)
 

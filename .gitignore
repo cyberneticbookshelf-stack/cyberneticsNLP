@@ -3,7 +3,12 @@ json/
 csv/
 data/inputs/
 data/outputs/
+data/*.db
+deploy/
 figures/
+
+# Infrastructure / deployment docs — local only
+docs/survey_hosting_options.md
 
 # Python
 __pycache__/
@@ -15,6 +20,10 @@ __pycache__/
 ._.DS_Store
 ._*
 Thumbs.db
+
+# Google Forms OAuth credentials — NEVER commit
+credentials.json
+token.json
 
 # NFS / SSHFS temp files (sshfs open-file handles)
 .nfs*

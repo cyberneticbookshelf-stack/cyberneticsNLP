@@ -12,17 +12,29 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STREAM=0
-for arg in "$@"; do [ "$arg" = "--stream" ] && STREAM=1; done
+TEST=0
+for arg in "$@"; do
+    [ "$arg" = "--stream" ] && STREAM=1
+    [ "$arg" = "--test"   ] && TEST=1
+done
 
 # ── Runlog: capture all pipeline output to a dated CSV in data/outputs/ ───────
-# Naming: runlogYYYYMMDD.csv for the first run of a day;
-#         runlogYYYYMMDD-2.csv, -3.csv ... for subsequent runs.
+# Canonical runs:  runlogYYYYMMDD.csv, runlogYYYYMMDD-2.csv, ...
+# Test runs:       runlogYYYYMMDD_test.csv, runlogYYYYMMDD_test-2.csv, ...
 mkdir -p data/outputs
 _RL_DATE=$(date +%Y%m%d)
-RUNLOG="data/outputs/runlog${_RL_DATE}.csv"
+if [ $TEST -eq 1 ]; then
+    RUNLOG="data/outputs/runlog${_RL_DATE}_test.csv"
+else
+    RUNLOG="data/outputs/runlog${_RL_DATE}.csv"
+fi
 _RL_N=2
 while [ -f "$RUNLOG" ]; do
-    RUNLOG="data/outputs/runlog${_RL_DATE}-${_RL_N}.csv"
+    if [ $TEST -eq 1 ]; then
+        RUNLOG="data/outputs/runlog${_RL_DATE}_test-${_RL_N}.csv"
+    else
+        RUNLOG="data/outputs/runlog${_RL_DATE}-${_RL_N}.csv"
+    fi
     _RL_N=$((_RL_N + 1))
 done
 exec > >(tee "$RUNLOG") 2>&1
@@ -65,6 +77,12 @@ exec > >(tee "$RUNLOG") 2>&1
 echo "=== Book Corpus NLP Pipeline ==="
 echo "Starting: $(date)"
 echo "Mode: $([ $STREAM -eq 1 ] && echo 'streaming (large corpus)' || echo 'standard')"
+if [ $TEST -eq 1 ]; then
+    echo ""
+    echo "⚠  TEST RUN — pipeline runs fully but this run will NOT be eligible for survey logging."
+    echo "   Omit --test to produce a canonical run that can be logged and surveyed."
+    echo ""
+fi
 
 run() { echo ""; echo "── $1 ──"; python3 "$SCRIPT_DIR/$1" "${@:2}"; }
 
@@ -156,6 +174,14 @@ echo "  book_nlp_analysis_chapters.html     book_nlp_chapters.xlsx"
 echo "  book_nlp_timeseries.html            book_nlp_index_analysis.html"
 echo "  book_nlp_index_grounding.html       book_nlp_embedding_comparison.html"
 echo "Runlog: $RUNLOG"
+echo ""
+if [ $TEST -eq 1 ]; then
+    echo "⚠  TEST RUN complete.  This run is not eligible for survey logging."
+    echo "   Runlog saved to: $RUNLOG"
+else
+    echo "To log this run for survey tracking (manual step — review first):"
+    echo "  python src/log_pipeline_run.py --runlog $RUNLOG"
+fi
 # ══════════════════════════════════════════════════════════════════════════════
 # OPTIONAL: Index-term weighted second pass
 # ══════════════════════════════════════════════════════════════════════════════

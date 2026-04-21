@@ -67,7 +67,7 @@ NAME_TOPICS  = '--name-topics'  in sys.argv
 
 # --full-text: use the full book body (front/back-matter stripped) as LDA input
 # instead of the default 3-point 60k-char sample. Intended for server-class
-# machines (Cybersonic) with ample RAM. Increases vocabulary coverage and LDA
+# machines with ample RAM. Increases vocabulary coverage and LDA
 # signal quality at the cost of longer vectorisation and fitting time.
 # Combine with --max-features to expand the vocabulary beyond the default 3000.
 # Example: python3 src/03_nlp_pipeline.py --full-text --max-features 15000 \
@@ -139,7 +139,7 @@ if '--min-chars' in sys.argv:
 # Requires spaCy en_core_web_sm: python -m spacy download en_core_web_sm
 # Timing: ~2-5 min for 695 books at 60k chars/book (default sample).
 #         ~20-50 min for 695 books at full body text (~500k chars/book).
-#         Use --lemmatize with --full-text only on Cybersonic or equivalent.
+#         Use --lemmatize with --full-text only on a server-class machine or equivalent.
 LEMMATIZE = '--lemmatize' in sys.argv
 if LEMMATIZE:
     try:
@@ -426,7 +426,7 @@ def sample_book(text):
 # ── Text preparation: full-text mode (--full-text) ───────────────────────────
 # Strip front matter (copyright pages, TOC, dedication, preface) and back
 # matter (references/bibliography, index) to produce a clean body text.
-# Designed for server-class machines (Cybersonic) with ample RAM.
+# Designed for server-class machines with ample RAM.
 #
 # Front-matter strategy:
 #   After a minimum safe offset (FRONT_SKIP_MIN_CHARS), scan for the first

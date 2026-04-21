@@ -1004,7 +1004,7 @@ This is particularly damaging because these are precisely the high-discriminatin
 terms that distinguish cybernetics topics from each other. Over-filtering at this
 stage silently degrades topic model quality without any diagnostic error.
 
-**Reproducibility requirement:** Both AshbyX and NorbertX must use the same
+**Reproducibility requirement:** All machines running the pipeline must use the same
 dictionary file. A word present in one machine's dictionary and absent in the
 other's would produce systematically different cleaned corpora, making results
 irreproducible across machines. The `requirements.txt` includes a verification
@@ -1760,7 +1760,7 @@ inclusion, regardless of co-occurring labels.
 
 ### Source of labels
 Manually assigned in Calibre by the corpus curator. All 714 books in the
-Calibre library on Cybersonic have a label assigned. Labels are authoritative
+Calibre library have a label assigned. Labels are authoritative
 — they replace the heuristic `book_styles.json` classifier for pipeline
 filtering purposes (the classifier remains useful for analysis and covariates).
 
@@ -1814,11 +1814,10 @@ Calibre `lang_code` field. A book in the exclusion list is always
 excluded, regardless of what `books_metadata_full.csv` says.
 
 ### Rationale
-The Calibre library (`metadata.db`) is shared across NorbertX and
-AshbyX via OneDrive. Sync divergence has caused the language tags
-for the 17 non-English books to appear as `eng` in the exported CSV
-on at least one occasion, making the Calibre-based filter silently
-ineffective. The exclusion list is version-controlled in the repo and
+The Calibre library (`metadata.db`) is shared across machines via OneDrive.
+Sync divergence has caused the language tags for the 17 non-English books
+to appear as `eng` in the exported CSV on at least one occasion, making
+the Calibre-based filter silently ineffective. The exclusion list is version-controlled in the repo and
 does not depend on any particular machine's Calibre state.
 
 ### Maintenance
@@ -1835,13 +1834,13 @@ tags were intact. IDs: 2044, 2063, 2064, 2065, 2066, 2092, 2344, 2460,
 
 ---
 
-## Git operations: always run on Cybersonic directly
+## Git operations: always run on the NLP machine directly
 **Date:** 11 April 2026 | **Session:** Cowork
 
 ### Decision
 All git operations (commit, merge, push, pull, rebase) must be run
-directly on Cybersonic via SSH. Do not run git through the SSHFS
-network mount on NorbertX or AshbyX.
+directly on the NLP machine via SSH. Do not run git through the SSHFS
+network mount from a workstation.
 
 ### Rationale
 macOS writes AppleDouble resource fork files (`._*`) into `.git/objects/`
@@ -1849,11 +1848,11 @@ on SSHFS-mounted directories, corrupting git's object store. The network
 mount also causes stale stat information in the git index, making git
 falsely report clean files as modified and blocking merges, stashes, and
 HEAD detachment. Both failure modes are silent and hard to diagnose.
-These problems do not occur on Cybersonic's native filesystem.
+These problems do not occur on the NLP machine's native filesystem.
 
 ### Rule
-- Edit files via the SSHFS mount on NorbertX/AshbyX as normal
-- SSH into Cybersonic for all git operations
+- Edit files via the SSHFS mount on the workstation as normal
+- SSH into the NLP machine for all git operations
 - If `._*` contamination is suspected: `find .git -name "._*" -delete && find .git -name "tmp_obj_*"` to check for stranded temp objects
 
 ---
@@ -2008,3 +2007,143 @@ the ambiguity as a known artefact rather than introduce a systematic false-negat
 ### Status
 Recorded in ROADMAP as a known artefact. No action required unless the node count of
 isolated pairs grows substantially as the collection expands.
+
+---
+
+## Why rename `topic_naming.db` to `pipeline.db`
+**Date:** 21 April 2026 | **Session:** Cowork
+
+### Decision
+The naming database is renamed from `data/topic_naming.db` to `data/pipeline.db` and the
+schema is expanded from 3 tables to 8 tables. All scripts import from a shared
+`src/pipeline_db.py` module rather than defining DB paths and schemas locally.
+
+### Rationale
+The old name reflected a narrow purpose: storing naming sessions from a survey form.
+The refactored database serves the entire pipeline lifecycle: run logging, equivalence
+class tracking, runlog ingestion, survey generation, and response collection. A name tied
+to one use-case became misleading once the scope expanded. `pipeline.db` reflects the
+actual scope.
+
+The shared module (`pipeline_db.py`) gives all scripts a single source of truth for the
+schema, DB path, and hash functions — previously each script defined these independently,
+creating a maintenance liability as the schema evolved.
+
+### Migration
+`src/migrate_pipeline_db.py` ports data from `topic_naming.db` to `pipeline.db`. Migrated
+runs have `nlp_hash=""` because the original `nlp_results.json` from those runs may have
+changed since they were recorded. The old database is not deleted; it remains as a backup.
+
+---
+
+## Why Google Forms instead of a self-hosted survey server
+**Date:** 21 April 2026 | **Session:** Cowork
+
+### Background
+The original plan was a self-hosted survey server: `record_topic_run.py` running as a
+Docker service behind a Caddy HTTPS reverse proxy on a home Linux box,
+accessible via a custom domain. The infrastructure was fully built (Docker containers
+running, Caddy compiled with DNS plugin, TLS certificate obtained, DNS CNAME propagated).
+It was blocked by ISP policy: inbound ports 80 and 443 are blocked on residential
+connections.
+
+### Decision
+Use the Google Forms API as the public-facing survey collection mechanism. Self-hosted
+infrastructure retained as a local tool (`record_topic_run.py` continues to function for
+direct DB submission when on the same local network).
+
+### Rationale
+1. **Operational reliability:** Google Forms has no infrastructure dependency on our
+   home server or ISP. Raters do not need to know anything about the research
+   infrastructure to complete a form.
+2. **No auth requirement for raters:** A Google Form can be shared as a URL; raters
+   submit directly; responses are stored in Google Drive. (Requires sign-in by default;
+   can be disabled in form settings for anonymous responses.)
+3. **No server maintenance:** Google handles uptime, SSL, scaling, and storage.
+4. **API access:** The Google Forms API (`forms.body`, `forms.responses.readonly`,
+   `drive.file`) allows fully programmatic form creation and response ingestion.
+5. **Auditability:** Responses are stored both in Google's infrastructure and in
+   `pipeline.db` after ingestion; the two can be reconciled at any time.
+
+### Trade-offs accepted
+- Requires a Google account (or publicly accessible form setting) for raters
+- OAuth credentials must be maintained (`credentials.json` / `token.json`, both gitignored)
+- Form structure is fixed at creation time; adding questions requires creating a new form
+  via `--force`
+- Responses are batch-ingested manually rather than pushed in real time
+
+---
+
+## Why equivalence classes for survey methodology
+**Date:** 21 April 2026 | **Session:** Cowork
+
+### Problem
+LDA topic ordering is non-deterministic between runs. Two runs on the same corpus with
+the same parameters produce the same *content* of topics but in a different index order.
+A survey form tied to a specific topic ordering is only directly comparable to other
+surveys using the *same ordering* — i.e., the same specific run.
+
+However, for assessing whether a topic name is stable and agreed-upon, we want to pool
+evidence across runs that share the same intellectual structure, even if the index labels
+differ. "T3 = Biological Systems Cybernetics in run A" and "T7 = Biological Systems
+Cybernetics in run B" are the same evidence about name stability if runs A and B are
+otherwise equivalent (same k, same books, same parameters).
+
+### Decision
+Define equivalence classes over runs using input parameters:
+- Two runs are **equivalent** if they share `k`, `n_books`, `max_features`,
+  `pipeline_mode`, and `seeds_used`
+- `run_hash = SHA-256(16)` of the canonical JSON-serialised values of these five parameters
+- Each run also has an `nlp_hash = SHA-256(16)` of `nlp_results.json` file contents,
+  identifying a specific run instance (a specific realisation of the LDA solution)
+
+Survey forms are created per-run (per `nlp_hash`), not per equivalence class, because
+the form's question text (topic descriptions, top words, top books) is specific to the
+exact run. Responses from different runs in the same class are compared using topic
+alignment (Hungarian algorithm matching Jaccard similarity of top-word sets), not direct
+index-position comparison.
+
+### Implication
+A pipeline run must be manually logged (`log_pipeline_run.py`) before a survey form can
+be created for it. This is the enforcement mechanism: `generate_google_form.py` looks up
+the run by `nlp_hash` in `pipeline_runs` and errors if it is not found. The manual logging
+step serves as a quality gate: the researcher reviews the run before committing to a survey.
+
+---
+
+## Why manual run logging as a pre-survey gate
+**Date:** 21 April 2026 | **Session:** Cowork
+
+### Decision
+A pipeline run must be manually logged using `log_pipeline_run.py` before a Google Form
+can be created for it. The logging step is not automated — it requires the researcher to
+explicitly invoke it and optionally review the run before confirming.
+
+### Rationale
+1. **Prevents surveys on bad runs.** If a pipeline run has anomalies (unexpected book
+   count, low stability, errors in runlog), the researcher can identify this before
+   committing to a survey. Creating a form for a bad run wastes raters' time and
+   pollutes the naming database with responses that will have to be discarded.
+
+2. **Creates a deliberate decision point.** The naming survey is a significant research
+   act — it involves raters spending time reviewing topics and providing judgements. The
+   manual logging step makes the decision to proceed with surveying a deliberate act
+   rather than an automated consequence of running the pipeline.
+
+3. **Anchors the equivalence class.** The `run_hash` and `nlp_hash` computed during
+   logging define the run's identity for all subsequent operations. This identity is
+   stable: the same `nlp_results.json` always produces the same `nlp_hash`, regardless
+   of when it is run.
+
+4. **Test run separation.** The `--test` flag in `run_all.sh` and `log_pipeline_run.py`
+   marks runs as survey-ineligible. This allows full pipeline testing without any risk
+   of accidentally creating forms for test data.
+
+### Enforcement
+`generate_google_form.py` calls `find_run_by_nlp_hash()` and errors if:
+- The run is not found in `pipeline_runs` (not logged)
+- The run has `is_test=1` (test run)
+
+There is no way to bypass this check without modifying source code. The restriction is
+deliberately strict: a form created for an unlogged or test run would have no valid
+`run_id` to associate responses with, making those responses unusable for analysis.
