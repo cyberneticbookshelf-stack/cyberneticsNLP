@@ -6,6 +6,45 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.5.1] — 2026-04-23
+
+> Session: 23 April 2026 (Cowork) — documentation maintenance; entity network noise suppression
+
+### Fixed
+
+- **`src/14_entity_network.py`** — four fixes applied:
+  1. **`NOISE_TERMS` extended** with three new groups: (a) generic academic words (`work`, `project`, `study`, `result`, `analysis`, `research`, `approach`, `method`, `use`, `problem`, `process`, `example`, `case`, `form`, `type`, `term`, `role`, `way`, and plurals) — eliminates high-frequency but non-associative concept nodes appearing in Wiener's neighbourhood; (b) OCR line-break suffix fragments (`tion`, `sion`, `ence`, `ance`, `ment`, `ness`, `ism`, `ity`, `ing`, `tems`, `ther`, `ters`, `tions`) — these appear capitalised in the index as standalone entries because hyphenated words split across a line leave the suffix as a new "word"; (c) function words that survived upstream filters (`this`, `that`, `these`, `those`, `there`, `their`, `they`, `with`, `from`, `also`, `been`, `have`, `were`, `will`).
+  2. **`_LDA_BASE` fallback** updated from Run A/B names to 18 April 2026 taxonomy (T1–T9 in correct topic order). Fallback only — live names always come from `R['topic_names']` in `nlp_results.json`.
+  3. **Methodological note**: corpus count corrected 542 → 541.
+  4. **Duplicate `<div id="stats_panel">`**: removed second dead copy of the stats panel HTML element.
+
+### Network (standalone rerun of step 14 only — 23 April 2026)
+
+| Metric | Previous canonical (18 Apr) | This rerun (23 Apr) |
+|--------|----------------------------|----------------------|
+| Nodes | 1,638 | 1,604 |
+| Persons | 656 | 657 |
+| Concepts | 758 | 722 |
+| Orgs | 154 | 154 |
+| Locations | 70 | 71 |
+| Edges (total) | 11,563 | 11,644 |
+| Book edges | 10,362 | 10,468 |
+| Para edges | 1,201 | 1,176 |
+| Density | 0.009 | 0.009057 |
+| LCC | 1,636/1,638 | 1,602/1,604 |
+| APL | 3.27 | 3.2 |
+| Diameter | 6 | 6 |
+
+LDA topic stats unchanged (from `runlog20260418-3.csv` canonical run). Full `run_all.sh` rerun required to make this the committed canonical state.
+
+### Documentation
+
+- **`CLAUDE.md`** — security principle applied throughout: machine names, SSH username/hostname, email address, and Google Form ID replaced with generic descriptions. Mapping from placeholder to actual value moved to `csv/infrastructure.csv` (gitignored). Pointer to lookup file added to infrastructure notes section. Numbering error in next session agenda fixed.
+- **`README.md`** — multiple updates: corpus framing corrected (695 in collection / 541 analysed); canonical run header updated to v0.5.0 / 18 April / 9/9 stable / mean stability=0.357; output file table restructured into four groups (book-level split, book-level other, chapter-level not yet refactored, Excel); `books.html` excluded from release with 60k token sampling explanation; chapter-level pipeline flagged as not yet refactored throughout; step 4 summary generation caveat added; `nlp_results.json` description updated; `726 books` → `695` in input data format; security fixes matching CLAUDE.md principle.
+- **`csv/infrastructure.csv`** — new gitignored file mapping all generic placeholders in `CLAUDE.md` and `README.md` to their actual values.
+
+---
+
 ## [0.5.0] — 2026-04-21
 
 > Session: 21 April 2026 (Cowork) — Google Forms survey infrastructure; pipeline.db refactor
@@ -49,7 +88,7 @@ Dates are AEST (UTC+11).
 
 ### Status
 
-First live form: `CyberneticsNLP — Topic Naming (2026-04-21)` — Form ID `12WRA4eUfWabEEC4grf9LWuJweDYg3RTptw63UbV07z4`. Run: `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`. Form confirmed live. Responses disabled pending further testing.
+First live form: `CyberneticsNLP — Topic Naming (2026-04-21)` — Form ID recorded in `data/pipeline.db` (`google_form_configs` table). Run: `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`. Form confirmed live. Responses disabled pending further testing.
 
 ---
 

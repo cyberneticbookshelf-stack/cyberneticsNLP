@@ -23,7 +23,7 @@ A reproducible NLP pipeline for topic modelling, clustering, keyphrase
 extraction, summarisation, controlled vocabulary analysis, and visualisation
 applied to a cybernetics book corpus extracted from a Calibre library.
 
-**Corpus:** 695 books · 1954–2025
+**Corpus:** 695 books in collection (1954–2025) · 541 monographs and collected works analysed
 
 ---
 
@@ -31,14 +31,14 @@ applied to a cybernetics book corpus extracted from a Calibre library.
 
 ```
 CyberneticsNLP/
-├── csv/                        ← Place Calibre CSV exports here (Cybersonic local)
+├── csv/                        ← Place Calibre CSV exports here (NLP machine local)
 │   ├── books_metadata_full.csv ← Calibre metadata, 20 cols incl. inclusion_stratum (tab-separated)
 │   └── books_text_*.csv        ← OCR text (25 files)
 │
-├── json/                       ← All JSON/JSONL outputs (auto-created, Cybersonic local)
+├── json/                       ← All JSON/JSONL outputs (auto-created, NLP machine local)
 │   ├── books_clean.json        ← cleaned text corpus (written by 02/stream)
-│   ├── nlp_results.json        ← Run B: full-text LDA, ~690 books (overwrote Run A; written by 03)
-│   ├── nlp_results_k{N}.json  ← k-sweep runs; nlp_results_k9.json = v0.4.3 canonical (Run C)
+│   ├── nlp_results.json        ← current canonical run (written by 03; overwritten on each run)
+│   ├── nlp_results_k{N}.json  ← k-sweep runs; nlp_results_k9.json = v0.5.0 canonical (18 April 2026)
 │   ├── summaries.json          ← abstractive summaries (written by generate_summaries_api)
 │   ├── index_terms.json        ← raw per-book index terms (written by 09)
 │   ├── index_vocab.json        ← raw vocabulary (written by 09)
@@ -55,19 +55,32 @@ CyberneticsNLP/
 │   ├── pipeline.db             ← Pipeline SQLite database (8 tables: runs, equivalence classes,
 │   │                              runlog ingestion, survey generation, response collection)
 │   │                              Replaces data/topic_naming.db (3 tables); shared via pipeline_db.py
-│   └── outputs/                ← Generated HTML reports and Excel files (Cybersonic local)
-│       ├── book_nlp_analysis.html
-│       ├── book_nlp_analysis_chapters.html
+│   └── outputs/                ← Generated HTML reports and Excel files (NLP machine local)
+│       │
+│       │   ── Book-level (main analysis — split) ──
+│       ├── index.html                      ← main report (Fig 1–6, topic proportions)
+│       ├── clusters.html                   ← cluster composition
+│       ├── keyphrases.html                 ← keyphrase analysis
+│       ├── cosine.html                     ← cosine similarity
+│       ├── book_nlp_entity_network.html    ← entity relational network
+│       ├── books.html                      ← per-book summaries (excluded from release —
+│       │                                      60k token sampling; see notes)
+│       │
+│       │   ── Book-level (other reports) ──
 │       ├── book_nlp_timeseries.html
 │       ├── book_nlp_index_analysis.html
 │       ├── book_nlp_index_grounding.html
-│       ├── book_nlp_entity_network.html
 │       ├── book_nlp_embedding_comparison.html
 │       ├── book_nlp_weighted_comparison.html
+│       │
+│       │   ── Chapter-level (not yet refactored) ──
+│       ├── book_nlp_analysis_chapters.html
+│       │
+│       │   ── Excel ──
 │       ├── book_nlp_results.xlsx
 │       └── book_nlp_chapters.xlsx
 │
-├── figures/                    ← matplotlib figures (auto-created, Cybersonic local)
+├── figures/                    ← matplotlib figures (auto-created, NLP machine local)
 │
 ├── src/                        ← Pipeline scripts (tracked in git)
 │   ├── parse_and_clean_stream.py   Step 0s: streaming clean (large corpora)
@@ -109,7 +122,7 @@ CyberneticsNLP/
 │   ├── pipeline_db.py              Shared DB module — 8-table schema, DB path, hash functions
 │   ├── log_pipeline_run.py         Manual run logging — equivalence class tracking; pre-survey gate
 │   ├── migrate_pipeline_db.py      One-shot migration from topic_naming.db → pipeline.db
-│   ├── get_google_token.py         OAuth token generator for Google Forms API (run once on AshbyX)
+│   ├── get_google_token.py         OAuth token generator for Google Forms API (run once on the workstation)
 │   ├── generate_google_form.py     Google Forms survey creation — 39-item form per pipeline run
 │   ├── ingest_google_responses.py  Google Form response ingester → pipeline.db
 │   └── run_all.sh                  End-to-end runner (--test flag for survey-ineligible test runs)
@@ -199,7 +212,7 @@ python3 src/05_visualize.py
 python3 src/06_build_report.py
 python3 src/07_build_excel.py
 
-# Chapter-level pipeline (uses summaries.json from generate_summaries_api / 04)
+# Chapter-level pipeline (not yet refactored — single output file)
 python3 src/03_nlp_pipeline_chapters.py
 python3 src/05_visualize_chapters.py
 python3 src/06_build_report_chapters.py
@@ -248,7 +261,12 @@ python3 src/14_entity_network.py               # + paragraph-window edges (~5 mi
 bash src/run_all.sh
 ```
 
-### 4. Generate abstractive summaries (optional but recommended)
+### 4. Generate abstractive summaries (optional — see note)
+
+> **Note:** Each book is summarised from a ~60k token sample. Summary reliability
+> has not been established and `books.html` is excluded from the current release
+> scope for this reason. Generate summaries if you need them for the chapter-level
+> pipeline, but treat outputs as provisional.
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -259,10 +277,8 @@ python3 src/generate_summaries_api.py --workers 1  # sequential, ~112 min
 ```
 
 Fully resumable — safe to interrupt and restart. Estimated cost: ~$25–35
-for 695 books from scratch (only missing books are processed on reruns —
+for 541 books from scratch (only missing books are processed on reruns —
 if most summaries already exist, the incremental cost is a few cents).
-When done, rerun from step 03_nlp_pipeline_chapters.py onwards
-to use the new summaries.
 
 ---
 
@@ -281,12 +297,20 @@ csv/books_metadata_full.csv  +  csv/books_text_*.csv
         │
         ▼                              writes to json/
   03_nlp_pipeline.py          LDA (book-level, k=9 canonical)
-  generate_summaries_api.py   Abstractive summaries via Anthropic API
+  generate_summaries_api.py   Abstractive summaries via Anthropic API (~60k token sample; provisional)
   04_summarize.py             Extractive fallback summaries
+  05_visualize.py             Matplotlib figures (book-level)
+  06_build_report.py          Book-level HTML reports → data/outputs/
+                                  index.html · clusters.html · keyphrases.html
+                                  cosine.html · book_nlp_entity_network.html
+                                  books.html (excluded from release — 60k token sampling)
+  07_build_excel.py           Excel workbook → data/outputs/book_nlp_results.xlsx
+
+  ── Chapter-level (not yet refactored) ──
   03_nlp_pipeline_chapters.py NMF (chapter-level, 8 topics)
-  05_visualize.py / _chapters  Matplotlib figures
-  06_build_report.py / _chapters  Interactive HTML reports  → data/outputs/
-  07_build_excel.py / _chapters   Excel workbooks           → data/outputs/
+  05_visualize_chapters.py    Matplotlib figures (chapter-level)
+  06_build_report_chapters.py Chapter-level HTML → data/outputs/book_nlp_analysis_chapters.html
+  07_build_excel_chapters.py  Excel workbook → data/outputs/book_nlp_chapters.xlsx
   09_extract_index.py         Index term extraction
   09b_build_index_analysis.py Canonical vocab + person name merging
   10_build_index_report.py    Controlled vocabulary report  → data/outputs/
@@ -302,16 +326,37 @@ csv/books_metadata_full.csv  +  csv/books_text_*.csv
 
 All reports are written to `data/outputs/`.
 
+**Book-level — main analysis (split)**
+
 | File | Description |
 |------|-------------|
-| `book_nlp_analysis.html` | Book-level interactive report — LDA topics, clusters, cosine similarity, keyphrases, summaries |
-| `book_nlp_analysis_chapters.html` | Chapter-level report — NMF topics, clusters, keyphrases, chapter summaries |
+| `index.html` | Main report — LDA topics, Fig 1–6, topic proportions |
+| `clusters.html` | Cluster composition |
+| `keyphrases.html` | Keyphrase analysis |
+| `cosine.html` | Cosine similarity |
+| `book_nlp_entity_network.html` | Entity relational network — persons, concepts, organisations, locations; 4 layout algorithms; degree filter |
+| `books.html` | Per-book summaries — excluded from release; summaries are generated from a ~60k token sample per book and reliability has not been established |
+
+**Book-level — other reports**
+
+| File | Description |
+|------|-------------|
 | `book_nlp_timeseries.html` | Publication year analysis — 7 charts: publications/yr, LDA topics, NMF topics, clusters, scatter, cumulative, band prevalence + concept velocity (Chart 7 requires steps 09b→12 first) |
 | `book_nlp_index_analysis.html` | Controlled vocabulary — index term frequency, time series, co-occurrence, topic distribution, term explorer |
 | `book_nlp_index_grounding.html` | Index grounding — topic labelling, concept density scatter, concept velocity across decades |
-| `book_nlp_entity_network.html` | Entity relational network — persons, concepts, organisations, locations; 4 layout algorithms; degree filter |
 | `book_nlp_embedding_comparison.html` | Embedding method comparison — LSA vs Sentence Transformers vs Voyage AI |
 | `book_nlp_weighted_comparison.html` | Side-by-side comparison of unweighted vs weighted pipeline runs |
+
+**Chapter-level (not yet refactored)**
+
+| File | Description |
+|------|-------------|
+| `book_nlp_analysis_chapters.html` | Chapter-level report — NMF topics, clusters, keyphrases, chapter summaries |
+
+**Excel**
+
+| File | Description |
+|------|-------------|
 | `book_nlp_results.xlsx` | Book-level Excel (5 sheets) |
 | `book_nlp_chapters.xlsx` | Chapter-level Excel (4 sheets) |
 
@@ -319,23 +364,25 @@ All reports are written to `data/outputs/`.
 
 ## Topic Solutions
 
-### Book-level (LDA, k=9 — v0.4.3 CANONICAL, Run C, 14 April 2026)
+### Book-level (LDA, k=9 — v0.5.0 CANONICAL, 18 April 2026)
 
-542 books (monographs + collected works only) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --run-id k9` · 5/9 stable · mean stability=0.327 · output: `json/nlp_results_k9.json`
+541 books (monographs + collected works only; [2133] excluded — OCR corruption) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --run-id k9` · 9/9 stable · mean stability=0.357 · output: `json/nlp_results_k9.json` · runlog: `data/outputs/runlog20260418-3.csv`
 
-Topic names generated via `--name-topics` (Anthropic API) then manually reviewed and corrected by Paul Wong.
+Topic names generated via `--name-topics` (Anthropic API) then manually reviewed and corrected by Paul Wong. Names confirmed via 18 April title-sweep; see `docs/CHANGELOG.md` [0.4.6]. Individual names below are provisional pending multi-rater validation (sprint items 3–5).
 
-| # | Name | Stability | Notes |
+| # | Name | Stability (Run C, 14 Apr) | Notes |
 |---|------|-----------|-------|
 | T1 | History and Biography of Cybernetics | 0.131 | Low stability due to Lem/Čapek fiction outliers; historiography cluster coherent |
 | T2 | Cybernetics of Psychology | 0.559 | |
 | T3 | Extensions of Cybernetics | 0.153 | Brier, Yuk Hui, actor-network theory |
-| T4 | Cybernetic Management Theory | 0.349 | Beer's VSM tradition |
+| T4 | Cybernetic Management Theory | 0.349 | Beer's VSM tradition; name revised 18 April — verify against `json/nlp_results.json['topic_names']` |
 | T5 | Biological Systems Cybernetics | 0.224 | Sterling, Schulkin, Laughlin |
 | T6 | Formal Foundations of Cybernetics | 0.289 | Mathematical and computational tradition |
 | T7 | Cross-Domain Applications of Cybernetics | 0.306 | Urban systems, church governance, border security |
 | T8 | Cybernetics of Posthumanism | 0.306 | |
 | T9 | Cultural Applications of Cybernetics | 0.622 | Highest stability across k=8–12 sweep |
+
+*Per-topic stability scores above are from Run C (14 April 2026). Canonical run is 18 April; aggregate stats updated above. Per-topic scores for canonical run will be confirmed after `compare_topic_runs.py` is graduated (sprint item 2).*
 
 Full topic validation: `json/topic_validation.json` · run `src/09c_validate_topics.py --top 10 --md` to regenerate.
 
@@ -375,7 +422,7 @@ Full topic validation: `json/topic_validation.json` · run `src/09c_validate_top
 ## Input Data Format
 
 ### `csv/books_metadata_full.csv` (tab-separated)
-Full Calibre metadata export: 726 books, 20 columns including `id`, `title`, `pubdate`, `author_sort`, `lang_code`, `inclusion_stratum`, `archive_id`, `in_title`, `in_description`, `in_tags`, and per-field keyword flags.
+Full Calibre metadata export: 695 books, 20 columns including `id`, `title`, `pubdate`, `author_sort`, `lang_code`, `inclusion_stratum`, `archive_id`, `in_title`, `in_description`, `in_tags`, and per-field keyword flags.
 
 ### `csv/books_text_*.csv` (CSV, two columns)
 Columns: `id`, `searchable_text`
@@ -403,12 +450,14 @@ python3 src/04_summarize.py
 python3 src/05_visualize.py
 python3 src/06_build_report.py
 python3 src/07_build_excel.py
-python3 src/03_nlp_pipeline_chapters.py
-python3 src/05_visualize_chapters.py
-python3 src/06_build_report_chapters.py
-python3 src/07_build_excel_chapters.py
 python3 src/12_index_grounding.py
 python3 src/08_build_timeseries.py
+
+# Chapter-level weighted rerun (not yet refactored — run separately if needed)
+# python3 src/03_nlp_pipeline_chapters.py
+# python3 src/05_visualize_chapters.py
+# python3 src/06_build_report_chapters.py
+# python3 src/07_build_excel_chapters.py
 ```
 
 Or uncomment the pre-written block at the bottom of `src/run_all.sh`.
@@ -418,11 +467,11 @@ Or uncomment the pre-written block at the bottom of `src/run_all.sh`.
 ## Recent changes
 
 ### v0.5.0 (21 April 2026)
-- **Google Forms survey infrastructure**: complete topic naming reliability system built. `generate_google_form.py` fully rewritten — creates a 39-item form per pipeline run via Google Forms API (`forms.body`, `forms.responses.readonly`, `drive.file` scopes). `ingest_google_responses.py` ingests responses into `pipeline.db`. OAuth via Desktop app; `credentials.json`/`token.json` generated on AshbyX and accessed via sshfs mount.
+- **Google Forms survey infrastructure**: complete topic naming reliability system built. `generate_google_form.py` fully rewritten — creates a 39-item form per pipeline run via Google Forms API (`forms.body`, `forms.responses.readonly`, `drive.file` scopes). `ingest_google_responses.py` ingests responses into `pipeline.db`. OAuth via Desktop app; `credentials.json`/`token.json` generated on the workstation and accessed via sshfs mount.
 - **pipeline.db refactor**: `data/topic_naming.db` (3 tables) replaced by `data/pipeline.db` (8 tables). All scripts share a single `src/pipeline_db.py` module for schema, DB path, and hash functions. `src/migrate_pipeline_db.py` ports existing data.
 - **Equivalence classes**: two runs are equivalent if they share `k`, `n_books`, `max_features`, `pipeline_mode`, `seeds_used`. `run_hash = SHA-256(16)` of canonical JSON of these 5 parameters; `nlp_hash = SHA-256(16)` of `nlp_results.json` contents.
 - **Manual logging gate**: `log_pipeline_run.py` must be run before a survey form can be created; `generate_google_form.py` errors if run is not logged or is flagged `is_test=1`.
-- **First live form**: Form ID `12WRA4eUfWabEEC4grf9LWuJweDYg3RTptw63UbV07z4`, run `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`.
+- **First live form**: run `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`. Form ID recorded in `data/pipeline.db` (`google_form_configs` table).
 
 ### v0.4.7 (20 April 2026)
 - **`record_topic_run.py`**: topic naming server (server/offline/ingest modes); SQLite `data/topic_naming.db`. First live test 20 April (SSH tunnel; Paul W, run_20260420_k9_s5, 9 topics saved).

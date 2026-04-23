@@ -14,16 +14,18 @@ File reference format:
 ## Project snapshot
 
 **Version:** 0.5.0 (source edits applied 21 April 2026; commit pending rerun)
-**Repo:** `~/CyberneticsNLP/` on Cybersonic (accessed via sshfs mount inside vault)
+**Repo:** `~/CyberneticsNLP/` on the NLP machine (accessed via sshfs mount inside vault)
 **Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
 **Canonical run:** `runlog20260418-3.csv` — 542 books parsed, 541 analysed
 (1 excluded: [2133] Cybernation and Social Change — OCR), k=9, **0/9 unstable**,
 **mean stability=0.357**. Topic ordering shuffled from Run C (14 April); 18 April
 title-sweep confirmed new names (see CHANGELOG [0.4.6]). Committed `491991e`.
 **Canonical `run_all.sh`:** Step 14 runs **without** `--no-windows` (18 April 2026).
-Paragraph-window edges included in all canonical builds. Network: 1,638 nodes
-(persons=656, concepts=758, orgs=154, locations=70), 11,563 edges
-(book=10,362 + para=1,201), density=0.009, LCC=1,636/1,638, APL=3.27, diameter=6.
+Paragraph-window edges included in all canonical builds. Network: 1,604 nodes
+(persons=657, concepts=722, orgs=154, locations=71), 11,644 edges
+(book=10,468 + para=1,176), density=0.009057, LCC=1,602/1,604, APL=3.2, diameter=6.
+*Network stats updated 23 April 2026 — standalone rerun of step 14 after NOISE_TERMS
+extension (suffix OCR fragments + generic academic words; 36 concepts removed).*
 **Master project doc:** `02 Projects/CyberneticsNLP/CyberneticsNLP.md` in vault
 (full sprint list, topic solutions, session log, known issues)
 
@@ -232,12 +234,12 @@ Item 1 completed 20 April 2026. Items 2–4 remain open.
    - `src/pipeline_db.py` — DB module; schema; `open_db()`, `compute_file_hash()`, `compute_run_hash()`, `find_run_by_nlp_hash()`
    - `src/log_pipeline_run.py` — manual run logging; shows equivalence class; `--test` flag marks run as survey-ineligible
    - `src/migrate_pipeline_db.py` — one-shot migration from `topic_naming.db`
-   - `src/get_google_token.py` — one-time OAuth; run on AshbyX (has browser), writes token.json via sshfs mount
+   - `src/get_google_token.py` — one-time OAuth; run on a machine with browser access, writes token.json via sshfs mount
    - `src/generate_google_form.py` — creates Google Form from nlp_results.json; enforces run-logging pre-condition
    - `src/ingest_google_responses.py` — fetches responses into naming_sessions + topic_ratings; idempotent
    - `src/record_topic_run.py` — local HTTP server (interim); refactored to use pipeline_db
 
-   **First live form (21 April 2026):** Form ID `12WRA4eUfWabEEC4grf9LWuJweDYg3RTptw63UbV07z4`, run `run_20260421_k9_s5`, class `0ab6e3f8ba95d0d0`. Confirmed live on `cyberneticbookshelf@gmail.com` Drive. Responses disabled pending further testing.
+   **First live form (21 April 2026):** run `run_20260421_k9_s5`, class `0ab6e3f8ba95d0d0`. Confirmed live on the associated Google Drive. Responses disabled pending further testing.
 
 2. **n-run comparison report** — `src/compare_topic_runs.py --runs N`. Reads last N
    records from `topic_run_records.json`. Report: per-topic book presence matrix,
@@ -338,88 +340,11 @@ network — immediately wrong on domain grounds (Wiener died 1964, Google founde
    Internet Archive attribution strings ("Digitized by the Internet Archive...
    Kahle/Austin Foundation") appear in 67 books. Fix: extend noise filters.
 
-**Fixes implemented 17 April 2026 — applied and verified on Cybersonic:**
+**Fixes implemented 17 April 2026 — applied and verified on the NLP machine:**
 - `src/14_entity_network.py` — `KNOWN_TECH_PLATFORMS` set added.
 - `src/09b_build_index_analysis.py` — `is_noise_term` extended.
 - `src/02_clean_text.py` — Internet Archive / platform strings added to `INLINE_PATTERNS`.
 - Committed: `9daf49c`
-
----
-
-## Files modified this session (20 April 2026 — survey server infrastructure)
-
-**Context:** Set up `survey.cybernetic-bookshelf.org` for persistent public deployment
-of `record_topic_run.py` on the Linux home server ("ultrasound", Ubuntu 24.04.4,
-AMD FX-8350, user `wongas`).
-
-**Architecture (fully decided and implemented):**
-- `~/docker/cyberneticsnlp-survey/` on ultrasound — Docker working directory
-- `~/CyberneticsNLP/` on ultrasound — repo, volume-mounted into survey container at `/app`
-- Two Docker services: `survey` (Python stdlib HTTP server, internal port 7474) + `caddy` (HTTPS reverse proxy, ports 80+443)
-- Caddy with Let's Encrypt via **DNS-01 challenge** (HTTP-01 abandoned — ISP blocks LE IP ranges on port 80 for residential connections; NorbertX/external curl worked but LE servers couldn't reach port 80)
-- DNS-01: GoDaddy API creates a `_acme-challenge` TXT record; custom Caddy image built with xcaddy + `github.com/caddy-dns/godaddy`
-- DB sync: nightly cron on ultrasound rsyncs via ProxyJump (bulwark → cybersonic.gpu), no VPN required
-- DNS: `survey.cybernetic-bookshelf.org` CNAME → `circularity.mywire.org` ✅ (confirmed propagated; `dig +short` returns correct IP)
-- Router ports 80 and 443 forwarded to ultrasound ✅
-
-**Files created/modified:**
-- `src/record_topic_run.py` — added `--host` flag (was hardwired to `localhost`,
-  blocking Docker port exposure)
-- `deploy/docker/Dockerfile` — Python 3.11-slim, no pip installs (stdlib only), EXPOSE 7474
-- `deploy/docker/Dockerfile.caddy` — **NEW**: xcaddy build with `github.com/caddy-dns/godaddy`; two-stage build (builder → caddy:2-alpine)
-- `deploy/docker/docker-compose.yml` — survey + caddy services; caddy builds from `Dockerfile.caddy`; GODADDY env vars injected; named volumes `caddy_data` + `caddy_config` for cert persistence; `restart: unless-stopped`
-- `deploy/docker/Caddyfile` — DNS-01 syntax (see open issue below)
-- `deploy/docker/.env.example` — `REPO_DIR`, `GODADDY_API_KEY`, `GODADDY_API_SECRET`
-- `deploy/sync_db.sh` — rsyncs `data/topic_naming.db` via ProxyJump; `sqlite3 .backup` for atomic snapshot; SSH connectivity pre-check
-- `deploy/ssh_config.example` — SSH config template for ultrasound → Cybersonic
-- `deploy/install_globalprotect.sh` — installs GP 6.1.3 DEB, OpenSSL + DNS + .desktop fixes
-- `deploy/SETUP.md` — complete end-to-end setup guide
-- `deploy/Dockerfile`, `deploy/docker-compose.yml`, `deploy/Caddyfile` — stubbed (redirect notices; real files in `deploy/docker/`)
-
-**Current state (end of session):**
-Both containers (`cyberneticsnlp-survey`, `cyberneticsnlp-caddy`) are running on ultrasound. The custom Caddy image built successfully (139.7s — xcaddy compiled the GoDaddy DNS plugin). **Caddy is crash-looping** because the Caddyfile syntax for the GoDaddy DNS module is wrong.
-
-Two syntaxes tried, both rejected:
-1. Block form: `dns godaddy { api_key {$GODADDY_API_KEY}\n api_secret {$GODADDY_API_SECRET} }` → `unrecognized subdirective 'api_key'`
-2. Positional form: `dns godaddy {env.GODADDY_API_KEY} {env.GODADDY_API_SECRET}` → `wrong argument count or unexpected line ending after '{env.GODADDY_API_SECRET}'`
-
-**Next session — first task (Caddyfile syntax fix):**
-
-The correct syntax depends on which version of `caddy-dns/godaddy` xcaddy pulled. Diagnose with:
-```bash
-docker run --rm cyberneticsnlp-caddy:latest caddy list-modules | grep dns
-```
-This confirms the module name. Then check the module's `UnmarshalCaddyfile` source or README for the exact argument form. Likely candidates:
-- Global options block form: `{ acme_dns godaddy API_KEY API_SECRET }` (some plugins only support global config)
-- Environment variable auto-detection: `dns godaddy` with no args, relying on specific env var names the plugin expects
-- JSON config instead of Caddyfile if the plugin has no Caddyfile support
-
-Once syntax is confirmed, update `deploy/docker/Caddyfile` on Cybersonic, rsync to ultrasound, and restart caddy:
-```bash
-docker compose -f ~/docker/cyberneticsnlp-survey/docker-compose.yml restart caddy
-docker compose -f ~/docker/cyberneticsnlp-survey/docker-compose.yml logs caddy -f
-```
-Watch for `"msg":"certificate obtained successfully"`.
-
-**Remaining steps after cert is working:**
-- Set up SSH from ultrasound → Cybersonic (`deploy/ssh_config.example`) and configure nightly sync cron (`deploy/sync_db.sh`)
-- Test end-to-end: open `https://survey.cybernetic-bookshelf.org/` in browser, submit a naming session, verify `data/topic_naming.db` written
-
-**GlobalProtect status on ultrasound (known issue, not blocking):**
-- `gpd.service` (PanGPS) runs correctly as system service
-- `gpa.service` (PanGPA) must run as user service under `wongas` (`systemctl --user enable --now gpa` with `XDG_RUNTIME_DIR=/run/user/$(id -u)`)
-- `globalprotect show --status` as `wongas` returns "Unable to establish" — GP 6.1.3 bug on Ubuntu 24.04; use `sudo globalprotect`
-- GP not required for survey server or DB sync
-
----
-
-## Files modified this session (20 April 2026 — topic naming tool)
-
-- `src/record_topic_run.py` — **new script** (graduated from `docs/src_draft/`).
-  Local HTTP server + HTML naming form + SQLite persistence. See sprint item 1 above.
-- `data/topic_naming.db` — SQLite database created on first submission (not committed
-  to git — add to `.gitignore` if not already present).
-- `CLAUDE.md` — sprint item 1 marked complete; this section added.
 
 ---
 
@@ -489,63 +414,91 @@ Commit pending; full rerun of `run_all.sh` required (rebuild from step 09 onward
 
 ## Next session agenda
 
-*Session startup: run fresh `run_all.sh`, save runlog, review key stats before proceeding.*
+*Session startup: run fresh `run_all.sh` (rebuild from step 09 required — see item 2),
+save runlog, log the run, review key stats before proceeding.*
 
-1. **Topic name validation sprint** *(high priority — prerequisite for slide deck update)*
-   Review the current 09c output against the 18 April taxonomy. T4 "Applied Engineering
-   Cybernetics" is the main candidate for revision — current top words (`wiener, bateson,
-   science, cybernetic, theory, world, nature, year`) and top books (engineering textbooks,
-   *Biological Feedback*, *Neural Networks as Cybernetic Systems*) do not obviously match
-   the name. T9's Cyberiad/R.U.R. cluster also worth reviewing. Once names are settled,
-   run `patch_topic_names.py` and `check_stale_vars.py --fix`.
-   Cross-run tracking: `src/record_topic_run.py` (draft in vault `docs/src_draft/`) —
-   graduate to `src/` and run, then `compare_topic_runs.py`. Multi-rater protocol to follow.
+1. **Presentation review — CyberneticsNLP_Talk_v2.pptx** *(deadline: 28 April — do first)*
 
-2. **Slide deck update** *(after topic names are settled)* — update
-   `CyberneticsNLP_Talk_v2.pptx` with v0.4.7 stats:
+   File: `02 Projects/CyberneticsNLP/CyberneticsNLP_Talk_v2.pptx`
+
+   **Stale content to fix:**
+   - **Slide 4 (Corpus):** "695 Books" — the pipeline now analyses 541 monographs and
+     collected works (not 695). 695 is the full Calibre library. The distinction needs to
+     be clear on the slide (e.g. "695 in collection · 541 analysed").
+   - **Slide 8 (Build timeline):** stops at v0.4.3 (14 April). Add v0.4.4–v0.5.0 sessions
+     (18–21 April): entity network fixes, topic taxonomy revision, Google Forms survey
+     infrastructure. Now 34+ scripts, v0.5.0.
+   - **Slide 13 (Topic map):** check all 9 names against the 18 April taxonomy revision.
+     T4 in particular was revised — check current canonical names in
+     `json/nlp_results.json['topic_names']` and update any that changed.
+   - **Slide 22 (What's Next — Immediately column):** several items are now done —
+     entity noise / OCR artefacts (KI-04, KI-07 resolved), full spaCy + Wikidata pass,
+     document unit decision. Update to current state; add survey validation
+     (multi-rater naming, `compare_topic_runs.py`) as the active next step.
+
+   **Key messages and provisional findings to review (slides 5, 23):**
+   - Slide 5 research questions: still well-framed — no changes needed.
+   - Slide 23 takeaways: consider sharpening takeaway 1 to distinguish the 695-book
+     collection from the 541-book analysed corpus. Takeaways 2–5 remain solid.
+   - Framing consistency: all findings should be labelled "provisional" (topic names
+     pending multi-rater validation, entity network pending full rerun). Confirm this
+     is consistent across slides 11, 13, and 22.
+
+   **Optional addition:** a single slide on the survey/validation methodology — that
+   topic naming is a deliberate validation step, not just labelling — reinforces the
+   "keeping AI honest" theme in the meta-section (slides 6–7, 19).
+
+2. **Full pipeline rerun** *(do after presentation is settled — all downstream items depend on current outputs)*
+   The `09_extract_index.py` casing fix (v0.4.7) has not yet been run end-to-end.
+   Rebuild required from step 09: `09_extract_index.py` → `09b` → `09c` → `10` → `12`
+   → `14` → `15`. Simplest: `bash src/run_all.sh` (full run). Save runlog, then:
+   `python src/log_pipeline_run.py --runlog data/outputs/runlogYYYYMMDD.csv`
+
+2. **Activate survey — first live rater session** *(sprint item 1 follow-up)*
+   After item 1 rerun is logged, generate a fresh Google Form for the new run:
+   `python src/generate_google_form.py`
+   Enable responses in Google Forms settings, share URL with raters (≥2 independent).
+   After rating session: `python src/ingest_google_responses.py`
+
+3. **compare_topic_runs.py** *(sprint item 2)*
+   Graduate `docs/src_draft/compare_topic_runs.py` to `src/`. Reads pipeline.db run
+   records, aligns topics across runs (Hungarian algorithm on Jaccard similarity of
+   top-word sets), reports per-topic name stability and book overlap across runs.
+
+4. **Multi-rater naming protocol** *(sprint item 3)*
+   ≥2 independent raters per topic per run. Compute inter-rater agreement (Cohen's
+   kappa or % agreement) from `pipeline.db` responses after item 2 rater session.
+
+5. **Revise naming status** *(sprint item 4)*
+   Current k=9 names are provisional (single run, single rater). Names become stable
+   only after ≥3 runs and ≥2 raters agree. Update `patch_topic_names.py` status
+   and `check_stale_vars.py --fix` once stable names are confirmed.
+
+6. **Slide deck update** *(after topic names are settled — do after item 5)*
+   Update `CyberneticsNLP_Talk_v2.pptx` with current stats:
    - Network: 1,638 nodes (persons=657, orgs=154, locations=70, concepts=757),
-     11,749 edges (book=10,475 + para=1,274)
-   - KI-09 resolved — 146 plural merges, concept count now accurate
-   - Any topic name changes from item 1 above
-   Do this in one pass after names are confirmed — avoids a second deck update.
+     11,749 edges (book=10,475 + para=1,274); KI-09 resolved (146 plural merges)
+   - Any topic name changes from item 5
+   Do in one pass after names confirmed — avoids a second deck update.
 
-3. **ROADMAP #24 investigation** *(small, can pair with another item)* — manually
-   examine a handful of high-frequency paragraph edges to characterise the distribution
-   of relationship types (synthesis, contrast, citation, incidental). Feeds the paper's
-   limitations section and grounds the epistemic affordance claim (ROADMAP #22).
-   Start by querying `json/entity_network.json` for edges where `type=para` and
-   `weight` is highest; pull source paragraphs from `books_clean.json` for inspection.
+7. **Document KI-08 in methodology** — add data quality entry for [2133] *Cybernation
+   and Social Change* to `docs/methodology.md`: OCR corruption, why excluded, algorithm
+   infection principle operationalised. Canonical corpus framing: "541 monographs and
+   collected works analysed".
 
-4. **Document KI-08 in methodology** — add data quality entry for [2133] Cybernation
-   and Social Change to `docs/methodology.md`: nature of OCR corruption, why excluded,
-   what "infects the collection" means operationally. Canonical corpus framing:
-   "541 monographs and collected works analysed".
+8. **ROADMAP #24 investigation** *(small, can pair with another item)* — examine
+   high-frequency paragraph edges to characterise relationship types (synthesis,
+   contrast, citation, incidental). Query `json/entity_network.json` for `type=para`
+   edges with highest weight; pull source paragraphs from `books_clean.json`.
 
-5. **Classifier track** — second review round: `csv/monograph_sample_*.csv` awaiting
-   Paul's review (ROADMAP #1). Feeds classifier retraining (#2, #3).
+9. **Classifier track** — second review round: `csv/monograph_sample_*.csv` awaiting
+   review (ROADMAP #1). Feeds classifier retraining (#2, #3).
 
-6. **Topic name ordering shuffle — note for paper** — the non-determinism of LDA topic
-   ordering between runs is itself a methodological finding worth documenting: stability
-   metrics are preserved but index positions rotate, making run-to-run name comparison
-   unreliable without a tracking system. Relevant to methodology section.
-
-7. **Conceptual writing** — draft or develop sections on:
-   - Epistemic affordances of the pipeline
-   - Human–AI collaboration framing
-   - Data quality and the algorithm infection principle
-   Target: `docs/methodology.md` or standalone memo(s).
-
-8. **Review draft scripts** in vault `docs/src_draft/`:
-   - `record_topic_run.py` — ✅ graduated to `src/` (20 April 2026)
-   - `compare_topic_runs.py` — graduate to `src/`?
-
-9. **Naming server — permanent deployment** ✅ *(Docker/Caddy infrastructure complete; superseded by Google Forms — item 10)*
-
-   Infrastructure was fully built but blocked by ISP: inbound ports 80 and 443 are blocked on residential connection. Self-hosted approach abandoned. Google Forms API (item 10) adopted as the permanent solution. Docker infrastructure remains on ultrasound for local-network use if needed.
-
-10. **Google Forms API integration** ✅ — COMPLETE (21 April 2026)
-
-    Fully implemented. `src/generate_google_form.py` creates Google Forms from `nlp_results.json`; `src/ingest_google_responses.py` fetches responses idempotently. `src/get_google_token.py` handles one-time OAuth on AshbyX. Central database `data/pipeline.db` tracks runs, equivalence classes, forms, and responses. First live form confirmed. See CHANGELOG [0.5.0].
+10. **Conceptual writing** — draft or develop sections on:
+    - Epistemic affordances of the pipeline
+    - Human–AI collaboration framing
+    - Data quality and the algorithm infection principle
+    Target: `docs/methodology.md` or standalone memo(s).
 
 ---
 
@@ -558,7 +511,7 @@ on residential connection). Pivoted to Google Forms API. Complete pipeline.db re
 - `src/pipeline_db.py` — central shared DB module; 8-table schema; hash utility functions
 - `src/log_pipeline_run.py` — manual run logging tool; equivalence class tracking; `--test` flag
 - `src/migrate_pipeline_db.py` — one-shot migration from `topic_naming.db` to `pipeline.db`
-- `src/get_google_token.py` — one-time OAuth token generator (run on AshbyX via sshfs mount)
+- `src/get_google_token.py` — one-time OAuth token generator (run on the workstation via sshfs mount)
 - `src/generate_google_form.py` — **fully rewritten** from stub; enforces run-logging pre-condition;
   creates 39-item Google Form with per-topic questions
 - `src/ingest_google_responses.py` — Google Form response ingester; idempotent; `--dry-run` / `--list-forms`
@@ -572,9 +525,9 @@ on residential connection). Pivoted to Google Forms API. Complete pipeline.db re
 - `data/pipeline.db` — new central database (8 tables). Replaces `data/topic_naming.db` (3 tables).
   Migrate: `python src/migrate_pipeline_db.py`
 
-**First live form (21 April 2026):** Form ID `12WRA4eUfWabEEC4grf9LWuJweDYg3RTptw63UbV07z4`,
+**First live form (21 April 2026):** Form ID recorded in `data/pipeline.db` (`google_form_configs` table),
 run `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`. Confirmed live on
-`cyberneticbookshelf@gmail.com` Drive. Responses disabled pending further testing.
+the project Google Drive account. Responses disabled pending further testing.
 
 **Documentation:**
 - `docs/CHANGELOG.md` — [0.5.0] entry
@@ -601,7 +554,7 @@ with the active KI-04–KI-10 tracking in this file.
 
 ## Session startup protocol
 
-**Before each session:** Run a fresh `run_all.sh` on Cybersonic and save the log to
+**Before each session:** Run a fresh `run_all.sh` on the NLP machine and save the log to
 `data/outputs/runlog_YYYYMMDD.csv` (or similar). At session start, read the latest
 runlog and do a quick review of:
 - Book count and any exclusions
@@ -619,26 +572,32 @@ manually (e.g. in CLAUDE.md or ROADMAP).
 
 ## Infrastructure notes
 
-- **sshfs mount:** Cybersonic is always mounted inside the vault at
-  `02 Projects/CyberneticsNLP/cybersonic/` via alias `mcyber` on Cybersonic.
+Specific machine names, usernames, hostnames, email addresses, and resource IDs are
+replaced with generic descriptions in this file (security principle). The mapping from
+placeholder to actual value is in `csv/infrastructure.csv` (gitignored).
+
+
+
+- **sshfs mount:** The NLP machine is always mounted inside the vault at
+  `02 Projects/CyberneticsNLP/cybersonic/` via alias `mcyber` on the NLP machine.
   Claude can read and write files through this mount. Mount goes stale after
-  ~30 min — run `mcyber` on Cybersonic to remount if directories appear empty.
-- **IMPORTANT — Claude cannot run commands on Cybersonic.** Git, Python scripts,
-  and anything requiring Cybersonic's environment must be run manually in a
-  Cybersonic terminal. Claude edits files via the mount; Paul runs the scripts.
-  Specifically: `git push`, `python3 src/*.py`, pip installs — all Cybersonic only.
-- **Git push:** commit on Cybersonic (`git commit`), push from Cybersonic (`git push`)
+  ~30 min — run `mcyber` on the NLP machine to remount if directories appear empty.
+- **IMPORTANT — Claude cannot run commands on the NLP machine.** Git, Python scripts,
+  and anything requiring the NLP machine's environment must be run manually in a
+  terminal on the NLP machine. Claude edits files via the mount; Paul runs the scripts.
+  Specifically: `git push`, `python3 src/*.py`, pip installs — all NLP machine only.
+- **Git push:** commit on the NLP machine (`git commit`), push from the NLP machine (`git push`)
   to `github.com:cyberneticbookshelf-stack/cyberneticsNLP.git`. SSH key must be
-  configured on Cybersonic — was broken 17 April 2026, now fixed.
+  configured on the NLP machine — was broken 17 April 2026, now fixed.
 - **Cowork "+" button for second workspace:** known bug (GitHub #19318) — fails with
   "Session VM process not available" on FUSE/sshfs mounts. Use vault-internal mount
   as workaround.
-- **Python environment:** Cybersonic, `~/CyberneticsNLP/`. Use `pip install --break-system-packages`.
+- **Python environment:** the NLP machine, `~/CyberneticsNLP/`. Use `pip install --break-system-packages`.
 - **ngrok:** Install via `conda install trenta3::ngrok`. To expose the naming form: run `ngrok http 7474` in a second terminal while the server is running. Share the printed `https://….ngrok-free.app` URL with raters. Note: free tier requires a free ngrok account.
 - **Central pipeline database:** `data/pipeline.db` (SQLite, 8 tables). Replaces `data/topic_naming.db` (3 tables, old schema). All survey scripts import from `src/pipeline_db.py`. Migrate once: `python src/migrate_pipeline_db.py`. `credentials.json` and `token.json` are gitignored and must not be committed.
-- **Google Forms survey workflow:** `get_google_token.py` (run once on AshbyX via sshfs mount) → `log_pipeline_run.py` (log the run after reviewing runlog) → `generate_google_form.py` (creates form for the logged run) → share URL → `ingest_google_responses.py` (idempotent response fetch). App is in Google OAuth Testing mode; `cyberneticbookshelf@gmail.com` is whitelisted as a test user.
-- **Naming server — local (interim):** `ssh -L 7474:localhost:7474 u9714433@cyber -N` (from AshbyX). Open http://localhost:7474 in browser. Fragile; requires manual server start and held SSH session. Superseded by Google Forms for public surveys.
-- **Naming server — self-hosted (abandoned):** Docker/Caddy infrastructure on ultrasound was fully built (TLS cert obtained, DNS propagated) but permanently blocked by ISP inbound port restrictions. Infrastructure remains but is not publicly reachable without ISP upgrade.
+- **Google Forms survey workflow:** `get_google_token.py` (run once on the workstation via sshfs mount) → `log_pipeline_run.py` (log the run after reviewing runlog) → `generate_google_form.py` (creates form for the logged run) → share URL → `ingest_google_responses.py` (idempotent response fetch). App is in Google OAuth Testing mode; the project Google account is whitelisted as a test user.
+- **Naming server — local (interim):** `ssh -L 7474:localhost:7474 <user>@<nlp-host> -N` (from the workstation). Open http://localhost:7474 in browser. Fragile; requires manual server start and held SSH session. Superseded by Google Forms for public surveys.
+- **Naming server — self-hosted (abandoned):** Docker/Caddy infrastructure on a self-hosted server was fully built (TLS cert obtained, DNS propagated) but permanently blocked by ISP inbound port restrictions. Infrastructure remains but is not publicly reachable without ISP upgrade.
 - **Patch scripts:** when sshfs mount goes read-only mid-session, write patch scripts
   to vault (not cybersonic/) and run them on Cybersonic. Use str.replace() or line
   scanners rather than re.sub() for source-code patching — re.sub processes backslash

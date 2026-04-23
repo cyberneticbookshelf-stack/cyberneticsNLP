@@ -28,7 +28,7 @@ Usage:
 """
 
 # ── METHODOLOGICAL NOTE — all outputs are provisional ────────────────────────
-# This script generates HTML from automated analysis of a 542-book corpus.
+# This script generates HTML from automated analysis of a 541-book corpus.
 # Results should be treated as provisional: known data quality issues have been
 # characterised and mitigated; residual errors of uncharacterised distribution
 # remain. Algorithm infection — residual input errors propagate into downstream
@@ -95,16 +95,20 @@ N          = len(BC)
 n_topics   = R['n_topics']
 
 _LDA_BASE = [
-    'Cybernetics of Political Economy',
-    'Cybernetics and Circularity',
-    'Biological Systems Cybernetics',
-    'Applied Engineering Cybernetics',
-    'Cultural Applications of Cybernetics',
-    'Formal Foundations of Cybernetics',
-    'History and Biography of Cybernetics',
-    'Cybernetic Management Theory',
-    'Residual / Outlier Cluster',
+    'History and Biography of Cybernetics',       # T1
+    'Cybernetics of Psychology',                  # T2
+    'Extensions of Cybernetics',                  # T3
+    'Cybernetic Management Theory',               # T4
+    'Biological Systems Cybernetics',             # T5
+    'Formal Foundations of Cybernetics',          # T6
+    'Cross-Domain Applications of Cybernetics',   # T7
+    'Cybernetics of Posthumanism',                # T8
+    'Cultural Applications of Cybernetics',       # T9
 ]
+# Note: _LDA_BASE is a fallback only — live names always come from
+# R['topic_names'] in nlp_results.json via patch_topic_names.py.
+# Updated to 18 April 2026 taxonomy; verify T4 name against
+# json/nlp_results.json['topic_names'] after next canonical rerun.
 _carried = R.get('topic_names') or _LDA_BASE
 LDA_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
 
@@ -177,6 +181,22 @@ NOISE_TERMS = {
     'chapter', 'section', 'volume', 'introduction', 'conclusion',
     'appendix', 'bibliography', 'foreword', 'preface', 'series',
     'below', 'above', 'contents', 'glossary',
+    # Generic academic words — too common to carry associative signal
+    'work', 'works', 'project', 'projects', 'study', 'studies',
+    'result', 'results', 'analysis', 'research', 'approach', 'approaches',
+    'method', 'methods', 'use', 'problem', 'problems', 'process', 'processes',
+    'example', 'examples', 'case', 'cases', 'form', 'forms',
+    'type', 'types', 'number', 'point', 'points', 'question', 'questions',
+    'area', 'areas', 'field', 'fields', 'level', 'levels',
+    'part', 'parts', 'term', 'terms', 'role', 'way', 'ways',
+    # OCR line-break suffix fragments — the second half of a hyphenated word
+    # indexed as a standalone term (e.g. "func-\ntion" → "Tion").
+    # These appear capitalised in the index because they start a new line.
+    'tion', 'sion', 'ence', 'ance', 'ment', 'ness', 'ism', 'ity',
+    'ing', 'ings', 'tems', 'ther', 'ters', 'tions',
+    # Function words that survived upstream filters
+    'this', 'that', 'these', 'those', 'there', 'their', 'they',
+    'with', 'from', 'also', 'been', 'have', 'were', 'will',
 }
 
 # Discipline/field names ending in -ics: NOT genuine plural/singular pairs.
@@ -846,12 +866,6 @@ svg{{width:100%;height:100%}}
   <h3>📊 Network Statistics</h3>
   <div id="stats_body"></div>
 </div>
-<div class="panel" id="stats_panel" style="width:340px">
-  <span class="close" onclick="toggleStats()">✕</span>
-  <h3>📊 Network Statistics</h3>
-  <div id="stats_body"></div>
-</div>
-
 <script>
 const NODES   = {j_nodes};
 const EDGES   = {j_edges};
