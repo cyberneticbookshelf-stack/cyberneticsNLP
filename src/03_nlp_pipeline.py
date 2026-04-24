@@ -971,7 +971,7 @@ _svd2 = _SVD2(n_components=2, random_state=99)
 coords_2d = _norm2(_svd2.fit_transform(X_tfidf)).tolist()
 
 # ── Topic naming via Anthropic API (--name-topics) ───────────────────────────
-def name_topics_via_api(top_words, n_topics,
+def name_topics_via_api(top_words, n_topics, n_books, year_range,
                         grounding_path=str(JSON_DIR / 'topic_index_grounding.json')):
     """
     Call the Anthropic API once per topic to generate a concise 2-5 word label.
@@ -1004,7 +1004,7 @@ def name_topics_via_api(top_words, n_topics,
         ground = grounding.get(t, [])
         prompt = (
             f"You are labelling topic clusters from a cybernetics book corpus "
-            f"(695 books, 1954-2025).\n\n"
+            f"({n_books} books, {year_range[0]}-{year_range[1]}).\n\n"
             f"Topic {t+1} of {n_topics}:\n"
             f"  Top LDA words: {', '.join(words)}\n"
             f"  Highest-lift index terms: "
@@ -1076,7 +1076,10 @@ except Exception:
     pass
 
 if NAME_TOPICS:
-    results['topic_names'] = name_topics_via_api(top_words, best_n)
+    _valid_years = [y for y in pub_years if y is not None]
+    _yr_range = (min(_valid_years), max(_valid_years)) if _valid_years else ('?', '?')
+    results['topic_names'] = name_topics_via_api(
+        top_words, best_n, len(book_ids), _yr_range)
 
 with open(_out('nlp_results'), 'w') as f:
     json.dump(results, f)

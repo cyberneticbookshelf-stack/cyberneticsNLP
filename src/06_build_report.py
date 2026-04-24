@@ -15,7 +15,7 @@ Output: data/outputs/book_nlp_analysis.html
 """
 
 # ── METHODOLOGICAL NOTE — all outputs are provisional ────────────────────────
-# This script generates HTML from automated analysis of a 542-book corpus.
+# This script generates HTML from automated analysis of the CyberneticsNLP corpus.
 # Results should be treated as provisional: known data quality issues have been
 # characterised and mitigated; residual errors of uncharacterised distribution
 # remain. Algorithm infection — residual input errors propagate into downstream

@@ -92,8 +92,9 @@ def extract_lda_base(path):
                 stripped = lines[j].strip()
                 if stripped == ']':
                     return names, i, j
-                # Extract string value from lines like:  '  ''Some Name'',\n'
-                m = re.match(r"^\s*'([^']+)',?\s*$", lines[j])
+                # Extract string value from lines like:  "    'Some Name',"
+                # Tolerates optional trailing '# comment' (e.g. '# T1' position anchor).
+                m = re.match(r"^\s*'([^']+)',?\s*(?:#.*)?$", lines[j])
                 if m:
                     names.append(m.group(1))
                 j += 1

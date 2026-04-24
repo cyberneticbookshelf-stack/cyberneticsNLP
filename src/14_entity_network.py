@@ -95,20 +95,19 @@ N          = len(BC)
 n_topics   = R['n_topics']
 
 _LDA_BASE = [
-    'History and Biography of Cybernetics',       # T1
-    'Cybernetics of Psychology',                  # T2
-    'Extensions of Cybernetics',                  # T3
-    'Cybernetic Management Theory',               # T4
-    'Biological Systems Cybernetics',             # T5
-    'Formal Foundations of Cybernetics',          # T6
-    'Cross-Domain Applications of Cybernetics',   # T7
-    'Cybernetics of Posthumanism',                # T8
-    'Cultural Applications of Cybernetics',       # T9
+    'Cybernetics of Political Economy',
+    'Cybernetics and Circularity',
+    'Biological Systems Cybernetics',
+    'Applied Engineering Cybernetics',
+    'Cultural Applications of Cybernetics',
+    'Formal Foundations of Cybernetics',
+    'History and Biography of Cybernetics',
+    'Cybernetic Management Theory',
+    'Residual / Outlier Cluster',
 ]
 # Note: _LDA_BASE is a fallback only — live names always come from
 # R['topic_names'] in nlp_results.json via patch_topic_names.py.
-# Updated to 18 April 2026 taxonomy; verify T4 name against
-# json/nlp_results.json['topic_names'] after next canonical rerun.
+# Kept in sync by check_stale_vars.py --fix.
 _carried = R.get('topic_names') or _LDA_BASE
 LDA_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
 
