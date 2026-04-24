@@ -71,7 +71,7 @@ exec > >(tee "$RUNLOG") 2>&1
 # Note: book types are not disjoint (a book can be monograph AND textbook).
 # The classifier produces a single best-guess label as a working approximation.
 # Ground truth labelling of ~150 books is planned to validate and improve accuracy.
-# See docs/memo_media_aware_nlp_epistemic_affordances.md §13 for methodology.
+# See docs/memos/memo_media_aware_nlp_epistemic_affordances.md §13 for methodology.
 # ══════════════════════════════════════════════════════════════════════════════
 
 echo "=== Book Corpus NLP Pipeline ==="
@@ -121,7 +121,7 @@ fi
 # ── Book-level topics ────────────────────────────────────────────────────────
 python3 "$SCRIPT_DIR/03_nlp_pipeline.py" --min-chars 10000 --lemmatize --topics 9 --seeds 5
 # Apply agreed taxonomy names before validating, so 09c writes named topics
-# to docs/topic_validation.md rather than raw LDA ordering labels.
+# to data/outputs/topic_validation.md rather than raw LDA ordering labels.
 python3 "$SCRIPT_DIR/patch_topic_names.py"
 python3 "$SCRIPT_DIR/check_stale_vars.py" --fix
 python3 "$SCRIPT_DIR/09c_validate_topics.py" --top 10 --md

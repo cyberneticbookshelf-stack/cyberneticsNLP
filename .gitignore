@@ -8,7 +8,7 @@ deploy/
 figures/
 
 # Infrastructure / deployment docs — local only
-docs/survey_hosting_options.md
+docs/reference/survey_hosting_options.md
 
 # Python
 __pycache__/

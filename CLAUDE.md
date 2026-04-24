@@ -9,25 +9,118 @@ File reference format:
 - Docs: `docs/filename.md §"Section heading"` or `docs/filename.md:LINE`
 - Data: `json/filename.json`
 
+Session history, changelog, and open work live in the canonical logs — not here.
+- Change log: `docs/CHANGELOG.md`
+- CRediT / session rows: `docs/contributions.md`
+- Design decisions: `docs/decisions.md`
+- Open backlog: `docs/ROADMAP.md`
+- Master project doc (sprint list, session log, known issues): `02 Projects/CyberneticsNLP/CyberneticsNLP.md` in the vault
+
 ---
 
 ## Project snapshot
 
-**Version:** 0.5.0 (source edits applied 21 April 2026; commit pending rerun)
-**Repo:** `~/CyberneticsNLP/` on the NLP machine (accessed via sshfs mount inside vault)
-**Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
-**Canonical run:** `runlog20260418-3.csv` — 542 books parsed, 541 analysed
-(1 excluded: [2133] Cybernation and Social Change — OCR), k=9, **0/9 unstable**,
-**mean stability=0.357**. Topic ordering shuffled from Run C (14 April); 18 April
-title-sweep confirmed new names (see CHANGELOG [0.4.6]). Committed `491991e`.
-**Canonical `run_all.sh`:** Step 14 runs **without** `--no-windows` (18 April 2026).
-Paragraph-window edges included in all canonical builds. Network: 1,604 nodes
-(persons=657, concepts=722, orgs=154, locations=71), 11,644 edges
-(book=10,468 + para=1,176), density=0.009057, LCC=1,602/1,604, APL=3.2, diameter=6.
-*Network stats updated 23 April 2026 — standalone rerun of step 14 after NOISE_TERMS
-extension (suffix OCR fragments + generic academic words; 36 concepts removed).*
-**Master project doc:** `02 Projects/CyberneticsNLP/CyberneticsNLP.md` in vault
-(full sprint list, topic solutions, session log, known issues)
+- **Repo:** `~/CyberneticsNLP/` on the NLP machine, accessed via the sshfs mount inside the vault
+- **Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
+- **Canonical corpus framing:** "541 monographs and collected works analysed" from a 695-book Calibre collection. [2133] *Cybernation and Social Change* excluded (OCR corruption — KI-08).
+- **Canonical k:** 9 (validated 3 April 2026). `run_all.sh` enforces `--topics 9 --seeds 5`.
+- **Current run record:** query `data/pipeline.db` (`pipeline_runs`, `runlog_entries`) or read the latest `data/outputs/runlogYYYYMMDD.csv`. Don't rely on hardcoded figures here — they rot.
+- **Current version:** read `docs/CHANGELOG.md` (top entry).
+
+---
+
+## Commands
+
+All commands run from the project root on the NLP machine. **Claude edits files via the
+sshfs mount but cannot execute anything on the NLP machine** — the user runs these in a
+terminal.
+
+**Full pipeline:**
+```
+bash src/run_all.sh              # standard (<~300 books)
+bash src/run_all.sh --stream     # streaming parse+clean for large corpora
+bash src/run_all.sh --test       # test run; runlog suffixed _test; not survey-eligible
+```
+Runlog auto-written to `data/outputs/runlogYYYYMMDD.csv` (suffix `-2`, `-3`, … for repeat runs
+on the same day).
+
+**Rebuild from step 09** — after `09_extract_index.py` or `09b_build_index_analysis.py` changes:
+`09 → 09b → 09c → 10 → 12 → 14 → 15`. Simplest: rerun `run_all.sh`.
+
+**Restore canonical k=9 after a k-sweep comparison run:**
+```
+python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5
+python3 src/patch_topic_names.py
+python3 src/check_stale_vars.py --fix
+python3 src/09c_validate_topics.py --top 10 --md
+```
+`topic_stability.json` always reflects the **last** k run — this restoration step is
+mandatory before committing.
+
+**Survey workflow (Google Forms):**
+```
+python src/log_pipeline_run.py --runlog data/outputs/runlogYYYYMMDD.csv  # gate: must log before form
+python src/generate_google_form.py                                       # creates form for logged run
+python src/ingest_google_responses.py                                    # idempotent response fetch
+```
+One-time setup: `python src/get_google_token.py` on a machine with browser access (writes
+`token.json` via sshfs mount).
+
+**Utilities:**
+- `python src/check_stale_vars.py --fix` — sync `_LDA_BASE` literals across 8 scripts against `nlp_results.json['topic_names']`; also cross-verifies TAXONOMY and flags corpus-count literals.
+- `python src/migrate_pipeline_db.py` — one-shot migration from `topic_naming.db` → `pipeline.db`.
+
+**Optional second pass:** `03_nlp_pipeline.py --weighted` boosts discriminating index terms.
+Requires `index_analysis.json` from a prior full run. See the commented block at the end of
+`src/run_all.sh`.
+
+---
+
+## Architecture
+
+Numbered scripts in `src/` form a linear pipeline orchestrated by `run_all.sh`.
+
+**Pre-processing (NOT in `run_all.sh` — external APIs, run manually):**
+- `00_classify_book_styles.py` — heuristic style classification (title/author/publisher signals)
+- `00_fetch_worldcat_metadata.py`, `00_fetch_anu_primo.py` — Google Books / Open Library / ANU Primo enrichment
+- Writes `json/book_styles.json` (covariate for downstream analysis)
+
+**Main pipeline stages (in `run_all.sh`):**
+1. `01_parse_books.py` → `json/books_parsed.json`
+2. `02_clean_text.py` → `json/books_clean.json` (or `parse_and_clean_stream.py` in `--stream` mode)
+3. `03_nlp_pipeline.py` → `json/nlp_results.json`, `json/topic_stability.json`
+4. `patch_topic_names.py` — overlays canonical taxonomy onto raw LDA labels in `nlp_results.json`
+5. `check_stale_vars.py --fix` — propagates topic names into `_LDA_BASE` literals across scripts
+6. `09c_validate_topics.py` → `data/outputs/topic_validation.md` (post-naming, so names not raw labels)
+7. Book-level reports: `04_summarize.py` → `05_visualize.py` → `06_build_report.py` → `07_build_excel.py`
+8. Chapter-level reports: `03_nlp_pipeline_chapters.py` → `05_visualize_chapters.py` → `06_build_report_chapters.py` → `07_build_excel_chapters.py`
+9. `09_extract_index.py` → `json/index_terms.json`, `json/index_vocab.json`
+10. `09b_build_index_analysis.py` → `json/index_analysis.json`, `json/index_snippets.json`
+11. `10_build_index_report.py`
+12. `12_index_grounding.py` → `json/topic_index_grounding.json`, `json/concept_density.json`, `json/concept_velocity.json`
+13. `08_build_timeseries.py` (Chart 7 requires `index_analysis.json` + `concept_velocity.json`)
+14. `11_embedding_comparison.py` + `build_embed_report.py`
+15. `15_entity_classify.py` → `json/entity_types_cache.json` **(must run before 14)**
+16. `14_entity_network.py` → `json/entity_network.json`, `data/outputs/book_nlp_entity_network.html`
+
+**Key invariants:**
+- `--topics 9` is enforced in `run_all.sh`; canonical k=9.
+- `nlp_results.json` is overwritten every run; k-sweep variants persist as `nlp_results_k{N}.json`.
+- Step 14 runs **with** paragraph windows by default (no `--no-windows` flag). Omitting windows cuts ~239 concept nodes — see KI-10.
+- Step 15 builds the NER cache; step 14 reads it. Running 14 without a cached 15 result produces an incomplete network.
+- Two regex filters in `14_entity_network.py` (`_TRAILING_FUNC`, `_CTA_BACK_MATTER`, `_EOLSS_NOISE`, `_TRAILING_COLON`) run **before** cache lookup so stale cache entries cannot override them.
+
+**Survey infrastructure (orthogonal to the NLP pipeline):**
+- `data/pipeline.db` — SQLite, 8 tables. Replaces the older 3-table `data/topic_naming.db`. All survey scripts import from `src/pipeline_db.py`.
+- **Equivalence class** = SHA-256(16) of `(k, n_books, max_features, pipeline_mode, seeds_used)`. Two runs in the same class are comparable up to topic permutation.
+- **nlp_hash** = SHA-256(16) of `nlp_results.json` — identifies a specific run instance.
+- `credentials.json` + `token.json` are gitignored (see `.gitignore`).
+
+**Output directories:**
+- `json/` — pipeline intermediates (see `README.md` for full inventory)
+- `data/outputs/` — HTML reports, Excel workbooks, dated runlog CSVs
+- `figures/` — PNGs for paper / presentation
+- `data/pipeline.db` — survey workflow state
 
 ---
 
@@ -54,11 +147,11 @@ cannot certify the absence of subtler, undetectable ones.
 > verified against source material before being treated as established findings.*
 
 Note: hardcoded corpus counts (e.g. "542-book") have been removed from the provenance
-statement — the count is fragile (KI-08 unresolved) and a precise number in a data-quality
-warning is itself a data-quality risk.
+statement — the count is fragile (KI-08) and a precise number in a data-quality warning
+is itself a data-quality risk.
 
 Full methodological argument: `docs/methodology.md` §"Implication for dissemination —
-all outputs are provisional" (added 18 April 2026).
+all outputs are provisional".
 
 ---
 
@@ -91,12 +184,12 @@ decision.
 - This is not a pipeline failure — it is an inherent property of working with
   decontextualised linguistic data at scale.
 
-**Motivating instance (20 April 2026):** "University of California" appears in the
-entity network as an isolated organisation node, connected only to Tylor, E. B.
-It is present in the index of *Living Systems*, *Gregory Bateson: The Legacy of a
-Scientist*, and *Cyburbia* — where it may be a publisher credit, an institutional
-affiliation, or a genuine subject reference. No upstream filter can resolve this
-without sentence context. Accepted as a known artefact; not filtered.
+**Motivating instance:** "University of California" appears in the entity network as an
+isolated organisation node, connected only to Tylor, E. B. It is present in the index
+of *Living Systems*, *Gregory Bateson: The Legacy of a Scientist*, and *Cyburbia* —
+where it may be a publisher credit, an institutional affiliation, or a genuine subject
+reference. No upstream filter can resolve this without sentence context. Accepted as a
+known artefact; not filtered.
 
 ---
 
@@ -125,10 +218,6 @@ missing data or pending API access), record it explicitly in ROADMAP.md with a n
 that it is a temporary workaround and a pointer to the upstream script that should
 eventually own the fix.
 
-This principle was made explicit 20 April 2026 after the `_canonical_term()` casing
-bug: the fix in `09_extract_index.py` was the right intervention point; any entity
-network node-level patch would have been a stopgap that new books would bypass.
-
 ---
 
 ## Standing security principle — no identifying infrastructure details in documentation
@@ -153,19 +242,8 @@ separately — see `.gitignore`. The documentation principle above applies to an
 identifying detail that would appear in plain text in a committed file even without
 being a credential itself.
 
-This principle was established 21 April 2026 after a review of source and documentation
-files found machine names, usernames, and infrastructure identifiers embedded across
-scripts and docs.
-
----
-
-## Backlog item — User correction mechanism (ROADMAP #15)
-
-Entity network HTML is shared publicly. Viewers will spot misclassifications.
-**Future task:** add in-report UI for users to flag corrections (wrong kind, duplicate,
-fragment). Corrections feed back into `MANUAL_CORRECTIONS` after review.
-Design open questions: capture channel, correction schema, review workflow.
-See `docs/ROADMAP.md` item #15.
+The mapping from generic placeholders to actual infrastructure identifiers lives in
+`csv/infrastructure.csv` (gitignored).
 
 ---
 
@@ -173,8 +251,8 @@ See `docs/ROADMAP.md` item #15.
 
 **Target:** Release the book-level analysis HTML files to colleagues after presentation.
 **Standard:** Defensible — genuine effort at error reduction; not certified error-free.
-This is consistent with the standing methodological principle (all outputs are provisional)
-and the provenance notice already in all reports.
+Consistent with the standing methodological principle and the provenance notice in all
+reports.
 
 **Files in scope for release (nav links to entity network, not summaries):**
 - `data/outputs/index.html` — main report (Fig 1–6 + topic proportions)
@@ -183,438 +261,116 @@ and the provenance notice already in all reports.
 - `data/outputs/cosine.html` — cosine similarity
 - `data/outputs/book_nlp_entity_network.html` — entity relational network
 
-`books.html` (per-book summaries) is not in the current release scope — summary quality is not yet at release standard. All four navigable pages link to the entity network via the nav tab.
+`books.html` (per-book summaries) is **not** in the current release scope — summary quality
+is not yet at release standard (60k-token sampling limits). All four navigable pages link
+to the entity network via the nav tab.
 
-**Known issues affecting these files (prioritised):**
-
-| Priority | Issue | File | Status |
-|----------|-------|------|--------|
-| High | ROADMAP #16: topic filter dropdowns stale | index.html, keyphrases.html | ✅ Resolved 18 April |
-| High | KI-10: concept count 746→500 on fresh rebuild | entity_network.html | ✅ Resolved 18 April |
-| Medium | KI-09: ~150 singular/plural node pairs split PMI signal | entity_network.html | ✅ Resolved 20 April |
-| Low | Chapter NMF T4 contains metadata noise words | (chapter reports, not in scope) | Note only |
-
-**What "defensible" means here:**
-- All known systematic errors (platform contamination, EOLSS noise, trailing fragments,
-  node misclassifications) are fixed or mitigated — done.
-- Provenance notice visible at all scroll positions — done.
-- Topic names in all reports match current provisional LDA names — done (18 April).
-- Entity network validated against domain knowledge — done (KI-07 resolved).
-- No individual certified finding; results framed as automated provisional analysis — done.
-
-**Release status: All source-level fixes applied 20 April 2026. Full rerun of `run_all.sh` required (rebuild from step 09 due to `09_extract_index.py` casing fix).**
+**"Defensible" means:** all known systematic errors (platform contamination, EOLSS noise,
+trailing fragments, node misclassifications) are fixed or mitigated; provenance notice
+visible at all scroll positions; topic names match current provisional LDA names; entity
+network validated against domain knowledge; results framed as automated provisional
+analysis with no individual certified findings.
 
 ---
 
 ## Current sprint — Topic naming reliability
 
-Item 1 completed 20 April 2026. Items 2–4 remain open.
+**Item 1 complete:** full `pipeline.db` survey infrastructure built.
 
-1. **Run-records and Google Forms infrastructure** ✅ — full pipeline.db survey infrastructure built 21 April 2026.
+**Core database:** `data/pipeline.db` (8 tables). Shared by all survey scripts via
+`src/pipeline_db.py`. Tables: `equivalence_classes`, `pipeline_runs`, `runlog_entries`,
+`naming_sessions`, `topic_ratings`, `google_form_configs`, `google_form_responses`.
 
-   **Core database:** `data/pipeline.db` (8 tables) replaces `data/topic_naming.db`.
-   Shared by all survey scripts via `src/pipeline_db.py`. Tables: `equivalence_classes`,
-   `pipeline_runs`, `runlog_entries`, `naming_sessions`, `topic_ratings`,
-   `google_form_configs`, `google_form_responses`.
+**Canonical workflow:**
+1. `bash src/run_all.sh` — pipeline run; runlog auto-saved.
+2. Review runlog. If satisfied: `python src/log_pipeline_run.py --runlog …`.
+3. `python src/generate_google_form.py` — creates a form for the logged run (blocks test runs).
+4. Share form URL with raters.
+5. `python src/ingest_google_responses.py` — idempotent.
 
-   **Equivalence classes:** Two runs are equivalent if they share `k`, `n_books`,
-   `max_features`, `pipeline_mode`, `seeds_used`. `run_hash = SHA-256(16)` of these
-   parameters. Within a class, topic ordering may differ (LDA non-determinism); surveys
-   compare across runs using topic alignment. `nlp_hash = SHA-256(16)` of
-   `nlp_results.json` identifies a specific run instance.
+**Survey scripts:**
+- `src/pipeline_db.py` — DB module; schema; `open_db()`, `compute_file_hash()`, `compute_run_hash()`, `find_run_by_nlp_hash()`
+- `src/log_pipeline_run.py` — manual run logging; shows equivalence class; `--test` marks run survey-ineligible
+- `src/migrate_pipeline_db.py` — one-shot migration from `topic_naming.db`
+- `src/get_google_token.py` — one-time OAuth (run on a machine with browser)
+- `src/generate_google_form.py` — creates Google Form from `nlp_results.json`; enforces run-logging pre-condition
+- `src/ingest_google_responses.py` — fetches responses into `naming_sessions` + `topic_ratings`
+- `src/record_topic_run.py` — local HTTP server (interim); uses `pipeline_db`
 
-   **Workflow (canonical):**
-   1. `bash src/run_all.sh` — pipeline run; runlog auto-saved to `data/outputs/runlogYYYYMMDD.csv`
-   2. Review runlog. If satisfied: `python src/log_pipeline_run.py --runlog data/outputs/runlogYYYYMMDD.csv`
-   3. `python src/generate_google_form.py` — creates a Google Form for the logged run (blocks test runs)
-   4. Share form URL with raters
-   5. `python src/ingest_google_responses.py` — fetches responses into pipeline.db (idempotent)
-
-   **Scripts:**
-   - `src/pipeline_db.py` — DB module; schema; `open_db()`, `compute_file_hash()`, `compute_run_hash()`, `find_run_by_nlp_hash()`
-   - `src/log_pipeline_run.py` — manual run logging; shows equivalence class; `--test` flag marks run as survey-ineligible
-   - `src/migrate_pipeline_db.py` — one-shot migration from `topic_naming.db`
-   - `src/get_google_token.py` — one-time OAuth; run on a machine with browser access, writes token.json via sshfs mount
-   - `src/generate_google_form.py` — creates Google Form from nlp_results.json; enforces run-logging pre-condition
-   - `src/ingest_google_responses.py` — fetches responses into naming_sessions + topic_ratings; idempotent
-   - `src/record_topic_run.py` — local HTTP server (interim); refactored to use pipeline_db
-
-   **First live form (21 April 2026):** run `run_20260421_k9_s5`, class `0ab6e3f8ba95d0d0`. Confirmed live on the associated Google Drive. Responses disabled pending further testing.
-
-2. **n-run comparison report** — `src/compare_topic_runs.py --runs N`. Reads last N
-   records from `topic_run_records.json`. Report: per-topic book presence matrix,
-   stable word core, naming records table, inter-run book overlap %, agreement status.
-   Must scale to arbitrary N. Draft: `02 Projects/CyberneticsNLP/docs/src_draft/compare_topic_runs.py`
-
-3. **Multi-rater naming protocol** — ≥2 independent raters per topic per run;
-   record disagreements; compute inter-rater agreement (Cohen's kappa or % agreement).
-
-4. **Revise naming status** — current k=9 names are provisional (single run, single
-   rater). Names stable only after ≥3 runs and ≥2 raters agree.
+**Items 2–4 open** (tracked in `docs/ROADMAP.md` and the master project doc):
+2. **n-run comparison report** — `src/compare_topic_runs.py --runs N`. Draft: `02 Projects/CyberneticsNLP/docs/src_draft/compare_topic_runs.py`.
+3. **Multi-rater naming protocol** — ≥2 independent raters per topic per run; inter-rater agreement.
+4. **Revise naming status** — current k=9 names are provisional (single run, single rater). Names stable only after ≥3 runs and ≥2 raters agree.
 
 ---
 
-## Active issue — OCR exclusion: Cybernation and Social Change (KI-08 — RESOLVED)
+## Backlog item — User correction mechanism (ROADMAP #15)
 
-**Book:** [2133] *Cybernation and Social Change* — short monograph with severe OCR
-corruption. Identified as the source of the 541 vs 542 book count discrepancy.
-
-**Root cause:** OCR errors in this monograph were infecting the cleaned corpus with noise
-vocabulary and spurious co-occurrences. The book is too short and too corrupted to
-contribute reliable signal; its presence degrades both topic and entity outputs.
-
-**Fix:** Added [2133] to an explicit `ocr-excluded` list in the pipeline. The book is
-parsed and cleaned normally but excluded before LDA/TF-IDF fitting and entity network
-construction. Log confirms: `[ocr-excluded] excluded 1 book(s) from explicit exclusion
-list (542 → 541)` — `data/outputs/runlog20260418-2.csv` line 204–205.
-
-**Documentation required:** This exclusion should be recorded in `docs/methodology.md`
-under data quality decisions. The canonical corpus is 542 books parsed, 541 analysed.
-The corpus count framing for dissemination should use "541 monographs and collected works
-analysed" rather than "542-book corpus" to reflect the exclusion accurately.
-
-**Status: RESOLVED 18 April 2026.**
-
----
-
-## Active issue — Node misclassification sweep (KI-07 — FULLY RESOLVED)
-
-**Symptom:** Comprehensive review of all 1860 nodes (18 April 2026) found ~130 misclassified
-nodes. Examples: Perceptron [81] as location; Manhattan Project [86] as location; New York
-Times [138] as location; Brain/Neurotransmitters/Retina/Slavery/Synthesis as organisations;
-Voltaire/Homer/Sophocles as concepts; Lorente de Nó as organisation; Weiner Norbert as
-duplicate person; ~50 trailing-function-word fragments ("evolution of", "wiener and",
-"free will and", "ai and", "definition of", etc.) surviving as concept/location/org nodes.
-
-**Two-part fix — applied 18 April 2026 (third/fourth batch):**
-
-1. **`src/14_entity_network.py`** — two new module-level regexes, applied *before* cache
-   lookup (so they cannot be overridden by stale cache entries):
-   - `_TRAILING_FUNC` — suppresses any term whose surface form ends in a function word
-     ("of", "and", "on", "the", "to", "for", …). Catches ~50 fragment nodes.
-   - `_CTA_BACK_MATTER` — suppresses "sign up now", "about the author", "all rights
-     reserved", "first edition", "published by", etc.
-   - `_EOLSS_NOISE` — suppresses EOLSS contamination terms at runtime.
-   - `_TRAILING_COLON` — suppresses index sub-entry header fragments ending with `:`.
-
-2. **`src/15_entity_classify.py`** — MANUAL_CORRECTIONS: 101 pre-existing cache errors
-   corrected; 18 new entries (fourth batch); 89 further suppressions (fifth batch,
-   18 April 2026 — degree 1–2 concept node review). Full correction set now hardcoded
-   in source — survives cache wipes and `--refresh`.
-
-**Rerun completed 18 April 2026 (fifth batch session):**
-- Node count after fifth batch: **1,627** (persons=656, orgs=154, locations=71, concepts=746)
-- Previous baseline: 1,708 (concepts=827 after fourth batch rerun)
-- Concept reduction: 827 → 746 (81 fewer; 8 of 89 suppressed terms not present in network)
-- Network: density=0.0087, LCC=1625/1627 (100%), APL=3.248, diameter=5, max degree=283
-
-**Full pipeline rerun 18 April 2026 (sixth batch — `runlog20260418-2.csv`):**
-- Node count after fresh rebuild: **1,380** (persons=656, orgs=154, locations=70, concepts=500)
-- Concept reduction from fifth batch: 746 → 500 (246 fewer) — **requires investigation**
-  Most likely cause: regex pre-filters (`_TRAILING_FUNC` etc.) applied before cache lookup
-  on fresh build suppress terms that the fifth batch's patch-based approach left in the
-  cache as classified. Could also reflect [2133]'s removal reducing some concepts below
-  co-occurrence threshold. See KI-10 (new).
-- Network: density=0.0109, LCC=1378/1380 (100%), APL=3.24, diameter=7, max degree=248
-- Note: higher density and larger diameter than fifth batch; persons/orgs unchanged.
-
-**Status: RESOLVED — but KI-10 opened for concept count investigation.**
-
----
-
-## Active issue — Platform metadata contamination (KI-04 — RESOLVED in code)
-
-**Symptom:** Norbert Wiener associated with Google (PMI 1.0, 9-book overlap) in entity
-network — immediately wrong on domain grounds (Wiener died 1964, Google founded 1998).
-
-**Root cause (two distinct sources, confirmed by corpus inspection 17 April 2026):**
-
-1. **Temporal co-occurrence (structural):** Google appears in 95 books, Amazon in 60 —
-   modern books on algorithms/AI that legitimately discuss both Wiener and contemporary
-   platforms. Book-level PMI does not distinguish historical from contemporary entities.
-   Fix: exclude from entity network before PMI computation.
-
-2. **Index vocabulary noise (data quality):** Structural navigation terms ("Chapter"
-   12 books, "Index" 15, "Introduction" 15, "Volume" 14, "Section" 7) leak into
-   `json/index_analysis.json` from cross-references and front-matter fragments.
-   Internet Archive attribution strings ("Digitized by the Internet Archive...
-   Kahle/Austin Foundation") appear in 67 books. Fix: extend noise filters.
-
-**Fixes implemented 17 April 2026 — applied and verified on the NLP machine:**
-- `src/14_entity_network.py` — `KNOWN_TECH_PLATFORMS` set added.
-- `src/09b_build_index_analysis.py` — `is_noise_term` extended.
-- `src/02_clean_text.py` — Internet Archive / platform strings added to `INLINE_PATTERNS`.
-- Committed: `9daf49c`
-
----
-
-## Files modified this session (18–20 April 2026 — fifth batch, v0.4.7)
-
-**Context:** Fifth-batch Cowork session spanning 18–20 April 2026. Two sub-sessions:
-(a) 18 April — stale-var automation, runlog, keyphrases repair (see CHANGELOG [0.4.7]);
-(b) 20 April — five source-level fixes for release-targeted HTML files + KI-09 resolution
-+ `09_extract_index.py` systematic casing fix.
-Commit pending; full rerun of `run_all.sh` required (rebuild from step 09 onwards).
-
-**18 April sub-session:**
-
-- `src/check_stale_vars.py` — new utility created: checks `_LDA_BASE` in 8 scripts
-  against `json/nlp_results.json['topic_names']`; cross-verifies TAXONOMY; flags
-  corpus-count literals. `--fix` mode uses line-scanner (not `re.sub()`). First run:
-  7 scripts fixed, 1 already current. Integrated into `run_all.sh`.
-
-- `src/run_all.sh` — (a) runlog generation via `exec > >(tee "$RUNLOG") 2>&1` added
-  after `STREAM` setup; (b) `python3 "$SCRIPT_DIR/check_stale_vars.py" --fix` added
-  after `patch_topic_names.py`.
-
-- `figures/fig7_keyphrases.png` — regenerated with 18 April canonical topic names.
-
-- `data/outputs/keyphrases.html` — repaired (was blank after sshfs write error);
-  reconstructed by running `06_build_report.py` from sandbox.
-
-**20 April sub-session:**
-
-- `src/03_nlp_pipeline.py` — 13 contraction stems added to STOPWORDS (`aren, couldn,
-  didn, doesn, hadn, hasn, haven, mustn, shan, shouldn, wasn, weren, wouldn`). These
-  bypass the stop list because the lemmatiser strips `"'t"` before CountVectorizer runs.
-
-- `src/06_build_report.py` — three changes:
-  (a) `_PAGES` nav: `('books.html', '📝 Summaries')` → `('book_nlp_entity_network.html',
-      '🕸 Network')` — all four release pages now link to entity network.
-  (b) Cosine: both `542 × 542` literals → `{len(book_ids)} × {len(book_ids)}`.
-  (c) Clusters: yellow interpretive caveat box added before cluster table (silhouette
-      scores 0.013–0.021; no valid cluster structure; exploratory only; k may vary).
-
-- `src/run_all.sh` — `09c_validate_topics.py --top 10 --md` moved to after
-  `patch_topic_names.py` and `check_stale_vars.py --fix`. `topic_validation.md` now
-  written with canonical names, not raw LDA labels.
-
-- `src/14_entity_network.py` — KI-09 resolved: `_CONCEPT_PLURAL_EXCEPTIONS` set (35
-  `-ics` field names); `_singular_form()` function (5 morphological rules + multi-word
-  recursion); `concept_plural_map` built after concept classification; plural nodes
-  removed from `concepts` dict; book-set union into singulars post `concept_booksets`;
-  `vocab[sing_tl]['n_books']` updated; `target_tls` normalised via `concept_plural_map`.
-
-- `src/09_extract_index.py` — systematic casing fix for `_canonical_term()`:
-  (a) `LOWER_IN_TITLE` set added (articles, conjunctions, prepositions); `_ok()`
-  updated — terms like `Experiments in Art and Technology`, `Laws of Form`,
-  `Macy Conferences on Cybernetics` now preserved correctly;
-  (b) all-caps pre-processing — multi-word ALL-CAPS strings lowercased before canonical
-  check if any word > 3 chars (exempts genuine acronym sequences like `DNA RNA`);
-  (c) "best casing wins" in `all_terms` vocab builder — stored all-lowercase entries
-  upgraded when a later book supplies mixed-case form.
-  **Rebuild from step 09 required** (`09_extract_index.py` → `09b` → `09c` → `10`
-  → `12` → `14` → `15`).
-
-- `docs/CHANGELOG.md` — [0.4.7] entry updated with `09_extract_index.py` casing fix.
-- `docs/contributions.md` — 20 April session row updated with all changes.
-- `CLAUDE.md` — release status and files-modified section updated.
-
----
-
-## Next session agenda
-
-*Session startup: run fresh `run_all.sh` (rebuild from step 09 required — see item 2),
-save runlog, log the run, review key stats before proceeding.*
-
-1. **Presentation review — CyberneticsNLP_Talk_v2.pptx** *(deadline: 28 April — do first)*
-
-   File: `02 Projects/CyberneticsNLP/CyberneticsNLP_Talk_v2.pptx`
-
-   **Stale content to fix:**
-   - **Slide 4 (Corpus):** "695 Books" — the pipeline now analyses 541 monographs and
-     collected works (not 695). 695 is the full Calibre library. The distinction needs to
-     be clear on the slide (e.g. "695 in collection · 541 analysed").
-   - **Slide 8 (Build timeline):** stops at v0.4.3 (14 April). Add v0.4.4–v0.5.0 sessions
-     (18–21 April): entity network fixes, topic taxonomy revision, Google Forms survey
-     infrastructure. Now 34+ scripts, v0.5.0.
-   - **Slide 13 (Topic map):** check all 9 names against the 18 April taxonomy revision.
-     T4 in particular was revised — check current canonical names in
-     `json/nlp_results.json['topic_names']` and update any that changed.
-   - **Slide 22 (What's Next — Immediately column):** several items are now done —
-     entity noise / OCR artefacts (KI-04, KI-07 resolved), full spaCy + Wikidata pass,
-     document unit decision. Update to current state; add survey validation
-     (multi-rater naming, `compare_topic_runs.py`) as the active next step.
-
-   **Key messages and provisional findings to review (slides 5, 23):**
-   - Slide 5 research questions: still well-framed — no changes needed.
-   - Slide 23 takeaways: consider sharpening takeaway 1 to distinguish the 695-book
-     collection from the 541-book analysed corpus. Takeaways 2–5 remain solid.
-   - Framing consistency: all findings should be labelled "provisional" (topic names
-     pending multi-rater validation, entity network pending full rerun). Confirm this
-     is consistent across slides 11, 13, and 22.
-
-   **Optional addition:** a single slide on the survey/validation methodology — that
-   topic naming is a deliberate validation step, not just labelling — reinforces the
-   "keeping AI honest" theme in the meta-section (slides 6–7, 19).
-
-2. **Full pipeline rerun** *(do after presentation is settled — all downstream items depend on current outputs)*
-   The `09_extract_index.py` casing fix (v0.4.7) has not yet been run end-to-end.
-   Rebuild required from step 09: `09_extract_index.py` → `09b` → `09c` → `10` → `12`
-   → `14` → `15`. Simplest: `bash src/run_all.sh` (full run). Save runlog, then:
-   `python src/log_pipeline_run.py --runlog data/outputs/runlogYYYYMMDD.csv`
-
-2. **Activate survey — first live rater session** *(sprint item 1 follow-up)*
-   After item 1 rerun is logged, generate a fresh Google Form for the new run:
-   `python src/generate_google_form.py`
-   Enable responses in Google Forms settings, share URL with raters (≥2 independent).
-   After rating session: `python src/ingest_google_responses.py`
-
-3. **compare_topic_runs.py** *(sprint item 2)*
-   Graduate `docs/src_draft/compare_topic_runs.py` to `src/`. Reads pipeline.db run
-   records, aligns topics across runs (Hungarian algorithm on Jaccard similarity of
-   top-word sets), reports per-topic name stability and book overlap across runs.
-
-4. **Multi-rater naming protocol** *(sprint item 3)*
-   ≥2 independent raters per topic per run. Compute inter-rater agreement (Cohen's
-   kappa or % agreement) from `pipeline.db` responses after item 2 rater session.
-
-5. **Revise naming status** *(sprint item 4)*
-   Current k=9 names are provisional (single run, single rater). Names become stable
-   only after ≥3 runs and ≥2 raters agree. Update `patch_topic_names.py` status
-   and `check_stale_vars.py --fix` once stable names are confirmed.
-
-6. **Slide deck update** *(after topic names are settled — do after item 5)*
-   Update `CyberneticsNLP_Talk_v2.pptx` with current stats:
-   - Network: 1,638 nodes (persons=657, orgs=154, locations=70, concepts=757),
-     11,749 edges (book=10,475 + para=1,274); KI-09 resolved (146 plural merges)
-   - Any topic name changes from item 5
-   Do in one pass after names confirmed — avoids a second deck update.
-
-7. **Document KI-08 in methodology** — add data quality entry for [2133] *Cybernation
-   and Social Change* to `docs/methodology.md`: OCR corruption, why excluded, algorithm
-   infection principle operationalised. Canonical corpus framing: "541 monographs and
-   collected works analysed".
-
-8. **ROADMAP #24 investigation** *(small, can pair with another item)* — examine
-   high-frequency paragraph edges to characterise relationship types (synthesis,
-   contrast, citation, incidental). Query `json/entity_network.json` for `type=para`
-   edges with highest weight; pull source paragraphs from `books_clean.json`.
-
-9. **Classifier track** — second review round: `csv/monograph_sample_*.csv` awaiting
-   review (ROADMAP #1). Feeds classifier retraining (#2, #3).
-
-10. **Conceptual writing** — draft or develop sections on:
-    - Epistemic affordances of the pipeline
-    - Human–AI collaboration framing
-    - Data quality and the algorithm infection principle
-    Target: `docs/methodology.md` or standalone memo(s).
-
----
-
-## Files modified this session (21 April 2026 — Google Forms survey infrastructure)
-
-**Context:** Self-hosted Caddy/Docker approach blocked by ISP (inbound ports 80/443 blocked
-on residential connection). Pivoted to Google Forms API. Complete pipeline.db refactor.
-
-**New scripts:**
-- `src/pipeline_db.py` — central shared DB module; 8-table schema; hash utility functions
-- `src/log_pipeline_run.py` — manual run logging tool; equivalence class tracking; `--test` flag
-- `src/migrate_pipeline_db.py` — one-shot migration from `topic_naming.db` to `pipeline.db`
-- `src/get_google_token.py` — one-time OAuth token generator (run on the workstation via sshfs mount)
-- `src/generate_google_form.py` — **fully rewritten** from stub; enforces run-logging pre-condition;
-  creates 39-item Google Form with per-topic questions
-- `src/ingest_google_responses.py` — Google Form response ingester; idempotent; `--dry-run` / `--list-forms`
-
-**Modified scripts:**
-- `src/record_topic_run.py` — refactored to use `pipeline_db.py`; `_save()` looks up run by `nlp_hash`
-- `src/run_all.sh` — `--test` flag; test runlog naming (`runlogYYYYMMDD_test.csv`); survey-logging
-  reminder in canonical run completion message
-
-**Database:**
-- `data/pipeline.db` — new central database (8 tables). Replaces `data/topic_naming.db` (3 tables).
-  Migrate: `python src/migrate_pipeline_db.py`
-
-**First live form (21 April 2026):** Form ID recorded in `data/pipeline.db` (`google_form_configs` table),
-run `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`. Confirmed live on
-the project Google Drive account. Responses disabled pending further testing.
-
-**Documentation:**
-- `docs/CHANGELOG.md` — [0.5.0] entry
-- `docs/contributions.md` — 21 April session row
-- `docs/decisions.md` — Google Forms choice; equivalence class design; pipeline.db rename; manual logging gate
-- `docs/methodology.md` — topic naming reliability and survey methodology section
-- `CLAUDE.md` — this section; sprint item 1 updated; agenda items 9–10 closed
+Entity network HTML is shared publicly. Viewers will spot misclassifications.
+**Future task:** add in-report UI for users to flag corrections (wrong kind, duplicate,
+fragment). Corrections feed back into `MANUAL_CORRECTIONS` after review.
+Open design questions: capture channel, correction schema, review workflow.
 
 ---
 
 ## HTML report bugs
 
-Bug tracking for the HTML outputs. Canonical list in `docs/ROADMAP.md` (backlog items).
-KI numbers in this file refer to pipeline/data issues; ROADMAP # refers to code/UI bugs.
-Note: the ROADMAP's old KI-01–KI-09 list is stale (v0.4.2) and should not be confused
-with the active KI-04–KI-10 tracking in this file.
+Canonical list in `docs/ROADMAP.md`. KI numbers in this file refer to pipeline/data issues;
+ROADMAP # refers to code/UI bugs. The ROADMAP's older KI-01–KI-09 list is stale (v0.4.2)
+and should not be confused with the active KI tracking below.
 
 | ROADMAP # | Report file | Description | Status |
 |-----------|-------------|-------------|--------|
-| #16 | `data/outputs/index.html` Fig 3 + `keyphrases.html` | Topic filter dropdowns used stale names. Root cause: `patch_topic_names.py` TAXONOMY had 3 April names, overwriting `nlp_results.json` on every run. Fixed: TAXONOMY updated to 18 April taxonomy; `_LDA_BASE` fallback updated; `lda_names` added to `kp_data`; keyphrases JS fixed. HTML regenerated. | ✅ Done |
-| #17 | `data/outputs/book_nlp_entity_network.html` | Provenance notice (`position:fixed;top:0`) covers app header in full-viewport flex layout. Fixed in source (`src/14_entity_network.py`): notice is now a `flex-shrink:0` static element injected before `<div class="header">`. | ✅ Verified 18 April 2026 |
-
----
-
-## Session startup protocol
-
-**Before each session:** Run a fresh `run_all.sh` on the NLP machine and save the log to
-`data/outputs/runlog_YYYYMMDD.csv` (or similar). At session start, read the latest
-runlog and do a quick review of:
-- Book count and any exclusions
-- Topic stability figures (mean stability, n stable / 9)
-- Entity network summary (node counts by kind, edge counts by level, LCC %)
-- Any warnings or errors in the log
-
-This ensures the session begins from a known, current pipeline state and provides a
-permanent machine-readable record of each day's run. Network stats from standalone
-script reruns (e.g. `python3 src/14_entity_network.py` without `run_all.sh`) are not
-captured in the runlog — if a standalone rerun is done mid-session, note the stats
-manually (e.g. in CLAUDE.md or ROADMAP).
+| #16 | `index.html` Fig 3 + `keyphrases.html` | Topic filter dropdowns used stale names. Root cause: `patch_topic_names.py` TAXONOMY overwrote `nlp_results.json` on every run. Fixed: TAXONOMY updated; `_LDA_BASE` fallback updated; `lda_names` added to `kp_data`; keyphrases JS fixed. | ✅ Done |
+| #17 | `book_nlp_entity_network.html` | Provenance notice (`position:fixed;top:0`) covered the app header. Fixed in `src/14_entity_network.py`: notice is now `flex-shrink:0` static, injected before `<div class="header">`. | ✅ Done |
 
 ---
 
 ## Infrastructure notes
 
 Specific machine names, usernames, hostnames, email addresses, and resource IDs are
-replaced with generic descriptions in this file (security principle). The mapping from
-placeholder to actual value is in `csv/infrastructure.csv` (gitignored).
+replaced with generic descriptions here (security principle). Actual values live in
+`csv/infrastructure.csv` (gitignored).
 
-
-
-- **sshfs mount:** The NLP machine is always mounted inside the vault at
-  `02 Projects/CyberneticsNLP/cybersonic/` via alias `mcyber` on the NLP machine.
-  Claude can read and write files through this mount. Mount goes stale after
-  ~30 min — run `mcyber` on the NLP machine to remount if directories appear empty.
-- **IMPORTANT — Claude cannot run commands on the NLP machine.** Git, Python scripts,
-  and anything requiring the NLP machine's environment must be run manually in a
-  terminal on the NLP machine. Claude edits files via the mount; Paul runs the scripts.
-  Specifically: `git push`, `python3 src/*.py`, pip installs — all NLP machine only.
-- **Git push:** commit on the NLP machine (`git commit`), push from the NLP machine (`git push`)
-  to `github.com:cyberneticbookshelf-stack/cyberneticsNLP.git`. SSH key must be
-  configured on the NLP machine — was broken 17 April 2026, now fixed.
-- **Cowork "+" button for second workspace:** known bug (GitHub #19318) — fails with
-  "Session VM process not available" on FUSE/sshfs mounts. Use vault-internal mount
-  as workaround.
-- **Python environment:** the NLP machine, `~/CyberneticsNLP/`. Use `pip install --break-system-packages`.
-- **ngrok:** Install via `conda install trenta3::ngrok`. To expose the naming form: run `ngrok http 7474` in a second terminal while the server is running. Share the printed `https://….ngrok-free.app` URL with raters. Note: free tier requires a free ngrok account.
-- **Central pipeline database:** `data/pipeline.db` (SQLite, 8 tables). Replaces `data/topic_naming.db` (3 tables, old schema). All survey scripts import from `src/pipeline_db.py`. Migrate once: `python src/migrate_pipeline_db.py`. `credentials.json` and `token.json` are gitignored and must not be committed.
-- **Google Forms survey workflow:** `get_google_token.py` (run once on the workstation via sshfs mount) → `log_pipeline_run.py` (log the run after reviewing runlog) → `generate_google_form.py` (creates form for the logged run) → share URL → `ingest_google_responses.py` (idempotent response fetch). App is in Google OAuth Testing mode; the project Google account is whitelisted as a test user.
-- **Naming server — local (interim):** `ssh -L 7474:localhost:7474 <user>@<nlp-host> -N` (from the workstation). Open http://localhost:7474 in browser. Fragile; requires manual server start and held SSH session. Superseded by Google Forms for public surveys.
-- **Naming server — self-hosted (abandoned):** Docker/Caddy infrastructure on a self-hosted server was fully built (TLS cert obtained, DNS propagated) but permanently blocked by ISP inbound port restrictions. Infrastructure remains but is not publicly reachable without ISP upgrade.
-- **Patch scripts:** when sshfs mount goes read-only mid-session, write patch scripts
-  to vault (not cybersonic/) and run them on Cybersonic. Use str.replace() or line
-  scanners rather than re.sub() for source-code patching — re.sub processes backslash
-  sequences in replacement strings, which corrupts Python string literals.
+- **sshfs mount:** the NLP machine is mounted inside the vault at `02 Projects/CyberneticsNLP/cybersonic/` via alias `mcyber` on the NLP machine. Claude can read and write files through this mount. Mount goes stale after ~30 min — run `mcyber` on the NLP machine to remount if directories appear empty.
+- **Execution boundary:** Claude cannot run commands on the NLP machine. Git, Python scripts, pip installs — all NLP machine only. Claude edits files via the mount; the user runs the scripts.
+- **Git push:** commit and push from the NLP machine to `github.com:cyberneticbookshelf-stack/cyberneticsNLP.git`. SSH key must be configured on the NLP machine.
+- **Cowork second workspace:** known bug (GitHub #19318) — `+` button fails with "Session VM process not available" on FUSE/sshfs mounts. Use the vault-internal mount as workaround.
+- **Python environment:** NLP machine, `~/CyberneticsNLP/`. Use `pip install --break-system-packages`.
+- **ngrok (optional, for interim naming server):** `conda install trenta3::ngrok`, then `ngrok http 7474` in a second terminal. Free tier requires an ngrok account. Superseded by Google Forms for public surveys.
+- **Google Forms survey:** `get_google_token.py` (run once on the workstation via sshfs mount) → `log_pipeline_run.py` → `generate_google_form.py` → share URL → `ingest_google_responses.py`. App is in Google OAuth Testing mode; the project Google account is whitelisted as a test user.
+- **Naming server — local (interim):** `ssh -L 7474:localhost:7474 <user>@<nlp-host> -N` from the workstation; open `http://localhost:7474`. Fragile; manual server start; held SSH session.
+- **Naming server — self-hosted (abandoned):** Docker/Caddy infrastructure fully built but permanently blocked by ISP inbound port restrictions on residential connection.
+- **Patch scripts:** when sshfs mount goes read-only mid-session, write patch scripts to the vault (not the project directory) and run them on the NLP machine. Use `str.replace()` or line scanners, not `re.sub()` — `re.sub` processes backslash sequences in replacement strings and corrupts Python string literals.
 
 ---
 
 ## Known issues (active)
 
+Resolution detail (commit hashes, file-level changes) is in `docs/CHANGELOG.md` and
+`docs/contributions.md`. This table is the orientation index only.
+
 | ID | Issue | Status |
 |----|-------|--------|
-| KI-04 | Amazon/Google as high-degree nodes — ebook metadata noise | **Resolved 17 April 2026** — `KNOWN_TECH_PLATFORMS` in `src/14_entity_network.py`; noise filters in `src/09b`; committed `9daf49c` |
-| KI-05 | T9: book [249] loading=1.000 dominates | Document in paper; may resolve after exclusion filter |
-| KI-06 | Proceedings/handbook books not yet filtered from pipeline | Pending signal inventory + document unit decision (moratorium) |
-| KI-07 | ~130 misclassified nodes + EOLSS contamination + plural/comma fragments | **Fully resolved 18 April 2026** — all fixes in `src/14` and `src/15`; rerun complete; final network 1,627 nodes |
-| KI-08 | 541 vs 542 book count in LDA — one book dropped at runtime | **Resolved 18 April 2026** — [2133] Cybernation and Social Change excluded via `ocr-excluded` list; OCR corruption infects collection |
-| KI-09 | ~150 singular/plural node pairs (e.g. algorithm/algorithms) — split PMI signal | **Resolved 20 April 2026** — `_singular_form()` + `concept_plural_map` in `src/14_entity_network.py`; plurals merged into singulars with book-set union; `_CONCEPT_PLURAL_EXCEPTIONS` blocks 35 `-ics` field names (cybernetics, thermodynamics, etc.) that are not genuine plurals; paragraph-window `target_tls` normalised; rerun required |
-| KI-10 | Entity network concepts dropped 746→500 on fresh rebuild (sixth batch) | **Resolved 18 April 2026** — `run_all.sh` was running step 14 with `--no-windows`, excluding ~239 concept nodes that only have paragraph-level edges (no qualifying book-level co-occurrence). Not a data bug; two internally consistent networks. Fix: removed `--no-windows` from `run_all.sh` so paragraph windows always run. Canonical network: 1,620 nodes, 739 concepts. |
+| KI-04 | Amazon/Google as high-degree nodes — ebook metadata noise | **Resolved.** `KNOWN_TECH_PLATFORMS` in `src/14_entity_network.py`; noise filters in `src/09b_build_index_analysis.py`; Internet Archive strings in `src/02_clean_text.py`. |
+| KI-05 | T9: book [249] loading=1.000 dominates | Document in paper; may resolve after exclusion filter. |
+| KI-06 | Proceedings/handbook books not yet filtered from pipeline | Pending signal inventory + document unit decision (moratorium). |
+| KI-07 | ~130 misclassified nodes + EOLSS contamination + plural/comma fragments | **Resolved.** Regex pre-filters (`_TRAILING_FUNC`, `_CTA_BACK_MATTER`, `_EOLSS_NOISE`, `_TRAILING_COLON`) in `src/14_entity_network.py` run before cache lookup; `MANUAL_CORRECTIONS` in `src/15_entity_classify.py` extended across five batches. |
+| KI-08 | 541 vs 542 book count — one book dropped at runtime | **Resolved.** [2133] *Cybernation and Social Change* added to `ocr-excluded` list. Parsed and cleaned normally but excluded before LDA/TF-IDF fitting and entity network construction. Canonical corpus: 542 parsed, 541 analysed. |
+| KI-09 | ~150 singular/plural node pairs split PMI signal | **Resolved.** `_singular_form()` + `concept_plural_map` in `src/14_entity_network.py`; plurals merged into singulars with book-set union. `_CONCEPT_PLURAL_EXCEPTIONS` protects 35 `-ics` field names (cybernetics, thermodynamics, …). |
+| KI-10 | Entity network concepts dropped 746→500 on fresh rebuild | **Resolved.** Root cause: `run_all.sh` was running step 14 with `--no-windows`, excluding ~239 concept nodes that only have paragraph-level edges. Fix: `--no-windows` removed from `run_all.sh`. |
 
-*Updated 21 April 2026 — Cowork session (Google Forms survey infrastructure; pipeline.db refactor; v0.5.0; commit pending rerun)*
+---
+
+## Session startup protocol
+
+Before each session, the user runs a fresh `run_all.sh` on the NLP machine. At session
+start, read the latest `data/outputs/runlogYYYYMMDD.csv` and review:
+- Book count and any exclusions
+- Topic stability figures (mean stability, n stable / 9)
+- Entity network summary (node counts by kind, edge counts by level, LCC %)
+- Any warnings or errors in the log
+
+Standalone script reruns (e.g. `python3 src/14_entity_network.py` outside `run_all.sh`) are
+**not** captured in the runlog — if a mid-session standalone rerun is done, note the stats
+manually in `docs/ROADMAP.md` or the master project doc.

@@ -53,23 +53,19 @@ Usage:
   python3 src/00_fetch_anu_primo.py --reclassify      # re-run inference only
 
 Output:
-  json/anu_primo_cache.json          — raw Primo API responses per book
-  json/book_styles_primo.json        — styles enriched with Primo signals
-  docs/book_styles_primo_review.md   — review table with Primo resource types
+  json/anu_primo_cache.json     — raw Primo API responses per book
+  json/book_styles_primo.json   — styles enriched with Primo signals
 """
 
 # ── Directory layout ──────────────────────────────────────────────────────────
 import pathlib as _pl
 CSV_DIR  = _pl.Path('csv')
 JSON_DIR = _pl.Path('json')
-DOCS_DIR = _pl.Path('docs')
 JSON_DIR.mkdir(exist_ok=True)
-DOCS_DIR.mkdir(exist_ok=True)
 
 import csv, json, sys, re, time
 import urllib.request, urllib.parse
 from collections import Counter
-from datetime import date
 
 LIMIT      = None
 RECLASSIFY = '--reclassify' in sys.argv
@@ -547,59 +543,7 @@ if changed > 0:
             print(f"  [{bid}] {v['title'][:50]:50s}  {prev} → {v['style']}"
                   f"  [Primo:{rt}]  {v['primo_signals'][:2]}")
 
-# Markdown review table
-md_path = str(DOCS_DIR / 'book_styles_primo_review.md')
-lines = [
-    f"# Book Style Classification — Primo Enriched",
-    f"",
-    f"**Date:** {date.today()}  ",
-    f"**Corpus:** {len(enriched)} books  ",
-    f"**Primo instance:** {PRIMO_VID}  ",
-    f"",
-    f"## Summary",
-    f"",
-    f"| Style | Count | % |",
-    f"|---|---|---|",
-]
-for style, n in style_counts.most_common():
-    lines.append(f"| {style} | {n} | {100*n/len(enriched):.1f}% |")
-
-lines += [
-    f"",
-    f"## Changed classifications",
-    f"",
-    f"| ID | Title | Previous | Primo | Primo Type | Signals |",
-    f"|---|---|---|---|---|---|",
-]
-for bid, v in enriched.items():
-    prev = book_styles.get(bid, {}).get('style', 'monograph')
-    if v['style'] != prev:
-        rt = v.get('primo_type', [''])[0] if v.get('primo_type') else ''
-        lines.append(
-            f"| {bid} | {v['title'][:45]} | {prev} | **{v['style']}** "
-            f"| {rt} | {', '.join(v['primo_signals'][:2])} |"
-        )
-
-lines += [
-    f"",
-    f"## Full classification table",
-    f"",
-    f"| ID | Title | Year | Style | Conf | Primo Type | Primo Status |",
-    f"|---|---|---|---|---|---|---|",
-]
-for bid, v in sorted(enriched.items(), key=lambda x: x[1].get('pubdate', '')):
-    rt = v.get('primo_type', [''])[0] if v.get('primo_type') else ''
-    lines.append(
-        f"| {bid} | {v['title'][:45]} | {v.get('pubdate','')} "
-        f"| **{v['style']}** | {v['confidence']} | {rt} | {v['primo_status']} |"
-    )
-
-with open(md_path, 'w', encoding='utf-8') as f:
-    f.write('\n'.join(lines))
-
 print(f"\nSaved {out_path}")
-print(f"Saved {md_path}")
 print(f"\nNext steps:")
-print(f"  1. Review docs/book_styles_primo_review.md")
-print(f"  2. Verify changed classifications and set 'verified': true")
-print(f"  3. Run --stats to check resource type distribution from Primo")
+print(f"  1. Verify changed classifications and set 'verified': true in json/book_styles_primo.json")
+print(f"  2. Run --stats to check resource type distribution from Primo")

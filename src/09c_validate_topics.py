@@ -19,16 +19,16 @@ Methodology note (for paper):
     the primary validation method for this corpus.
 
 Output:
-    json/topic_validation.json   — structured validation data
-    docs/topic_validation.md     — human-readable report (--md flag)
+    json/topic_validation.json          — structured validation data
+    data/outputs/topic_validation.md    — human-readable report (--md flag)
 """
 
 # ── Directory layout ──────────────────────────────────────────────────────────
 import pathlib as _pl
 JSON_DIR = _pl.Path('json')
-DOCS_DIR = _pl.Path('docs')
+OUTPUTS_DIR = _pl.Path('data/outputs')
 JSON_DIR.mkdir(exist_ok=True)
-DOCS_DIR.mkdir(exist_ok=True)
+OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 import json, sys, re
 from datetime import date
@@ -201,7 +201,7 @@ print(f"\nSaved {out_path}")
 
 # ── Markdown report (--md) ────────────────────────────────────────────────────
 if WRITE_MD:
-    md_path = str(DOCS_DIR / 'topic_validation.md')
+    md_path = str(OUTPUTS_DIR / 'topic_validation.md')
     lines = [
         f"# Topic Validation Report",
         f"",

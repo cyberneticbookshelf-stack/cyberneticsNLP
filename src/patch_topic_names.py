@@ -17,7 +17,7 @@ data = json.load(open(target))
 # Names agreed by Paul Wong via title-sweep inspection of top-loading books.
 # Stability scores from 5-seed run: mean=0.327 (superseded by sixth-batch
 # rerun mean=0.357, 6/9 stable — 18 April 2026).
-# Notes are provisional; full rationale in docs/memo_lda_k_selection.md.
+# Notes are provisional; full rationale in docs/memos/memo_lda_k_selection.md.
 TAXONOMY = {
     'T1': {
         'proposed_name': 'Cybernetics of Political Economy',

@@ -1,4 +1,4 @@
-# Book Corpus NLP Analysis Pipeline — Pilot Snapshot
+# Book Corpus NLP Analysis Pipeline
 
 **Authors**
 
@@ -7,8 +7,6 @@ Claude Sonnet 4.6 (Anthropic, claude.ai)²
 
 ¹ School of Cybernetics, The Australian National University, Canberra, Australia
 ² Large language model; no persistent identity, affiliation, or legal standing
-
-**Date:** 21 April 2026
 
 ---
 
@@ -38,7 +36,7 @@ CyberneticsNLP/
 ├── json/                       ← All JSON/JSONL outputs (auto-created, NLP machine local)
 │   ├── books_clean.json        ← cleaned text corpus (written by 02/stream)
 │   ├── nlp_results.json        ← current canonical run (written by 03; overwritten on each run)
-│   ├── nlp_results_k{N}.json  ← k-sweep runs; nlp_results_k9.json = v0.5.0 canonical (18 April 2026)
+│   ├── nlp_results_k{N}.json  ← k-sweep runs (k=9 canonical; others retained for comparison)
 │   ├── summaries.json          ← abstractive summaries (written by generate_summaries_api)
 │   ├── index_terms.json        ← raw per-book index terms (written by 09)
 │   ├── index_vocab.json        ← raw vocabulary (written by 09)
@@ -84,8 +82,8 @@ CyberneticsNLP/
 │
 ├── src/                        ← Pipeline scripts (tracked in git)
 │   ├── parse_and_clean_stream.py   Step 0s: streaming clean (large corpora)
-│   ├── 01_parse_books.py           Step 1:  parse CSV → books_parsed.json
-│   ├── 02_clean_text.py            Step 2:  Hunspell clean → books_clean.json
+│   ├── 01_parse_books.py           Step 1:  parse CSV → json/books_parsed.json
+│   ├── 02_clean_text.py            Step 2:  Hunspell clean → json/books_clean.json
 │   ├── 03_nlp_pipeline.py          Step 3:  LDA topics (book-level)
 │   ├── generate_summaries_api.py   Step 3b: abstractive summaries via API
 │   ├── 04_summarize.py             Step 4:  extractive fallback summaries
@@ -107,7 +105,7 @@ CyberneticsNLP/
 │   ├── build_embed_report.py       Step 11b: rebuild comparison report from results JSON
 │   ├── 13_weighted_comparison.py   Step 13: compare unweighted vs weighted pipeline runs
 │   ├── embeddings.py               Embedding provider abstraction module
-│   ├── 00_export_calibre.py        Step 0:  export books_metadata_full.csv from Calibre DB
+│   ├── 00_export_calibre.py        Step 0:  export csv/books_metadata_full.csv from Calibre DB
 │   ├── 00_classify_book_styles.py  Step 0a: heuristic book style classification
 │   ├── 00_fetch_worldcat_metadata.py Step 0b: Google Books + Open Library enrichment
 │   ├── 00_fetch_anu_primo.py        Step 0c: ANU Primo catalogue enrichment
@@ -128,17 +126,27 @@ CyberneticsNLP/
 │   └── run_all.sh                  End-to-end runner (--test flag for survey-ineligible test runs)
 │
 ├── docs/
-│   ├── methodology.md          ← full technical methodology (2,000+ lines)
-│   ├── decisions.md            ← design decision log (1,600+ lines)
+│   ├── methodology.md          ← full technical methodology (canonical)
+│   ├── decisions.md            ← design decision log (canonical)
 │   ├── contributions.md        ← authorship, CRediT statement, session log
 │   ├── CHANGELOG.md            ← versioned change history
 │   ├── ROADMAP.md              ← planned work, open questions, phases
-│   ├── book_styles.md          ← book style classification summary (heuristic baseline)
-│   ├── book_styles_primo_review.md ← Primo-enriched classification review
-│   ├── draft_methods_corpus_construction.md ← draft paper methods §3
-│   ├── memo_media_aware_nlp_epistemic_affordances.md ← theoretical framework (17 sections)
-│   ├── memo_attribution_annotations.md ← attribution annotations for theory memo
-│   └── chat_history.md         ← session notes
+│   │
+│   ├── memos/                  ← research memos, paper feeds
+│   │   ├── memo_media_aware_nlp_epistemic_affordances.md   ← theoretical framework
+│   │   ├── memo_attribution_annotations.md                 ← FLAGGED for paper integration
+│   │   ├── memo_data_quality_algorithm_infection.md
+│   │   ├── memo_lda_k_selection.md
+│   │   ├── memo_topic_naming_reliability.md
+│   │   └── corpus_construction.md                          ← draft paper methods §3
+│   │
+│   ├── reference/              ← project-specific reference data
+│   │   ├── book_styles.md
+│   │   ├── project_context.md
+│   │   └── survey_hosting_options.md
+│   │
+│   └── archive/                ← frozen; do not edit
+│       └── consolidation_14apr2026.md
 │
 ├── README.md
 ├── requirements.txt
@@ -190,78 +198,42 @@ Also place the OCR text exports in csv/:
 csv/books_text_*.csv
 ```
 
-### 3a. Run — streaming path (recommended for large corpora)
+### 3. Book style enrichment (run once, before main pipeline)
 
-Processes one CSV at a time, never loads the full corpus into memory.
-Run once per CSV file in any order:
-
-```bash
-for f in csv/books_text_*.csv; do
-    python3 src/parse_and_clean_stream.py "$f"
-done
-```
-
-Then run downstream steps:
+Not part of `run_all.sh` — external APIs, caching logic, reads
+`csv/books_metadata_full.csv` (from step 2):
 
 ```bash
-# Book-level pipeline
-python3 src/03_nlp_pipeline.py              # standard (always run this first)
-python3 src/03_nlp_pipeline.py --name-topics  # + auto-name topics via API (~$0.01)
-python3 src/04_summarize.py
-python3 src/05_visualize.py
-python3 src/06_build_report.py
-python3 src/07_build_excel.py
-
-# Chapter-level pipeline (not yet refactored — single output file)
-python3 src/03_nlp_pipeline_chapters.py
-python3 src/05_visualize_chapters.py
-python3 src/06_build_report_chapters.py
-python3 src/07_build_excel_chapters.py
-
-# Index extraction and canonical vocabulary
-python3 src/09_extract_index.py
-python3 src/09b_build_index_analysis.py   # canonical vocab + person name merging
-python3 src/10_build_index_report.py
-
-# Index grounding — must run after 09b, before 08
-python3 src/12_index_grounding.py
-
-# Time series — must run after 12 (Chart 7 needs concept_velocity.json)
-python3 src/08_build_timeseries.py
-
-# Book style enrichment — run once before main pipeline
-# Step 0: export metadata from Calibre (writes csv/books_metadata_full.csv)
-python3 src/00_export_calibre.py
 python3 src/00_classify_book_styles.py                    # heuristic baseline
 python3 src/00_fetch_worldcat_metadata.py                 # Google Books + OL (~10 min)
 python3 src/00_fetch_anu_primo.py                         # ANU Primo (~12 min)
 python3 src/00_fetch_worldcat_metadata.py --reclassify    # apply enrichment
 python3 src/00_fetch_anu_primo.py --reclassify            # apply Primo signals
 python3 src/00_classify_book_styles.py --stats            # final distribution
-
-# Entity classification — run once, results cached in json/entity_types_cache.json
-# Requires: pip install spacy && python3 -m spacy download en_core_web_sm
-python3 src/15_entity_classify.py          # heuristics + spaCy + Wikidata
-python3 src/15_entity_classify.py --no-wikidata  # offline mode
-
-# Entity relational network — run after 09b, 12, and 15
-python3 src/14_entity_network.py --no-windows  # fast (book-level edges only)
-python3 src/14_entity_network.py               # + paragraph-window edges (~5 min)
-
-# Optional: abstractive summaries (rerun 03c onwards if you regenerate)
-# python3 src/generate_summaries_api.py --workers 4
-
-# Optional: embedding comparison
-# python3 src/11_embedding_comparison.py --no-voyage  # A+B+C
 ```
 
-### 3b. Run — standard path (small corpora, <~300 books)
+Writes `json/book_styles.json` (covariate for downstream analysis).
+
+### 4. Run the pipeline
 
 ```bash
-bash src/run_all.sh
+bash src/run_all.sh              # standard (<~300 books)
+bash src/run_all.sh --stream     # streaming parse+clean for large corpora
+bash src/run_all.sh --test       # test run; runlog suffixed _test; not survey-eligible
 ```
 
-### 4. Generate abstractive summaries (optional — see note)
+See `src/run_all.sh` for the full ordered step list (01 → 02 → 03 → 04 → 05 → 06 → 07 →
+09 → 09b → 09c → 10 → 12 → 08 → 11 → 15 → 14, with chapter-level variants after book-level).
+Runlog auto-written to `data/outputs/runlogYYYYMMDD.csv`.
+
+**Entity classification requires spaCy** (step 15, cached in `json/entity_types_cache.json`):
+
+```bash
+pip install spacy && python3 -m spacy download en_core_web_sm
+# or offline: step 15 falls back to heuristics if --no-wikidata / spaCy unavailable
+```
+
+### 5. Generate abstractive summaries (optional — see note)
 
 > **Note:** Each book is summarised from a ~60k token sample. Summary reliability
 > has not been established and `books.html` is excluded from the current release
@@ -364,43 +336,31 @@ All reports are written to `data/outputs/`.
 
 ## Topic Solutions
 
-### Book-level (LDA, k=9 — v0.5.0 CANONICAL, 18 April 2026)
+### Book-level (LDA, k=9)
 
-541 books (monographs + collected works only; [2133] excluded — OCR corruption) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --run-id k9` · 9/9 stable · mean stability=0.357 · output: `json/nlp_results_k9.json` · runlog: `data/outputs/runlog20260418-3.csv`
+Canonical run: monographs and collected works only ([2133] excluded — OCR corruption),
+full-text with front/back matter stripped, 15,000-feature vocabulary, spaCy lemmatisation,
+`--topics 9 --seeds 5`. Current per-topic stability and run parameters live in
+`json/topic_stability.json` and `json/nlp_results.json`; aggregate figures and runlog are
+in the latest `data/outputs/runlogYYYYMMDD.csv`.
 
-Topic names generated via `--name-topics` (Anthropic API) then manually reviewed and corrected by Paul Wong. Names confirmed via 18 April title-sweep; see `docs/CHANGELOG.md` [0.4.6]. Individual names below are provisional pending multi-rater validation (sprint items 3–5).
+Topic names generated via `--name-topics` (Anthropic API) then manually reviewed.
+Individual names are provisional pending multi-rater validation (sprint items 3–5).
 
-| # | Name | Stability (Run C, 14 Apr) | Notes |
-|---|------|-----------|-------|
-| T1 | History and Biography of Cybernetics | 0.131 | Low stability due to Lem/Čapek fiction outliers; historiography cluster coherent |
-| T2 | Cybernetics of Psychology | 0.559 | |
-| T3 | Extensions of Cybernetics | 0.153 | Brier, Yuk Hui, actor-network theory |
-| T4 | Cybernetic Management Theory | 0.349 | Beer's VSM tradition; name revised 18 April — verify against `json/nlp_results.json['topic_names']` |
-| T5 | Biological Systems Cybernetics | 0.224 | Sterling, Schulkin, Laughlin |
-| T6 | Formal Foundations of Cybernetics | 0.289 | Mathematical and computational tradition |
-| T7 | Cross-Domain Applications of Cybernetics | 0.306 | Urban systems, church governance, border security |
-| T8 | Cybernetics of Posthumanism | 0.306 | |
-| T9 | Cultural Applications of Cybernetics | 0.622 | Highest stability across k=8–12 sweep |
+| # | Name | Notes |
+|---|------|-------|
+| T1 | History and Biography of Cybernetics | Low stability due to Lem/Čapek fiction outliers; historiography cluster coherent |
+| T2 | Cybernetics of Psychology | |
+| T3 | Extensions of Cybernetics | Brier, Yuk Hui, actor-network theory |
+| T4 | Cybernetic Management Theory | Beer's VSM tradition |
+| T5 | Biological Systems Cybernetics | Sterling, Schulkin, Laughlin |
+| T6 | Formal Foundations of Cybernetics | Mathematical and computational tradition |
+| T7 | Cross-Domain Applications of Cybernetics | Urban systems, church governance, border security |
+| T8 | Cybernetics of Posthumanism | |
+| T9 | Cultural Applications of Cybernetics | Highest stability across k=8–12 sweep |
 
-*Per-topic stability scores above are from Run C (14 April 2026). Canonical run is 18 April; aggregate stats updated above. Per-topic scores for canonical run will be confirmed after `compare_topic_runs.py` is graduated (sprint item 2).*
-
-Full topic validation: `json/topic_validation.json` · run `src/09c_validate_topics.py --top 10 --md` to regenerate.
-
-### Book-level (LDA, k=9 — Run A, 3 April 2026, historical reference)
-
-695 books · `--min-chars 10000 --lemmatize --topics 9 --seeds 5` · 7/9 stable · 0 dead · mean stability=0.382 · output: `json/nlp_results.json` (**overwritten** by Run B; names retained for reference)
-
-| # | Name |
-|---|------|
-| T1 | Management Cybernetics |
-| T2 | Second-Order Cybernetics Applied to Social Systems |
-| T3 | Dynamical Systems, Homeostasis & Biological Regulation |
-| T4 | Psychological Cybernetics |
-| T5 | Non-Anglophone Engineering Cybernetics |
-| T6 | Mathematical Foundations of Cybernetics |
-| T7 | Cultural Cybernetics, Posthumanism & Digital Media |
-| T8 | Applied Cybernetics & Computers in Society |
-| T9 | Residual / Outlier Cluster |
+Verify live names against `json/nlp_results.json['topic_names']`. Full topic validation:
+`json/topic_validation.json` — regenerate with `src/09c_validate_topics.py --top 10 --md`.
 
 ### Chapter-level (NMF, 8 topics)
 
@@ -464,61 +424,19 @@ Or uncomment the pre-written block at the bottom of `src/run_all.sh`.
 
 ---
 
-## Recent changes
+## Change history
 
-### v0.5.0 (21 April 2026)
-- **Google Forms survey infrastructure**: complete topic naming reliability system built. `generate_google_form.py` fully rewritten — creates a 39-item form per pipeline run via Google Forms API (`forms.body`, `forms.responses.readonly`, `drive.file` scopes). `ingest_google_responses.py` ingests responses into `pipeline.db`. OAuth via Desktop app; `credentials.json`/`token.json` generated on the workstation and accessed via sshfs mount.
-- **pipeline.db refactor**: `data/topic_naming.db` (3 tables) replaced by `data/pipeline.db` (8 tables). All scripts share a single `src/pipeline_db.py` module for schema, DB path, and hash functions. `src/migrate_pipeline_db.py` ports existing data.
-- **Equivalence classes**: two runs are equivalent if they share `k`, `n_books`, `max_features`, `pipeline_mode`, `seeds_used`. `run_hash = SHA-256(16)` of canonical JSON of these 5 parameters; `nlp_hash = SHA-256(16)` of `nlp_results.json` contents.
-- **Manual logging gate**: `log_pipeline_run.py` must be run before a survey form can be created; `generate_google_form.py` errors if run is not logged or is flagged `is_test=1`.
-- **First live form**: run `run_20260421_k9_s5`, equivalence class `0ab6e3f8ba95d0d0`. Form ID recorded in `data/pipeline.db` (`google_form_configs` table).
-
-### v0.4.7 (20 April 2026)
-- **`record_topic_run.py`**: topic naming server (server/offline/ingest modes); SQLite `data/topic_naming.db`. First live test 20 April (SSH tunnel; Paul W, run_20260420_k9_s5, 9 topics saved).
-- **`check_stale_vars.py`**: detects and auto-fixes stale `_LDA_BASE` fallback lists across 8 scripts (`--fix`). Integrated into `run_all.sh` after `patch_topic_names.py`.
-- **`run_all.sh`**: automatic runlog capture to `data/outputs/runlogYYYYMMDD.csv`.
-- **Fixes**: contraction stems added to STOPWORDS in `03_nlp_pipeline.py`; cosine section hardcoded counts replaced in `06_build_report.py`; `09_extract_index.py` — systematic lowercasing bug fixed for multi-word proper names containing function words (22/22 tests pass); entity network singular/plural concept node deduplication.
-
-### v0.4.4–v0.4.6 (18 April 2026)
-- **v0.4.6**: Entity network HTML — 4 bugs fixed (provenance notice layout, p99 degree filter, and others); release-ready.
-- **v0.4.5**: Methodological provenance statement (`_PROV_NOTICE`) embedded in all 9 HTML-generating scripts at source level and in generated output.
-- **v0.4.4**: Entity network node misclassification sweep (KI-07) — ~130 corrections; `_TRAILING_FUNC` and `_CTA_BACK_MATTER` suppression filters; 101 cache entries corrected.
-
-### v0.4.3 (14 April 2026)
-- **Full-text LDA refactor**: `--full-text`, `--run-id`, `--name-topics` flags added to `03_nlp_pipeline.py`; full body text with front/back matter stripped; 15,000-feature vocabulary; spaCy lemmatisation.
-- **Pub-type filter**: canonical corpus filtered to monographs and collected works only (695 → 542 books) via `books_metadata_full.csv` `pub_type` column.
-- **k-selection sweep**: concurrent runs at k=8, 9, 10, 12 with `--run-id` flag (`nlp_results_k{N}.json`). k=9 confirmed optimal (mean stability 0.327; highest-stability topic T9=0.622).
-- **Run C canonical** (`nlp_results_k9.json`): 542 books, 9-topic taxonomy named and confirmed by Paul Wong (14 April 2026). Six of nine API-generated names manually corrected via `src/patch_topic_names.py`.
-- **Documentation**: `docs/decisions.md` — new entry on corpus-scale epistemic access as qualitatively distinct mode; `docs/methodology.md` — new entry on pipeline compression trade-offs and index compilation caveat; `docs/CHANGELOG.md` and `docs/contributions.md` updated; `CyberneticsNLP_Talk_v2.pptx` updated.
-
-### v0.4.2 (8 April 2026)
-- **Monograph binary classifier** (`heuristic_features.py`, `train_monograph_classifier.py`): logistic regression on 33 features (23 metadata + 10 structural text heuristics); 197 expert labels; threshold=0.4; 5-fold CV precision=0.89, recall=0.68. Active learning cycle established.
-- **Report quality fixes**: all HTML reports cleaned — 675→695 corpus count, NMF chapter topic names written, LDA base label lists updated across all 8 scripts, NMF/LDA name confusion in `06_build_report_chapters.py` fixed.
-
-### v0.4.1 (3 April 2026)
-- **k=9 canonical**: 695 books, 7/9 stable, 0 dead, mean stability=0.382. Topic taxonomy locked.
-- **Book style pipeline** (`00_*` scripts): heuristic classifier + WorldCat/Open Library enrichment + ANU Primo enrichment. `books_metadata_full.csv` replaces `books_lang.csv`.
-- **Data quality**: alpha-ratio front-matter bias fix; all 6 OCR-failure books reindexed; full corpus re-clean at 695 books.
-
-### v0.4.0 (27 March 2026)
-- **Entity classification** (`15_entity_classify.py`): three-stage NER — heuristics → spaCy → Wikidata. 121 manual corrections.
-- **Entity network** (`14_entity_network.py`): 4 node kinds, 4 layout algorithms, degree filter, network statistics panel.
-- **Index canonicalisation**: 262 person-name merging rules, accent normalisation.
-
-Full history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
+Versioned change log: [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
 ---
 
 ## Requirements
 
-Python 3.9+.
+Python 3.9+. Install Python dependencies from `requirements.txt`:
 
 ```bash
-pip install scikit-learn==1.8.0 numpy==2.4.2 matplotlib==3.10.8 \
-            seaborn==0.13.2 openpyxl==3.1.5 pandas==3.0.1
+pip install -r requirements.txt
 ```
-
-See `requirements.txt` for full details including system-level dependencies.
 
 ### Spell-checking (`02_clean_text.py` only)
 

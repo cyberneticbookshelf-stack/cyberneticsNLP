@@ -19,8 +19,8 @@ csv/books_metadata_full.csv (exported from Calibre metadata.db).
 
 Input:  csv/books_metadata_full.csv  (tab-separated, from 00_export_calibre.py)
         json/books_clean.json        (for books not in metadata CSV)
-Output: json/book_styles.json        — machine-readable classification per book
-        docs/book_styles.md          — human-readable review table
+Output: json/book_styles.json            — machine-readable classification per book
+        docs/reference/book_styles.md    — human-readable review table
 
 Usage:
   python3 src/00_classify_book_styles.py
@@ -36,7 +36,7 @@ Methodology note:
     - Handbooks: community concept map, aggregated index
     - Popular: distinct register, thin or absent index
     - History/bio: proper-noun heavy, narrative rather than argumentative
-  See docs/memo_media_aware_nlp_epistemic_affordances.md §10 for full discussion.
+  See docs/memos/memo_media_aware_nlp_epistemic_affordances.md §10 for full discussion.
 
   The inclusion_stratum field from books_metadata_full.csv is carried through
   directly — it encodes the precision-recall trade-off in corpus construction:
@@ -45,16 +45,16 @@ Methodology note:
     curated_keyword    — theme-tagged + cybernetic(s) in description/tags
     curated_pure       — theme-tagged, no cybernetic(s) anywhere (expert judgement)
     metadata_search    — found via search, not theme-tagged
-  See docs/draft_methods_corpus_construction.md §3.3 for full discussion.
+  See docs/memos/corpus_construction.md §3.3 for full discussion.
 """
 
 # ── Directory layout ──────────────────────────────────────────────────────────
 import pathlib as _pl
 CSV_DIR  = _pl.Path('csv')
 JSON_DIR = _pl.Path('json')
-DOCS_DIR = _pl.Path('docs')
+DOCS_REF_DIR = _pl.Path('docs/reference')
 JSON_DIR.mkdir(exist_ok=True)
-DOCS_DIR.mkdir(exist_ok=True)
+DOCS_REF_DIR.mkdir(parents=True, exist_ok=True)
 
 import json, re, csv, sys
 from collections import Counter
@@ -417,7 +417,7 @@ with open(out_path, 'w', encoding='utf-8') as f:
 print(f"\nSaved {out_path}")
 
 # ── Save Markdown review table ────────────────────────────────────────────────
-md_path = str(DOCS_DIR / 'book_styles.md')
+md_path = str(DOCS_REF_DIR / 'book_styles.md')
 lines = [
     f"# Book Style Classification",
     f"",
@@ -482,7 +482,7 @@ with open(md_path, 'w', encoding='utf-8') as f:
 print(f"Saved {md_path}")
 
 print(f"\nNext steps:")
-print(f"  1. Review docs/book_styles.md and correct misclassifications")
+print(f"  1. Review docs/reference/book_styles.md and correct misclassifications")
 print(f"  2. Update 'style' and set 'verified': true in json/book_styles.json")
 print(f"  3. Use style as a covariate in 03_nlp_pipeline.py (--style-aware flag, TBD)")
 print(f"  4. Run 09c_validate_topics.py to see style distribution per topic")
