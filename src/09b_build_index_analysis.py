@@ -217,15 +217,15 @@ pub_years  = dict(zip(book_ids, R.get('pub_years', [None]*len(book_ids))))
 n_topics   = R['n_topics']
 
 _LDA_BASE = [
-    'Cybernetics of Political Economy',
-    'Cybernetics and Circularity',
-    'Biological Systems Cybernetics',
-    'Applied Engineering Cybernetics',
-    'Cultural Applications of Cybernetics',
+    'History and Historiography of Cybernetics',
+    'Techno-political Complexes',
+    'Engineering Control',
+    'Social and Organisational Cybernetics',
     'Formal Foundations of Cybernetics',
-    'History and Biography of Cybernetics',
-    'Cybernetic Management Theory',
-    'Residual / Outlier Cluster',
+    'Reinventing Selves and Others, Past and Future',
+    'Psychological and Behavioural Regulation and Control',
+    'Biological and Neural Cybernetics',
+    'Extensions of Cybernetics',
 ]
 _carried = R.get('topic_names') or _LDA_BASE
 TOPIC_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]

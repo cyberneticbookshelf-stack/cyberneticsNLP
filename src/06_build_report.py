@@ -107,15 +107,15 @@ _OCR_BADGE = {
 # This is a fallback only — nlp_results.json['topic_names'] takes precedence
 # (written by patch_topic_names.py after each run_all.sh).
 _LDA_BASE = [
-    'Cybernetics of Political Economy',
-    'Cybernetics and Circularity',
-    'Biological Systems Cybernetics',
-    'Applied Engineering Cybernetics',
-    'Cultural Applications of Cybernetics',
+    'History and Historiography of Cybernetics',
+    'Techno-political Complexes',
+    'Engineering Control',
+    'Social and Organisational Cybernetics',
     'Formal Foundations of Cybernetics',
-    'History and Biography of Cybernetics',
-    'Cybernetic Management Theory',
-    'Residual / Outlier Cluster',
+    'Reinventing Selves and Others, Past and Future',
+    'Psychological and Behavioural Regulation and Control',
+    'Biological and Neural Cybernetics',
+    'Extensions of Cybernetics',
 ]
 _carried = R.get('topic_names') or _LDA_BASE
 LDA_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
@@ -389,12 +389,32 @@ _PAGES = [
     ('keyphrases.html', '🔑 Keyphrases'),
     ('book_nlp_entity_network.html', '🕸 Network'),
 ]
+# Per-page reader's guides. Only include entries whose guide file actually
+# exists in data/outputs/ at template-render time — missing entries simply
+# omit the link rather than emit a broken href. Pattern mirrors the entity
+# network's "📖 Reader's guide" header link.
+_GUIDES = {
+    'index.html':                    'book_nlp_index_guide.html',
+    'clusters.html':                 'book_nlp_clusters_guide.html',
+    'cosine.html':                   'book_nlp_cosine_guide.html',
+    'keyphrases.html':               'book_nlp_keyphrases_guide.html',
+    'book_nlp_entity_network.html':  'book_nlp_entity_network_guide.html',
+}
 _STATS_N_CHAPTERS = sum(S[b]['n_chapters'] for b in book_ids)
 
 def _page(active_file, page_title, content, scripts='', needs_plotly=False):
     nav_links = ''.join(
         f'<a href="{href}" class="{"active" if href == active_file else ""}">{label}</a>'
         for href, label in _PAGES)
+    # Guide link: rendered only if the guide file is on disk. Styled inline so
+    # it sits to the right of the page tabs without disturbing the sticky nav.
+    _guide = _GUIDES.get(active_file)
+    if _guide and (OUT_DIR / _guide).exists():
+        nav_links += (
+            f'<a href="{_guide}" '
+            f'style="margin-left:auto;background:#f1f5f9;color:#1e3a5f;'
+            f'border:1px solid var(--border)">📖 Reader\'s guide</a>'
+        )
     plotly_cdn = ('<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>'
                   if needs_plotly else '')
     return f"""<!DOCTYPE html>

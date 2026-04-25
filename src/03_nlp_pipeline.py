@@ -104,11 +104,26 @@ if GPU:
         import cupyx.scipy.sparse as _cpsp
         from cuml.decomposition import LatentDirichletAllocation as _cuLDA
         print('  [--gpu] cuML + CuPy loaded — LDA fitting will use GPU')
-    except ImportError as _e:
-        print(f'  [--gpu] WARNING: cuML/CuPy not available ({_e}) — '
+    except Exception as _e:
+        # Broadened from ImportError: cuda-core / numba-cuda / cuML version
+        # mismatches can raise AttributeError, RuntimeError, OSError etc. at
+        # module-init time. Treat any failure here as "GPU unavailable" and
+        # fall back to sklearn rather than crash the run.
+        print(f'  [--gpu] WARNING: cuML/CuPy not available ({type(_e).__name__}: {_e}) — '
               f'falling back to sklearn (CPU)')
         GPU = False
         _cuLDA = None
+
+# --max-iter N: number of LDA EM iterations. Higher values improve convergence
+# at the cost of runtime. Default: 100. Use 500-1000 for publication-quality runs.
+# Example: python3 src/03_nlp_pipeline.py --max-iter 1000 --full-text --topics 9 --seeds 5
+_MAX_ITER = 100
+if '--max-iter' in sys.argv:
+    try:
+        _MAX_ITER = int(sys.argv[sys.argv.index('--max-iter') + 1])
+        print(f'  [--max-iter] LDA iterations set to {_MAX_ITER}')
+    except (IndexError, ValueError):
+        print('  [--max-iter] usage: --max-iter N  (integer)')
 
 # --topics N: override the automatic k selection for LDA
 _FIXED_TOPICS = None
@@ -674,10 +689,20 @@ if _FIXED_TOPICS is not None and _FIXED_TOPICS > N_TOPICS_MAX:
 best_n, best_coh, best_lda = None, -np.inf, None
 perplexities, coherences = {}, {}
 
+# Canonical LDA seed (set 25 April 2026; ROADMAP #26). Used for k-selection
+# scoring, canonical fit, and matches SEEDS[0] in run_stability_analysis to
+# guarantee top_words ≡ canonical_words. Full rationale in docs/decisions.md
+# §"Canonical LDA seed unified at random_state=42".
+_CANONICAL_LDA_SEED = 42
+
 print(f"\n{'k':<5} {'perplexity':<14} {'coherence'}")
 for n_topics in range(N_TOPICS_MIN, N_TOPICS_MAX + 1):
-    lda = LatentDirichletAllocation(n_components=n_topics, max_iter=20,
-                                    learning_method='online', random_state=99,
+    # k-selection scoring loop runs at the canonical seed so the k chosen by
+    # elbow scoring is the k that performs best under the same seed used for
+    # the canonical fit.
+    lda = LatentDirichletAllocation(n_components=n_topics, max_iter=_MAX_ITER,
+                                    learning_method='online',
+                                    random_state=_CANONICAL_LDA_SEED,
                                     learning_offset=50., doc_topic_prior=0.1)
     lda.fit(X_count)
     perp = lda.perplexity(X_count)
@@ -716,14 +741,39 @@ else:
 # If you see an API error, check your cuML version:
 #   python -c "import cuml; print(cuml.__version__)"
 # Confirmed working: cuML 24.06+  (RAPIDS 24.06).
-def _fit_lda_gpu(n_topics, X_count_sparse, random_state=99):
+#
+# ── Canonical seed convention (set 25 April 2026; ROADMAP #26) ───────────────
+# random_state=42 is the canonical LDA seed throughout this pipeline. It is
+# also SEEDS[0] in run_stability_analysis(), which makes seed-42 the reference
+# fit for Hungarian alignment of the stability sweep. Aligning best_lda's seed
+# with SEEDS[0] guarantees that:
+#   * nlp_results.top_words   ==  topic_stability.canonical_words
+#   * nlp_results.doc_topic   is in the same topic-index frame as
+#                                  topic_stability.canonical_words
+# This is what makes 09c_validate_topics.py (which pairs top_words and
+# doc_topic by index t) safe to interpret. Prior to this convention, best_lda
+# was fit at random_state=99 while canonical_words came from seed 42; the two
+# lived in unrelated coordinate systems and 09c silently mis-paired them.
+# See docs/decisions.md §"Canonical LDA seed (25 April 2026)" and
+# json/topic_alignment_diagnostic.json for the empirical diagnosis.
+#
+# The fit below is still a separate fit from the seed-42 worker in
+# run_stability_analysis (one redundant fit's worth of cost). At the same
+# random_state and hyperparameters with the same backend, both fits produce
+# equivalent components — sklearn LDA is bit-deterministic at fixed seed;
+# cuML LDA's online VI is also deterministic given seed and identical input.
+# A future refactor (ROADMAP #26 follow-up) can capture seed-42 state from
+# the sweep workers and skip this fit entirely.
+# (_CANONICAL_LDA_SEED is defined above the k-selection loop.)
+
+def _fit_lda_gpu(n_topics, X_count_sparse, random_state=_CANONICAL_LDA_SEED):
     """Fit LDA on GPU via cuML. Returns a fitted cuML LDA object."""
     import cupy as cp
     import cupyx.scipy.sparse as cpsp
     X_gpu = cpsp.csr_matrix(X_count_sparse.astype(np.float32))
     lda_gpu = _cuLDA(
         n_components=n_topics,
-        max_iter=20,
+        max_iter=_MAX_ITER,
         learning_method='online',
         random_state=random_state,
         learning_offset=50.,
@@ -740,9 +790,11 @@ def _transform_lda_gpu(lda_gpu, X_gpu):
 
 
 if GPU and _cuLDA is not None:
-    print(f'\n[--gpu] Fitting final LDA (k={best_n}) on GPU...')
+    print(f'\n[--gpu] Fitting final LDA (k={best_n}) on GPU '
+          f'at canonical seed {_CANONICAL_LDA_SEED}...')
     try:
-        best_lda_gpu, X_count_gpu = _fit_lda_gpu(best_n, X_count)
+        best_lda_gpu, X_count_gpu = _fit_lda_gpu(best_n, X_count,
+                                                 random_state=_CANONICAL_LDA_SEED)
         # Extract components as numpy for downstream use
         import cupy as _cp_main
         best_components = _cp_main.asnumpy(best_lda_gpu.components_)
@@ -763,13 +815,15 @@ if GPU and _cuLDA is not None:
         print(f'  [--gpu] GPU fit failed ({_gpu_err}) — falling back to sklearn')
         GPU = False
         best_lda = LatentDirichletAllocation(
-            n_components=best_n, max_iter=20, learning_method='online',
-            random_state=99, learning_offset=50., doc_topic_prior=0.1)
+            n_components=best_n, max_iter=_MAX_ITER, learning_method='online',
+            random_state=_CANONICAL_LDA_SEED, learning_offset=50.,
+            doc_topic_prior=0.1)
         best_lda.fit(X_count)
 else:
     best_lda = LatentDirichletAllocation(
-        n_components=best_n, max_iter=20, learning_method='online',
-        random_state=99, learning_offset=50., doc_topic_prior=0.1)
+        n_components=best_n, max_iter=_MAX_ITER, learning_method='online',
+        random_state=_CANONICAL_LDA_SEED, learning_offset=50.,
+        doc_topic_prior=0.1)
     best_lda.fit(X_count)
 
 # ── Topic stability analysis (--seeds) ───────────────────────────────────────
@@ -790,12 +844,76 @@ def _align_topics(words_a, words_b):
     row_ind, col_ind = linear_sum_assignment(-sim)  # maximise
     return row_ind, col_ind, sim
 
+def _fit_one_seed(args):
+    """
+    Worker function for parallel seed runs. Runs in a subprocess with
+    CUDA_VISIBLE_DEVICES set to pin it to a specific GPU.
+
+    args: (seed, n_topics, X_count_csr_data, X_count_shape, X_count_dtype,
+           cv_vocab, n_top, use_gpu, gpu_id)
+
+    Returns (seed, top_words_list) — picklable, no GPU objects.
+    """
+    import os, numpy as _np
+    from scipy.sparse import csr_matrix as _csr
+    (seed, n_topics, csr_data, csr_indices, csr_indptr, shape, dtype,
+     cv_vocab, n_top, use_gpu, gpu_id) = args
+
+    # Reconstruct sparse matrix in worker
+    X = _csr((csr_data, csr_indices, csr_indptr), shape=shape, dtype=dtype)
+
+    comps = None
+    if use_gpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+        try:
+            import cupy as _cp
+            import cupyx.scipy.sparse as _cpsp
+            from cuml.decomposition import LatentDirichletAllocation as _cuLDA_w
+            X_gpu = _cpsp.csr_matrix(X.astype(_np.float32))
+            lda_w = _cuLDA_w(n_components=n_topics, max_iter=_MAX_ITER,
+                             learning_method='online', random_state=seed,
+                             learning_offset=50., doc_topic_prior=0.1)
+            lda_w.fit(X_gpu)
+            comps = _cp.asnumpy(lda_w.components_)
+        except Exception as _e:
+            print(f'  [seed {seed}] GPU {gpu_id} failed ({_e}), falling back to CPU')
+
+    if comps is None:
+        from sklearn.decomposition import LatentDirichletAllocation as _skLDA
+        lda_w = _skLDA(n_components=n_topics, max_iter=_MAX_ITER,
+                       learning_method='online', random_state=seed,
+                       learning_offset=50., doc_topic_prior=0.1)
+        lda_w.fit(X)
+        comps = lda_w.components_
+
+    tw = []
+    for t in range(n_topics):
+        top_idx = comps[t].argsort()[-n_top:][::-1]
+        tw.append([cv_vocab[idx] for idx in top_idx
+                   if ' ' not in cv_vocab[idx]][:n_top])
+    return seed, tw
+
+
+def _detect_gpu_count():
+    """Return number of available CUDA GPUs, or 0 if none."""
+    try:
+        import subprocess
+        out = subprocess.check_output(
+            ['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'],
+            stderr=subprocess.DEVNULL).decode()
+        return len([l for l in out.strip().splitlines() if l.strip()])
+    except Exception:
+        return 0
+
+
 def run_stability_analysis(n_topics, X_count, cv_vocab, n_seeds, n_top=10):
     """
     Run LDA n_seeds times, align topics across all pairs of runs using the
     Hungarian algorithm, and compute per-topic mean Jaccard stability scores.
 
-    Uses GPU (cuML) for each seed run if --gpu is active.
+    With --gpu and multiple GPUs available, seeds are dispatched in parallel
+    across GPUs (one seed per GPU) using ProcessPoolExecutor. Falls back to
+    sequential CPU runs if no GPU is available or cuML is not installed.
 
     Returns:
         seed_top_words  : list of n_seeds × n_topics × n_top word lists
@@ -803,40 +921,52 @@ def run_stability_analysis(n_topics, X_count, cv_vocab, n_seeds, n_top=10):
         canonical_words : top words from seed 0 (reference run), reordered
                           to match the canonical topic ordering
     """
+    import concurrent.futures as _cf
     SEEDS = [42, 7, 123, 256, 999, 17, 88, 314, 501, 777][:n_seeds]
-    backend = 'GPU (cuML)' if GPU and _cuLDA is not None else 'CPU (sklearn)'
+
+    use_gpu = GPU and _cuLDA is not None
+    n_gpus  = _detect_gpu_count() if use_gpu else 0
+    parallel = use_gpu and n_gpus >= 2
+
+    if parallel:
+        backend = f'GPU (cuML) — {min(n_seeds, n_gpus)}/{n_gpus} GPUs in parallel'
+    elif use_gpu:
+        backend = 'GPU (cuML) — single GPU, sequential'
+    else:
+        backend = 'CPU (sklearn)'
+
     print(f"\n[--seeds] Fitting {n_seeds} LDA runs at k={n_topics} ({backend})...")
 
-    all_top_words = []
-    for i, seed in enumerate(SEEDS):
-        if GPU and _cuLDA is not None:
-            try:
-                lda_s, X_gpu_s = _fit_lda_gpu(n_topics, X_count,
-                                               random_state=seed)
-                import cupy as _cp_s
-                comps = _cp_s.asnumpy(lda_s.components_)
-            except Exception as _se:
-                print(f'  seed {seed}: GPU failed ({_se}), using sklearn')
-                lda_s = LatentDirichletAllocation(
-                    n_components=n_topics, max_iter=20,
-                    learning_method='online', random_state=seed,
-                    learning_offset=50., doc_topic_prior=0.1)
-                lda_s.fit(X_count)
-                comps = lda_s.components_
-        else:
-            lda_s = LatentDirichletAllocation(
-                n_components=n_topics, max_iter=20, learning_method='online',
-                random_state=seed, learning_offset=50., doc_topic_prior=0.1)
-            lda_s.fit(X_count)
-            comps = lda_s.components_
+    # Pack sparse matrix into picklable components for subprocess workers
+    csr = X_count.tocsr()
+    worker_args = [
+        (seed, n_topics,
+         csr.data, csr.indices, csr.indptr, csr.shape, csr.dtype,
+         cv_vocab, n_top,
+         use_gpu, i % n_gpus if n_gpus else 0)
+        for i, seed in enumerate(SEEDS)
+    ]
 
-        tw = []
-        for t in range(n_topics):
-            top_idx = comps[t].argsort()[-n_top:][::-1]
-            tw.append([cv_vocab[idx] for idx in top_idx
-                       if ' ' not in cv_vocab[idx]][:n_top])
-        all_top_words.append(tw)
-        print(f"  seed {seed} done ({i+1}/{n_seeds})")
+    results = {}
+    if parallel:
+        # Dispatch seeds across GPUs in parallel; cap workers at n_gpus
+        max_workers = min(n_seeds, n_gpus)
+        with _cf.ProcessPoolExecutor(max_workers=max_workers) as pool:
+            futs = {pool.submit(_fit_one_seed, a): a[0] for a in worker_args}
+            for fut in _cf.as_completed(futs):
+                seed, tw = fut.result()
+                results[seed] = tw
+                done = len(results)
+                print(f"  seed {seed} done ({done}/{n_seeds})")
+    else:
+        # Sequential fallback (single GPU or CPU)
+        for args in worker_args:
+            seed, tw = _fit_one_seed(args)
+            results[seed] = tw
+            print(f"  seed {seed} done ({len(results)}/{n_seeds})")
+
+    # Restore original seed order
+    all_top_words = [results[s] for s in SEEDS]
 
     # Align all runs to run 0 as reference
     from itertools import combinations as _comb

@@ -1,5 +1,132 @@
 # Design Decisions & Rationale
 
+## Canonical LDA seed unified at random_state=42
+**Date:** 25 April 2026 | **Session:** Cowork
+
+### Problem
+`src/03_nlp_pipeline.py` was running two LDA fits at different seeds. The k-selection scoring loop (line 695) and the canonical fit producing `top_words` and `doc_topic` for `nlp_results.json` (lines 734, 782, 787) used `random_state=99`. The 5-seed stability sweep used `SEEDS = [42, 7, 123, 256, 999]` with seed 42 as Hungarian-alignment reference; `topic_stability.canonical_words` was therefore drawn from the seed-42 fit. The seed-99 frame and the seed-42 frame are unrelated coordinate systems — topic indices in one have no defined correspondence to topic indices in the other.
+
+`09c_validate_topics.py` reads `top_words` (seed-99 frame) and `doc_topic` (seed-99 frame) from `nlp_results.json`, but pairs them by index `t` with `canonical_words` (seed-42 frame) read from `topic_stability.json`. The result was a silent mis-pairing — top words and top books displayed for the same `T_n` came from unrelated topics. Visible as the topic-word vs top-book mismatch in `data/outputs/topic_validation.md`.
+
+### Diagnostic
+`src/diagnose_topic_alignment.py` (25 April 2026) duplicates the preprocessing and runs both fits independently. Test C(i): seed-42's `top_words` equals `topic_stability.canonical_words` exactly (set and order). PASS — confirms the sweep reference is what it claims to be. Test C(ii)+D: even after Hungarian-permuting seed-99 to seed-42 (mean Jaccard 0.374), per-topic top-10-book overlap is 0–7/10 across the 9 topics. FAIL — 6 of 9 topics fail the ≥8/10 threshold.
+
+The failure shows that cross-fit `doc_topic` is fundamentally unstable across seeds. Two LDA fits at different seeds find genuinely different local optima; β converges enough to share top words at register level but θ diverges substantially. **No permutation patch in `09c_validate_topics.py` can recover cross-fit consistency for θ** — the fix must be upstream per the standing engineering principle.
+
+### Decision
+Define a single canonical LDA seed for the entire pipeline. Set `_CANONICAL_LDA_SEED = 42` at the top of the canonical-fit block in `src/03_nlp_pipeline.py`. Use this seed in:
+- the k-selection scoring loop (line 695)
+- `_fit_lda_gpu` default argument (line 734)
+- the sklearn fallback paths (lines 782, 787)
+
+Choice of 42 (not 99): `SEEDS[0]=42` is already the Hungarian-alignment reference in `run_stability_analysis`. Aligning the canonical fit with the reference seed means `top_words` and `canonical_words` come from the same fit (modulo the redundant separate fit, which is bit-equivalent at the same seed and backend). Choosing 42 is cheaper than re-anchoring the stability sweep to seed 99.
+
+### Enforcement
+`src/03_nlp_pipeline.py` updated; `_CANONICAL_LDA_SEED` defined as a module-level constant and used in all canonical-fit code paths. The k-selection loop forward-references the constant via a comment that points to where it is defined.
+
+### Implication
+After this fix:
+- `nlp_results.top_words` ≡ `topic_stability.canonical_words` (identical by construction at the same seed and backend).
+- `nlp_results.doc_topic` is in the same topic-index frame as `canonical_words`.
+- `09c_validate_topics.py` outputs become coherent without modification — top words and top books displayed for `T_n` come from the same topic.
+- The redundant LDA fit is preserved for now (one wasted fit's worth of cost). A future refactor (ROADMAP #26 follow-up) will capture seed-42 components and `doc_topic` from the sweep workers (`_fit_one_seed`) and skip the canonical fit entirely.
+
+### Connection to standing principles
+**Fix upstream, not downstream:** the alignment bug appeared in `09c_validate_topics.py` but its cause was the upstream dual-fit. Patching `09c` to permute indices would have fixed the visible symptom but failed silently for any future divergence in cross-fit θ stability — and would have left `nlp_results.doc_topic` in an unrelated frame from `canonical_words` for every other consumer. The upstream fix (one-seed convention) eliminates the entire class of cross-frame errors at source.
+
+### Reference
+Diagnostic outputs: `json/topic_alignment_diagnostic.json`, `data/outputs/topic_alignment_diagnostic.md`. Roadmap entry: ROADMAP #26.
+
+---
+
+## Canonical pipeline run requires --full-text --max-features 15000
+**Date:** 25 April 2026 | **Session:** Cowork
+
+### Problem
+The April 18 canonical runlog and `nlp_results.json` record `pipeline_mode: sampled` and `max_features: 3000`. These are the defaults for `03_nlp_pipeline.py` when invoked without explicit flags. The `run_all.sh` in use at that time only passed `--min-chars 10000 --lemmatize --topics 9 --seeds 5`, omitting `--full-text` and `--max-features 15000`. The April 18 run is therefore not a genuine canonical run — it does not match the k-sweep configuration (Run C, April 14) that validated k=9 and produced the agreed topic taxonomy.
+
+### Decision
+A canonical pipeline run must include `--full-text --max-features 15000`. The April 18 run (and any prior run omitting these flags) is rejected as a genuine canonical run. The next `run_all.sh` invocation will produce the first genuine canonical run under this definition.
+
+### Enforcement
+`src/run_all.sh` updated to invoke:
+```
+python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5 --full-text --max-features 15000
+```
+`CLAUDE.md` updated to record `--full-text --max-features 15000` as part of the canonical enforced flags. The restore-canonical command in both `run_all.sh` and `CLAUDE.md` updated to match.
+
+### Implication
+The current `nlp_results.json` (pipeline_mode: sampled, max_features: 3000) is a non-canonical artefact. It should not be surveyed or used as the basis for naming decisions. A full `run_all.sh` rerun is required to produce a genuinely canonical result.
+
+---
+
+## Why T9 is labelled "Residual / Outlier Cluster" rather than filtered
+
+LDA topic T9 (k=9 canonical solution) is dominated by a single book, [249],
+with loading ≈ 1.000. Initial reading treated this as a data-quality defect
+— a topic the model had "failed" to populate — and listed it as KI-05 with
+the expectation that exclusion filtering or re-parameterisation might
+resolve it.
+
+The agreed interpretation is different. T9 is a structural consequence of
+fitting k=9 topics to a corpus whose principal intellectual content is
+adequately captured by the other eight. The ninth component absorbs material
+that does not cohere with the dominant themes — a catch-all / outlier role,
+not a failed clustering attempt. The single-book dominant loading is
+diagnostic of this role, not evidence against it: the book whose loading
+saturates T9 is the one whose vocabulary is least alignable with the
+cybernetics mainstream represented by T1–T8.
+
+Labelling the topic "Residual / Outlier Cluster" records this interpretation
+explicitly in the taxonomy and in all downstream reports. The alternative —
+filtering the book and re-fitting — would suppress the signal that the
+corpus contains material the dominant topics do not explain, which is
+itself an analytically useful finding.
+
+Consistent with the standing provisional-results principle, the label is
+interpretive rather than validated; it inherits the current-sprint
+naming-reliability caveat (≥3 runs × ≥2 raters required before any k=9
+name is treated as stable).
+
+Applied in `src/patch_topic_names.py:108-109`; propagated via
+`check_stale_vars.py --fix`.
+
+---
+
+## Inclusion vs exclusion semantics for non-disjoint labels
+
+Publication type and style labels in this corpus are **non-disjoint** — a
+single book can carry multiple labels simultaneously. Ashby's *An Introduction
+to Cybernetics* is the canonical example: it is both a monograph (an
+original, sustained scholarly argument by a single author) and a textbook
+(pedagogically structured, used in teaching). Both labels are correct; the
+book is not one rather than the other.
+
+**Consequence for filter design:** any corpus-membership filter keyed on these
+labels must use **inclusion semantics** ("include if any approved label is
+present"), not exclusion semantics ("drop if any disapproved label is
+present"). Exclusion rules on secondary labels would wrongly remove books
+whose primary label is legitimate. A rule like "drop if `textbook` in
+pub_type" would drop Ashby despite the `monograph` label that correctly
+qualifies it for inclusion.
+
+The existing pub-type filter at `src/03_nlp_pipeline.py:295-333` is built
+this way: `_INCLUDE_TYPES = {'monograph', 'collected works'}` and the
+`any(p in _INCLUDE_TYPES for p in parts)` check lets a book qualify via any
+one of its labels, regardless of other labels present.
+
+This principle applies to any future filter keyed on non-disjoint label
+spaces (e.g. style labels from the classifier, event-vs-concept labels on
+entity nodes, relationship-type labels on paragraph-level edges). The
+Principle of Context (see CLAUDE.md) is the deeper reason: a label carries
+one aspect of a book's identity, not its full identity, and filtering on
+the assumption that labels exhaust meaning produces systematic errors.
+
+See ROADMAP #9 for the signal-inventory-derived filter that will also use
+inclusion semantics.
+
+---
+
 ## Why two pipeline tracks (book-level and chapter-level)?
 
 Book-level analysis gives a high-level view of how books cluster thematically.

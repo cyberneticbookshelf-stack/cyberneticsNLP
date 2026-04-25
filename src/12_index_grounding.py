@@ -89,15 +89,15 @@ vocab      = IA['vocab']
 book_terms = IA['book_terms']
 
 _LDA_BASE = [
-    'Cybernetics of Political Economy',
-    'Cybernetics and Circularity',
-    'Biological Systems Cybernetics',
-    'Applied Engineering Cybernetics',
-    'Cultural Applications of Cybernetics',
+    'History and Historiography of Cybernetics',
+    'Techno-political Complexes',
+    'Engineering Control',
+    'Social and Organisational Cybernetics',
     'Formal Foundations of Cybernetics',
-    'History and Biography of Cybernetics',
-    'Cybernetic Management Theory',
-    'Residual / Outlier Cluster',
+    'Reinventing Selves and Others, Past and Future',
+    'Psychological and Behavioural Regulation and Control',
+    'Biological and Neural Cybernetics',
+    'Extensions of Cybernetics',
 ]
 # Pad with generic labels if the pipeline found more topics than the base list
 _carried = R.get('topic_names') or _LDA_BASE

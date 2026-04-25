@@ -77,6 +77,21 @@ book_ids  = results['book_ids']
 doc_topic = results['doc_topic']
 top_words = results['top_words']   # from LDA, n_top=12
 
+# Names and notes from nlp_results.json (written by patch_topic_names.py).
+# Used as default values for proposed_name and notes per topic. Falls back
+# to empty strings if patch_topic_names.py hasn't run yet — preserves the
+# original "manual edit topic_validation.json" workflow as graceful
+# degradation. Fixed 26 April 2026 (ROADMAP #27): prior to this, 09c
+# clobbered the proposed_name/notes that patch_topic_names.py had written
+# to topic_validation.json, because both scripts wrote to the same file
+# and 09c ran second in run_all.sh.
+_topic_names = results.get('topic_names') or [''] * n_topics
+_topic_notes = results.get('topic_notes') or [''] * n_topics
+if any(n for n in _topic_names):
+    print(f"  Topic names: loaded from nlp_results.json (overlaid by patch_topic_names.py)")
+else:
+    print(f"  Topic names: none in nlp_results.json — proposed_name fields will be empty")
+
 print(f"  n_topics={n_topics}, corpus={len(book_ids)} books")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -158,8 +173,8 @@ for t in range(n_topics):
             }
             for bid, s in top_books
         ],
-        'proposed_name':   '',   # to be filled in manually or via --name-topics
-        'notes':           '',
+        'proposed_name':   _topic_names[t],   # overlaid from nlp_results.json
+        'notes':           _topic_notes[t],   # overlaid from nlp_results.json
         'status':          'dead' if is_dead else label,
     })
 
@@ -246,5 +261,6 @@ if WRITE_MD:
         f.write('\n'.join(lines))
     print(f"Saved {md_path}")
 
-print("\nDone. Edit 'proposed_name' and 'notes' fields in topic_validation.json")
-print("to record your taxonomy decisions before running --name-topics.")
+print("\nDone. Topic names/notes are sourced from nlp_results.json (written by")
+print("patch_topic_names.py). To revise a name, edit TAXONOMY in src/patch_topic_names.py")
+print("and rerun: patch_topic_names.py → check_stale_vars.py --fix → 09c.")

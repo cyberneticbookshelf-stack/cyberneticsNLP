@@ -2217,6 +2217,95 @@ pipeline produces a form of *corpus-scale epistemic access* rather than ground t
 
 ---
 
+## LDA topics as discursive registers, not subject domains
+*Added 25 April 2026 (Cowork session)*
+
+### The reframe
+
+LDA does not find topics in the everyday sense of the word — coherent subjects or themes
+that an author or reader would recognise as "what the book is about". It finds **registers
+of discourse**: bundles of vocabulary that statistically co-occur across documents. Each
+of the nine topics in this corpus is a recurring *way of writing* about something, not a
+*thing being written about*.
+
+T5 ("Formal foundations of cybernetics") is not the topic of formal cybernetics in any
+substantive sense. It is the cluster of words people reach for when they are being
+mathematical and symbolic about systems — equations, proofs, state spaces, formal
+operators, transformation rules. Whether the underlying *subject* is classical cybernetics
+(Wiener, Ashby), perceptual control theory (Powers, Marken), autopoiesis as formal theory
+(Varela), or computational neuroscience is downstream of that vocabulary choice. The same
+holds for every other topic: T3 is the engineering-control register, T7 the
+behavioural-regulation register, T8 the homeostatic-biology register, and so on.
+
+### The worked example: PCT dispersion
+
+Perceptual Control Theory is a coherent research programme — a self-identified school
+descending from William T. Powers, organised around a specific theoretical commitment
+(behaviour as the control of perception via hierarchical reference signals). The corpus
+contains 21 PCT-adjacent monographs spanning Powers, Marken, Carver and Scheier, Cziko,
+Runkel and others. Intuitively, one might expect these 21 books to cluster into a single
+LDA topic — a "PCT topic".
+
+They do not. Their dominant-topic assignments scatter as follows: T5 (Formal foundations,
+8 books), T6 (Reinvention of self and others, 5), T8 (Biological & neural cybernetics, 4),
+T3 (Engineering control, 3), T4 (Systems theory & VSM, 1), T7 (Psychological regulation
+and control, 0).
+
+The reason is direct. PCT books that develop the formal apparatus (control equations,
+error signals, hierarchical reference levels) anchor in T5. PCT books that argue against
+behaviourism and cognitive science using accessible prose anchor in T6. PCT books that
+emphasise homeostatic and biological grounding anchor in T8. PCT books that lean on
+engineering analogies and feedback loops anchor in T3. The *programme* is invisible to
+LDA because it has no consistent vocabulary signature; what it has is a consistent
+theoretical commitment expressed across multiple registers.
+
+T7 ("Psychological regulation and control") receives zero PCT books despite being the
+topic name that a PCT scholar would most likely guess. T7's actual top loadings are
+affect-, allostasis- and stress-regulation literature — a different lineage that happens
+to share register-level vocabulary with what one might *expect* PCT to use.
+
+### Implications for interpretation
+
+Three consequences follow for how the 9-topic structure should be presented and used.
+
+The topic names should be read as **discursive registers**, not as subject domains. The
+current names mostly do this already — "Formal foundations", "Engineering control",
+"Psychological regulation" — but the framing should be made explicit in the paper. A
+topic label answers the question "what register is this written in?", not "what is this
+about?".
+
+A book's argmax topic indicates its *predominant* register, not its intellectual
+allegiance. For multi-register books — which is most monographs — the full
+nine-dimensional doc-topic distribution carries more information than the single
+dominant assignment. Sharing the distribution rather than just the argmax is more
+faithful to what LDA actually computed.
+
+Cross-cutting research programmes will not surface as topics. PCT, second-order
+cybernetics, cybersemiotics, and applied autopoiesis all have this character — coherent
+intellectual identities expressed across multiple vocabulary registers. Identifying them
+requires complementary methods: author co-citation networks, hand-curated reading lists,
+or expert-tagged reference sets. The pipeline is silent on them by construction.
+
+### Connection to the standing principle of context
+
+This is a second worked instance of the standing principle of context (CLAUDE.md). The
+first instance — *University of California* appearing as an isolated entity node —
+concerned decontextualised **strings**: the surface form of a name carries no signal
+about which sense (publisher, affiliation, subject) is intended in any given occurrence.
+The PCT case concerns decontextualised **vocabulary**: the surface co-occurrence pattern
+of words across a document carries no signal about the theoretical project the author
+takes themselves to be advancing. Both cases share the same structural property —
+information needed to make the distinction is absent at the point where the algorithm
+makes the decision — and both produce the same kind of residual: not error in the
+narrow sense, but a systematic gap between the distribution of surface signals and the
+distribution of intended meanings.
+
+The pipeline reports the distribution of vocabulary co-occurrence. The distribution of
+intellectual allegiance is a different object, and recovering it requires methods that
+are not vocabulary-based.
+
+---
+
 ## 24. Topic Naming Reliability — Survey Infrastructure
 
 *Added 21 April 2026*

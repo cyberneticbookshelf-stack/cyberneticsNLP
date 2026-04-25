@@ -108,18 +108,24 @@ fi
 # at k=9 afterwards to restore the canonical solution before committing.
 #
 # To restore canonical k=9 after a comparison run:
-#   python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5
+#   python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100 --gpu
+#   python3 src/patch_topic_names.py   # re-apply agreed topic taxonomy
+#   python3 src/check_stale_vars.py --fix
 #   python3 src/09c_validate_topics.py --top 10 --md
-#   python3 patch_topic_names.py   # re-apply agreed topic taxonomy
 #
-# The run_all.sh uses --topics 9 explicitly to enforce this:
+# The run_all.sh uses --topics 9 --full-text --max-features 15000 explicitly to enforce this:
 # ─────────────────────────────────────────────────────────────────────────────
 # Standard LDA run (unweighted — always runs first)
 # NOTE: --weighted requires index_analysis.json + a prior nlp_results.json
 #       and cannot run on a clean start. See the optional second-pass
 #       section at the bottom of this script.
 # ── Book-level topics ────────────────────────────────────────────────────────
-python3 "$SCRIPT_DIR/03_nlp_pipeline.py" --min-chars 10000 --lemmatize --topics 9 --seeds 5
+# --gpu removed 25 Apr 2026: cuda-core / cuML / numba-cuda version mismatch in
+# the conda env crashes at module-init time (CU_MEM_ALLOCATION_TYPE_MANAGED
+# missing). Running on CPU until the env is repaired. The script's --gpu
+# fallback at 03_nlp_pipeline.py:107 now catches non-ImportError failures, so
+# re-adding --gpu after the env fix is safe.
+python3 "$SCRIPT_DIR/03_nlp_pipeline.py" --min-chars 10000 --lemmatize --topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100
 # Apply agreed taxonomy names before validating, so 09c writes named topics
 # to data/outputs/topic_validation.md rather than raw LDA ordering labels.
 python3 "$SCRIPT_DIR/patch_topic_names.py"

@@ -139,15 +139,15 @@ titles      = RU['titles']
 pub_years   = RU.get('pub_years', [None]*len(book_ids))
 lda_n       = RU['n_topics']
 _LDA_BASE = [
-    'Cybernetics of Political Economy',
-    'Cybernetics and Circularity',
-    'Biological Systems Cybernetics',
-    'Applied Engineering Cybernetics',
-    'Cultural Applications of Cybernetics',
+    'History and Historiography of Cybernetics',
+    'Techno-political Complexes',
+    'Engineering Control',
+    'Social and Organisational Cybernetics',
     'Formal Foundations of Cybernetics',
-    'History and Biography of Cybernetics',
-    'Cybernetic Management Theory',
-    'Residual / Outlier Cluster',
+    'Reinventing Selves and Others, Past and Future',
+    'Psychological and Behavioural Regulation and Control',
+    'Biological and Neural Cybernetics',
+    'Extensions of Cybernetics',
 ]
 LDA_NAMES = (RU.get('topic_names') or (_LDA_BASE + [f'Topic {i+1}' for i in range(len(_LDA_BASE), lda_n)]))[:lda_n]
 
