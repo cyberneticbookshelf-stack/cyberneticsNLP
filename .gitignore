@@ -32,3 +32,4 @@ token.json
 # Editor
 .vscode/
 .idea/
+.claude/
