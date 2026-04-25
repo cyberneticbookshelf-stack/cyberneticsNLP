@@ -23,7 +23,7 @@ Session history, changelog, and open work live in the canonical logs — not her
 - **Repo:** `~/CyberneticsNLP/` on the NLP machine, accessed via the sshfs mount inside the vault
 - **Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
 - **Canonical corpus framing:** "541 monographs and collected works analysed" from a 695-book Calibre collection. [2133] *Cybernation and Social Change* excluded (OCR corruption — KI-08).
-- **Canonical k:** 9 (validated 3 April 2026). `run_all.sh` enforces `--topics 9 --seeds 5`.
+- **Canonical k:** 9 (validated on sampled runs 3–14 April 2026; confirmed on the first full-text canonical run by Paul Wong, 26 April 2026 — `run_20260426_k9_s5`, equivalence class `23b29233a67b2938`). `run_all.sh` enforces `--topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100 --gpu`. Topic names finalised 26 April 2026 (single rater, single run — sprint item 4 still requires ≥3 runs × ≥2 raters before names can be considered stable).
 - **Current run record:** query `data/pipeline.db` (`pipeline_runs`, `runlog_entries`) or read the latest `data/outputs/runlogYYYYMMDD.csv`. Don't rely on hardcoded figures here — they rot.
 - **Current version:** read `docs/CHANGELOG.md` (top entry).
 
@@ -49,7 +49,7 @@ on the same day).
 
 **Restore canonical k=9 after a k-sweep comparison run:**
 ```
-python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5
+python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100 --gpu
 python3 src/patch_topic_names.py
 python3 src/check_stale_vars.py --fix
 python3 src/09c_validate_topics.py --top 10 --md
@@ -220,6 +220,56 @@ eventually own the fix.
 
 ---
 
+## Standing engineering principle — non-disjoint labels require inclusion semantics
+
+Many of the label spaces used in this project are **non-disjoint** — a single
+item can legitimately carry more than one label at once. Publication types
+(a book can be both monograph and textbook), style labels (monograph and
+anthology), entity kinds (Cold War functions as both event and concept
+depending on context), and paragraph-level relationship types (synthesis and
+contrast can co-occur in the same passage) all behave this way. The labels
+describe aspects of identity, not partitions of it.
+
+**Rule:** any filter, gate, or membership test keyed on a non-disjoint label
+space must use **inclusion semantics** ("admit if any approved label is
+present"), not **exclusion semantics** ("reject if any disapproved label is
+present"). Exclusion rules on secondary labels systematically remove items
+whose primary label is legitimate.
+
+**Practical consequence:**
+- The pub-type filter in `src/03_nlp_pipeline.py:295-333` tests
+  `any(p in _INCLUDE_TYPES for p in parts)`. This admits Ashby's
+  *An Introduction to Cybernetics* (labelled `monograph, textbook`) on the
+  strength of `monograph`, regardless of the secondary `textbook` label. A
+  rule like "drop if `textbook` in pub_type" would wrongly remove it.
+- The signal-inventory-derived filter planned in ROADMAP #9 must be
+  built the same way — inclusion on approved content signals, not
+  exclusion on disapproved ones.
+- Style-conditioned sampling (ROADMAP #10) faces the same question: a
+  multi-label book must be assignable to every stratum it qualifies for,
+  or explicitly apportioned — never dropped from strata by the presence
+  of an additional label.
+- Entity kind assignment and paragraph-level edge classification: if a
+  term can legitimately function as event *and* concept (or a paragraph
+  co-occurrence can legitimately reflect synthesis *and* contrast),
+  treating the classes as mutually exclusive forces a false choice.
+  Multi-membership or soft assignment is usually the right representation.
+
+**Connection to the Principle of Context:** a label records one aspect of
+an item's identity, observable from whatever signal the labeller had
+access to. It does not exhaust the item's meaning, and filtering on the
+assumption that it does produces systematic errors of the same form as
+filtering on decontextualised strings.
+
+**Motivating instance:** Ashby, *An Introduction to Cybernetics* (1956) —
+a foundational monograph in the field that is also, unambiguously, a
+textbook. Retained in the corpus by the inclusion-based pub-type filter.
+An exclusion-based rule keyed on the `textbook` label would drop it.
+Full rationale: `docs/decisions.md` §"Inclusion vs exclusion semantics
+for non-disjoint labels".
+
+---
+
 ## Standing security principle — no identifying infrastructure details in documentation
 
 **Scope:** all version-controlled files — source code (including comments), docs/,
@@ -353,8 +403,8 @@ Resolution detail (commit hashes, file-level changes) is in `docs/CHANGELOG.md` 
 | ID | Issue | Status |
 |----|-------|--------|
 | KI-04 | Amazon/Google as high-degree nodes — ebook metadata noise | **Resolved.** `KNOWN_TECH_PLATFORMS` in `src/14_entity_network.py`; noise filters in `src/09b_build_index_analysis.py`; Internet Archive strings in `src/02_clean_text.py`. |
-| KI-05 | T9: book [249] loading=1.000 dominates | Document in paper; may resolve after exclusion filter. |
-| KI-06 | Proceedings/handbook books not yet filtered from pipeline | Pending signal inventory + document unit decision (moratorium). |
+| KI-05 | T9: book [249] loading=1.000 dominates | **Resolved (by interpretation).** Topic T9 labelled **"Residual / Outlier Cluster"** — the dominant single-book loading is accepted as a feature of the topic's role as a catch-all for material that doesn't cohere with the other eight topics, not a defect to be filtered. Label applied in `src/patch_topic_names.py:108-109` TAXONOMY and visible in `data/outputs/index.html`. Rationale recorded in `docs/decisions.md`. |
+| KI-06 | Proceedings/handbook books not yet filtered from pipeline | **Resolved.** Pub-type filter in `src/03_nlp_pipeline.py:295-333` includes only books whose Calibre `pub_type` contains `monograph` or `collected works`. Consistent with canonical framing ("541 monographs and collected works analysed"). Two lenient-default caveats (unlabelled books default to include; missing metadata CSV skips the filter silently) tracked as ROADMAP #25. |
 | KI-07 | ~130 misclassified nodes + EOLSS contamination + plural/comma fragments | **Resolved.** Regex pre-filters (`_TRAILING_FUNC`, `_CTA_BACK_MATTER`, `_EOLSS_NOISE`, `_TRAILING_COLON`) in `src/14_entity_network.py` run before cache lookup; `MANUAL_CORRECTIONS` in `src/15_entity_classify.py` extended across five batches. |
 | KI-08 | 541 vs 542 book count — one book dropped at runtime | **Resolved.** [2133] *Cybernation and Social Change* added to `ocr-excluded` list. Parsed and cleaned normally but excluded before LDA/TF-IDF fitting and entity network construction. Canonical corpus: 542 parsed, 541 analysed. |
 | KI-09 | ~150 singular/plural node pairs split PMI signal | **Resolved.** `_singular_form()` + `concept_plural_map` in `src/14_entity_network.py`; plurals merged into singulars with book-set union. `_CONCEPT_PLURAL_EXCEPTIONS` protects 35 `-ics` field names (cybernetics, thermodynamics, …). |

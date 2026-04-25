@@ -347,20 +347,14 @@ in the latest `data/outputs/runlogYYYYMMDD.csv`.
 Topic names generated via `--name-topics` (Anthropic API) then manually reviewed.
 Individual names are provisional pending multi-rater validation (sprint items 3–5).
 
-| # | Name | Notes |
-|---|------|-------|
-| T1 | History and Biography of Cybernetics | Low stability due to Lem/Čapek fiction outliers; historiography cluster coherent |
-| T2 | Cybernetics of Psychology | |
-| T3 | Extensions of Cybernetics | Brier, Yuk Hui, actor-network theory |
-| T4 | Cybernetic Management Theory | Beer's VSM tradition |
-| T5 | Biological Systems Cybernetics | Sterling, Schulkin, Laughlin |
-| T6 | Formal Foundations of Cybernetics | Mathematical and computational tradition |
-| T7 | Cross-Domain Applications of Cybernetics | Urban systems, church governance, border security |
-| T8 | Cybernetics of Posthumanism | |
-| T9 | Cultural Applications of Cybernetics | Highest stability across k=8–12 sweep |
+Live topic names are not duplicated here — they rotate per run and the previous
+static table went stale. Authoritative sources:
 
-Verify live names against `json/nlp_results.json['topic_names']`. Full topic validation:
-`json/topic_validation.json` — regenerate with `src/09c_validate_topics.py --top 10 --md`.
+- **Current names:** `json/nlp_results.json['topic_names']`
+- **Canonical taxonomy overlay:** `src/patch_topic_names.py` (TAXONOMY dict)
+- **Latest validation report (top words, stability, exemplar books):**
+  `data/outputs/topic_validation.md` — regenerate with
+  `src/09c_validate_topics.py --top 10 --md`
 
 ### Chapter-level (NMF, 8 topics)
 

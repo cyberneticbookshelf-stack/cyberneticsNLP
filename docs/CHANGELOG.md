@@ -6,6 +6,54 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.5.3] — 2026-04-25
+
+> Sessions: 25 April 2026 (Cowork) — canonical run definition corrected; first genuine full-text run executed.
+> 26 April 2026 (Cowork) — topic naming finalised by Paul Wong; canonical run logged; ⚑ flag cleared.
+
+### Fixed
+
+- **`src/run_all.sh`** — canonical `03_nlp_pipeline.py` invocation corrected to include `--full-text --max-features 15000 --gpu`. Prior canonical runs (including the April 18 run, `pipeline_mode: sampled, max_features: 3000`) are rejected as non-genuine canonical runs — they used default sampling mode rather than the full-body text mode that validated k=9 (Run C, 14 April). The April 25 run is the first genuine canonical run under this definition.
+- **`src/run_all.sh`** — restore-canonical comment updated to match.
+- **`CLAUDE.md`** — canonical k line and restore command updated to include `--full-text --max-features 15000`.
+- **`src/03_nlp_pipeline.py`** — canonical LDA seed unified at `_CANONICAL_LDA_SEED = 42` (ROADMAP #26 surgical fix). Previously the canonical fit producing `top_words` and `doc_topic` for `nlp_results.json` ran at `random_state=99`, while `topic_stability.canonical_words` came from `SEEDS[0]=42` in the stability sweep — two unrelated topic-index frames. `09c_validate_topics.py` paired them by index `t` and silently mis-aligned topics with top books across frames. Diagnosis (`src/diagnose_topic_alignment.py`, 25 April 2026): test C(i) PASS, test C(ii)+D FAIL — even after Hungarian permutation (mean Jaccard 0.374), per-topic top-10-book overlap was 0–7/10 across 9 topics. Cause: cross-fit `doc_topic` is fundamentally unstable across seeds; β converges enough to share top words but θ diverges. Fix: change `random_state=99` → `42` in three places: (a) k-selection scoring loop (line 695), (b) `_fit_lda_gpu` default (line 734), (c) sklearn fallback paths (lines 782, 787). At the same seed and backend, the canonical fit and seed-42 sweep worker produce equivalent components by construction. Result: `top_words ≡ canonical_words`; `doc_topic` is in the same frame; `09c_validate_topics.py` outputs become coherent without modification. The redundant LDA fit is preserved for now (one wasted fit's worth of cost); a future refactor (ROADMAP #26 follow-up) will capture seed-42 state from the sweep workers and skip the canonical fit entirely. Diagnostic outputs preserved at `json/topic_alignment_diagnostic.json` and `data/outputs/topic_alignment_diagnostic.md`.
+- **`docs/methodology.md`** — added section "LDA topics as discursive registers, not subject domains" (between "Residual error propagation" and Section 24). States the reframe (LDA finds vocabulary co-occurrence patterns, not themes), uses the 21-book PCT scatter as worked example (T5 ×8, T6 ×5, T8 ×4, T3 ×3, T4 ×1, T7 ×0), three implications for interpretation (read names as registers; prefer doc-topic distributions over argmax; cross-cutting programmes invisible to LDA), and frames PCT as second worked instance of the standing principle of context (parallel to "University of California" — strings → vocabulary, same structural property).
+- **`src/09c_validate_topics.py` + `src/patch_topic_names.py`** — fixed 09c clobber bug (ROADMAP #27). Symptom: after a full pipeline run, `data/outputs/topic_validation.md` showed `*(to be named)*` for every topic despite `patch_topic_names.py` reporting "Updated 9/9 topics". Cause: 09c regenerates `topic_validation.json` from scratch with hardcoded `'proposed_name': ''` and `'notes': ''`, and runs **after** patch_topic_names in `run_all.sh`, silently overwriting what patch_topic_names wrote. Cosmetic-only — names were correctly carried in `nlp_results.json` so HTML/Excel reports were unaffected. Fix: 09c now reads `topic_names` and `topic_notes` from `nlp_results.json` and overlays them as defaults for `proposed_name`/`notes` (graceful degradation to empty strings if absent — preserves the original manual-edit workflow). `patch_topic_names.py` extended to write `topic_notes` alongside `topic_names`. Trailing instructions in 09c updated to reflect the canonical naming workflow (edit TAXONOMY → rerun) rather than the deprecated manual-edit-JSON path.
+- **`src/patch_topic_names.py`** — TAXONOMY block replaced with 9 finalised topic names from the 25 April full-text canonical run: T1 Classical cybernetics history/historiography; T2 Techno-political complexes; T3 Engineering control; T4 Systems theory & Viable Systems Model; T5 Formal foundations of cybernetics; T6 Reinvention of self and others; T7 Psychological regulation and control; T8 Biological & neural cybernetics; T9 Ecology and posthuman technologies. Notes scoped to discursive-register reframe; per-topic stability scores intentionally omitted (fetched from `topic_stability.json` per session). T9 is no longer "Residual / Outlier Cluster" — under full-text mode the position carries coherent ecological/posthuman content. T7 explicitly notes that PCT does NOT anchor here despite the topic name suggesting it should — a methodological feature, not a defect.
+- **`src/patch_topic_names.py`** — TAXONOMY names revised by Paul Wong (26 April 2026) following review of the 25 April full-text canonical run. Final names: T1 History and Historiography of Cybernetics; T2 Techno-political Complexes; T3 Engineering Control; T4 Social and Organisational Cybernetics (Beer/VSM as recursive organisational model + Luhmann's broader social-institutions scope); T5 Formal Foundations of Cybernetics; T6 Reinventing Selves and Others, Past and Future; T7 Psychological and Behavioural Regulation and Control; T8 Biological and Neural Cybernetics; T9 Extensions of Cybernetics (replaces interim "Ecology, Posthumanism and Digital Ontology" — broader framing accommodates ecology, posthumanism, second-order cybernetics, digital ontology, and other extension paths rather than naming three specific extensions). T9 notes rewritten to reflect the broader framing. Capitalisation normalised across all 9. **Note:** "Extensions of Cybernetics" was the T3 name in the pre-25-April sampled-run taxonomy; same name now occupies a different topic position under the full-text canonical fit. Downstream consumers holding old runlogs/cached HTML/prior drafts should not treat the name as identifying the same cluster across runs.
+- **`README.md`** — stale topic-name table (lines 350–363, pre-25-April taxonomy) replaced with a pointer block referencing `json/nlp_results.json['topic_names']`, `src/patch_topic_names.py` TAXONOMY, and `data/outputs/topic_validation.md` as authoritative sources. Stops the README rotting on every re-naming; consistent with "don't rely on hardcoded figures here — they rot" (CLAUDE.md project snapshot). Chapter-level NMF table retained (those names have not shifted).
+
+### Added
+
+- **`src/03_nlp_pipeline.py`** — multi-GPU parallel seeds in `run_stability_analysis()`. New `_fit_one_seed()` worker function pins each seed run to a specific GPU via `CUDA_VISIBLE_DEVICES` and runs in a subprocess. `_detect_gpu_count()` queries `nvidia-smi` at runtime. When `--gpu` is active and ≥2 GPUs are available, seeds are dispatched across GPUs in parallel using `ProcessPoolExecutor` (up to `min(n_seeds, n_gpus)` workers) — collapsing a 5-seed run on the 5× RTX 3090 server from 5× to ~1× single-model time. Falls back gracefully to sequential single-GPU or CPU if cuML is unavailable. The `--gpu` flag also added to the canonical `run_all.sh` invocation.
+
+- **`data/outputs/book_nlp_index_guide.html`** — new reader's guide for the Topic Modelling page (`index.html`), parallel to the entity network guide. Covers plain-language overview, how to read each figure, caveats and limitations, and a technical appendix (corpus, preprocessing, vectorisation, LDA fitting, stability, k-selection, topic naming). Guide link auto-injected into `index.html` nav by `src/06_build_report.py` (mechanism already present; link appears on next pipeline run).
+- **`presentation/patch_deck.py`** — idempotent script applying v0.5.1 canonical facts to `CyberneticsNLP_Talk_v2.pptx` → `CyberneticsNLP_Talk_v3.pptx`. Committed as provenance record.
+
+### Documentation
+
+- **`docs/decisions.md`** — two new entries prepended: (1) canonical run requires `--full-text --max-features 15000` (with rejection of April 18 run); (2) T9 "Residual / Outlier Cluster" rationale; (3) inclusion vs exclusion semantics for non-disjoint labels.
+- **`docs/` reorganisation** — research memos moved to `docs/memos/`; project-specific reference docs to `docs/reference/`; one historical snapshot to `docs/archive/`. Transcript dumps and superseded files retired.
+
+### Pending (complete before removing ⚑ flag)
+
+- [x] `run_all.sh` rerun complete on NLP machine (started 25 April 2026; canonical runlog `data/outputs/runlog20260425-5.csv` finalised 26 April 00:47 AEST)
+- [x] Topic structure reviewed by Paul Wong against full-text solution
+- [x] k=9 confirmed as still appropriate for full-text corpus (26 April 2026)
+- [x] Topic names re-validated by Paul Wong, 26 April 2026 — still provisional pending ≥3 runs × ≥2 raters for stable names; this satisfies the post-run validation block in CLAUDE.md but not the multi-rater stability criterion in sprint item 4
+- [x] Run logged via `log_pipeline_run.py` as `run_20260426_k9_s5`, equivalence class `23b29233a67b2938`, nlp_hash `901e5ec924248fe2`, 2368 runlog lines ingested. **Recovery note:** initial logging defaulted to today's filename and missed the runlog at `runlog20260425-5.csv` (canonical run started 25 April, 5th of the day, completed 26 April 00:47 AEST). The `nlp_hash` short-circuit at `src/log_pipeline_run.py:287` returned "Nothing to do" on rerun, so recovery required `sqlite3 ... DELETE FROM pipeline_runs WHERE run_id='run_20260426_k9_s5'` followed by re-run with explicit `--runlog`. Logged as ROADMAP entry: `log_pipeline_run.py` should ingest the runlog into an existing row when `runlog_entries` count is zero, rather than terminating on `nlp_hash` match.
+- [x] `contributions.md` updated with 26 April session row; `CLAUDE.md` post-run validation block removed (no longer applicable). Master project doc (`02 Projects/CyberneticsNLP/CyberneticsNLP.md` in vault) needs separate update — outside the repo mount, handled by user.
+
+---
+
+## [0.5.2] — 2026-04-25
+
+> Session: 25 April 2026 (Cowork/Chat) — docs reorganisation, retire stale outputs, presentation refresh
+
+*(See v0.5.3 above for full context of this session's changes.)*
+
+---
+
 ## [0.5.1] — 2026-04-23
 
 > Session: 23 April 2026 (Cowork) — documentation maintenance; entity network noise suppression

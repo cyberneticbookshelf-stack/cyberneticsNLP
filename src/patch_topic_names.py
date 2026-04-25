@@ -13,108 +13,130 @@ if not target.exists():
 
 data = json.load(open(target))
 
-# ── Run C canonical taxonomy (542-book corpus, agreed 14 April 2026) ──────────
-# Names agreed by Paul Wong via title-sweep inspection of top-loading books.
-# Stability scores from 5-seed run: mean=0.327 (superseded by sixth-batch
-# rerun mean=0.357, 6/9 stable — 18 April 2026).
-# Notes are provisional; full rationale in docs/memos/memo_lda_k_selection.md.
+# ── Full-text canonical taxonomy (541-book corpus, 25 April 2026) ─────────────
+# First genuine full-text canonical run (--full-text --max-features 15000).
+# Names derived from seed-42 top-loading books in the 25 April run after
+# diagnostic established that doc_topic argmax assignments are unreliable
+# across the seed-42 / seed-99 split (see docs/methodology.md §"LDA topics
+# as discursive registers, not subject domains" and ROADMAP #26).
+#
+# Per session startup protocol (CLAUDE.md): names are provisional pending
+# Paul Wong's validation of the full-text canonical run. Stability scores
+# below should be refreshed from json/topic_stability.json after each run;
+# the literals here are intentionally omitted to avoid stale figures.
+#
+# All names should be read as discursive registers ("how cybernetics gets
+# written about"), not as subject domains ("what cybernetics is about").
+# See docs/methodology.md for the full reframe and the PCT-dispersion
+# worked example.
 TAXONOMY = {
     'T1': {
-        'proposed_name': 'Cybernetics of Political Economy',
+        'proposed_name': 'History and Historiography of Cybernetics',
         'notes': (
-            'Cybernetics applied to political and economic contexts: Cold War '
-            'computing history, governance, tech policy, internet capitalism, '
-            'cybernetics and state power. Top words: decision, border, '
-            'investment, security, price, market, stock. Stability 0.232. '
-            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
+            'Discursive register: historical and historiographical writing '
+            'about the cybernetics tradition itself. Wiener and Bateson '
+            'biographies, Macy Conferences history, accounts of the rise and '
+            'fall of cybernetics as a discipline. Top loadings include '
+            'Wiener-biography volumes and field-history monographs. '
+            'Provisional name agreed 25 April 2026 (full-text canonical run).'
         ),
     },
     'T2': {
-        'proposed_name': 'Cybernetics and Circularity',
+        'proposed_name': 'Techno-political Complexes',
         'notes': (
-            'Philosophical and theoretical cybernetics: second-order '
-            'cybernetics, recursion, autopoiesis, posthumanism, systems '
-            'ontology. Bateson, Yuk Hui, Maturana, constructivism. Top words: '
-            'information, function, element, value, number, probability, '
-            'entropy. Stability 0.224. '
-            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
+            'Discursive register: political, economic, and geopolitical '
+            'analysis of cybernetic and computational systems. Cold War '
+            'computing, surveillance, big tech, multinationals, internet '
+            'capitalism — not necessarily drawn on state-level boundaries. '
+            'Provisional name agreed 25 April 2026 (full-text canonical run).'
         ),
     },
     'T3': {
-        'proposed_name': 'Biological Systems Cybernetics',
+        'proposed_name': 'Engineering Control',
         'notes': (
-            'Biological and physiological cybernetics: homeostasis, allostasis, '
-            'evolution, neuroscience. Top books: Rethinking Homeostasis, '
-            'Information Theory and Evolution, Minds and Machines (1954). '
-            'Top words: control, model, behavior, variable, input, cell, output. '
-            'Stability 0.551. '
-            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
+            'Discursive register: classical control engineering and applied '
+            'feedback systems. State-space models, transfer functions, '
+            'controller design, plant dynamics. PCT books with strong '
+            'engineering vocabulary anchor here (see methodology.md §PCT '
+            'dispersion). '
+            'Provisional name agreed 25 April 2026 (full-text canonical run).'
         ),
     },
     'T4': {
-        'proposed_name': 'Applied Engineering Cybernetics',
+        'proposed_name': 'Social and Organisational Cybernetics',
         'notes': (
-            'Engineering and applied cybernetics: PCT (Perceptual Control '
-            'Theory), neural networks, bioreaction, marine control, von '
-            'Foerster. Mix of formal control engineering and applied biological '
-            'cybernetics. Top words: wiener, bateson, science, cybernetic, '
-            'theory, world. Stability 0.437. '
-            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
+            'Discursive register: organisational and managerial cybernetics, '
+            'VSM lineage. Stafford Beer (Viability of Organizations, '
+            'Diagnosing the System), Luhmann, applied systems theory, '
+            'intelligent organisation design. '
+            'Provisional name agreed 25 April 2026 (full-text canonical run).'
         ),
     },
     'T5': {
-        'proposed_name': 'Cultural Applications of Cybernetics',
+        'proposed_name': 'Formal Foundations of Cybernetics',
         'notes': (
-            'Cybernetics in cultural and artistic domains: computer art, '
-            'digital performance, music, Lem (trurl vocabulary). Top books: '
-            'History of Computer Art, Digital Performance, Relational '
-            'Improvisation. Top words: year, people, look, right, trurl, tell. '
-            'Stability 0.374. '
-            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
+            'Discursive register: mathematical, symbolic, and computational '
+            'methods. Information theory, Spencer-Brown (Laws of Form), '
+            'Rosen (relational biology), semantic communication, formal '
+            'control mathematics. PCT books that develop the formal '
+            'apparatus also anchor here — the largest single sub-cluster of '
+            '21 PCT-adjacent books in the corpus (see methodology.md §PCT '
+            'dispersion). '
+            'Provisional name agreed 25 April 2026 (full-text canonical run).'
         ),
     },
     'T6': {
-        'proposed_name': 'Formal Foundations of Cybernetics',
+        'proposed_name': 'Reinventing Selves and Others, Past and Future',
         'notes': (
-            'Mathematical and formal foundations: information theory, '
-            'Spencer-Brown (Laws of Form), Rosen (relational biology), '
-            'semantic communication. Top words: machine, human, computer, '
-            'brain, problem, control, language, program. Stability 0.349. '
-            'Held stable from Run C. Name confirmed 18 April 2026.'
+            'Discursive register: self-help, popular psychology, and pop '
+            'cultural application of cybernetics. Maltz lineage '
+            '(Psycho-Cybernetics and descendants), success / wellbeing '
+            'monographs, cybernetics-flavoured personal-development texts. '
+            'PCT books written for a general audience also anchor here. '
+            'Provisional name agreed 25 April 2026 (full-text canonical run).'
         ),
     },
     'T7': {
-        'proposed_name': 'History and Biography of Cybernetics',
+        'proposed_name': 'Psychological and Behavioural Regulation and Control',
         'notes': (
-            'Biographical and historical accounts of cybernetics figures: '
-            'Wiener biographies (Dark Hero, Life in Cybernetics), Mary '
-            'Catherine Bateson memoirs, popular cybernetics (Volleyball '
-            'Cybernetics, Success Cybernetics). Top words: human, theory, '
-            'social, world, concept, self. Stability 0.464. '
-            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
+            'Discursive register: affect-, allostasis- and stress-regulation '
+            'literature. Sapolsky-adjacent, Damasio-adjacent. NB: PCT '
+            'literature does NOT anchor here despite the topic name '
+            'suggesting it should — PCT vocabulary disperses to T5/T6/T8/T3 '
+            'by register. The mismatch between the topic name a PCT scholar '
+            'would expect and the topic content actually computed is itself '
+            'the worked example in docs/methodology.md §"LDA topics as '
+            'discursive registers, not subject domains". '
+            'Provisional name agreed 25 April 2026 (full-text canonical run).'
         ),
     },
     'T8': {
-        'proposed_name': 'Cybernetic Management Theory',
+        'proposed_name': 'Biological and Neural Cybernetics',
         'notes': (
-            'VSM lineage and organisational cybernetics: Beer (Viability of '
-            'Organizations, Diagnosing the System), Luhmann (Health as Social '
-            'System), applied systems theory, intelligent construction. '
-            'Top words: cybernetic, social, information, organization, '
-            'technology, design, management. Stability 0.319. '
-            'Name agreed 18 April 2026 (title-sweep, run_all 18 Apr).'
+            'Discursive register: homeostatic biology, neuroscience, '
+            'evolutionary perspectives. Rethinking Homeostasis, Information '
+            'Theory and Evolution, neural-cybernetic monographs. PCT books '
+            'that emphasise homeostatic and biological grounding anchor '
+            'here. '
+            'Provisional name agreed 25 April 2026 (full-text canonical run).'
         ),
     },
     'T9': {
-        'proposed_name': 'Residual / Outlier Cluster',
+        'proposed_name': 'Extensions of Cybernetics',
         'notes': (
-            'Not a genuine intellectual tradition. Lem\'s Cyberiad dominates '
-            '(loading=1.000 for two editions); R.U.R. (Čapek), Qian Xuesen '
-            'biography, Uexküll. Therapy vocabulary (people, family, person, '
-            'life, experience, therapy) suggests PCT/behavioural outliers also '
-            'present. Top words: people, family, person, life, experience, '
-            'therapy, child, client. Stability 0.261. '
-            'Provisional name — pending confirmation 18 April 2026.'
+            'Discursive register: cybernetics extended into adjacent domains '
+            'rather than developed within its classical core. Multiple '
+            'extension paths anchor here — ecology and environment, '
+            'posthumanism and more-than-human systems, second-order '
+            'cybernetics and autopoiesis, digital ontology and cosmotechnics. '
+            'Yuk Hui (digital ontology, recursivity), Maturana/Varela in '
+            'their philosophical mode, constructivist and posthuman currents. '
+            'Replaces the previous "Residual / Outlier Cluster" reading from '
+            'the 18 April 542-book sampled run; the full-text canonical run '
+            'of 25 April assigns coherent extension-domain content to this '
+            'position. Provisional name agreed 26 April 2026 (revised from '
+            '"Ecology, Posthumanism and Digital Ontology" — those are three '
+            'specific extensions; the topic accommodates more).'
         ),
     },
 }
@@ -157,7 +179,15 @@ if nlp_path.exists():
         name = TAXONOMY.get(label, {}).get('proposed_name', label)
         ordered_names.append(name)
     nlp['topic_names'] = ordered_names
+    # Also write notes so 09c_validate_topics.py can overlay them onto
+    # topic_validation.json (fixed 26 April 2026, ROADMAP #27 — 09c had
+    # been clobbering proposed_name/notes that this script wrote).
+    ordered_notes = [
+        TAXONOMY.get(f'T{i+1}', {}).get('notes', '') for i in range(n_topics)
+    ]
+    nlp['topic_notes'] = ordered_notes
     json.dump(nlp, open(nlp_path, 'w'), ensure_ascii=False)
     print(f"Updated nlp_results.json topic_names: {ordered_names}")
+    print(f"Updated nlp_results.json topic_notes ({len(ordered_notes)} entries)")
 else:
     print("WARNING: json/nlp_results.json not found — skipping nlp update")
