@@ -409,6 +409,8 @@ Resolution detail (commit hashes, file-level changes) is in `docs/CHANGELOG.md` 
 | KI-08 | 541 vs 542 book count — one book dropped at runtime | **Resolved.** [2133] *Cybernation and Social Change* added to `ocr-excluded` list. Parsed and cleaned normally but excluded before LDA/TF-IDF fitting and entity network construction. Canonical corpus: 542 parsed, 541 analysed. |
 | KI-09 | ~150 singular/plural node pairs split PMI signal | **Resolved.** `_singular_form()` + `concept_plural_map` in `src/14_entity_network.py`; plurals merged into singulars with book-set union. `_CONCEPT_PLURAL_EXCEPTIONS` protects 35 `-ics` field names (cybernetics, thermodynamics, …). |
 | KI-10 | Entity network concepts dropped 746→500 on fresh rebuild | **Resolved.** Root cause: `run_all.sh` was running step 14 with `--no-windows`, excluding ~239 concept nodes that only have paragraph-level edges. Fix: `--no-windows` removed from `run_all.sh`. |
+| KI-11 | Stability band thresholds inconsistent: `log_pipeline_run.py` vs `09c_validate_topics.py` | **Open (post-presentation).** `09c` uses stable ≥0.30 / moderate 0.15–0.30 / unstable <0.15; `log_pipeline_run.py` uses different implicit thresholds (~≥0.45 stable). Same `topic_stability.json`, conflicting counts. Fix: centralise thresholds. See ROADMAP KI-10. |
+| KI-12 | Release HTMLs reflect rebuild nlp_hash, not logged canonical run | **Open (post-presentation).** Rebuild run (`c8e3c71bf8a3d910`) differs from canonical logged run (`901e5ec924248fe2`); same equivalence class. Survey workflow unaffected. See ROADMAP KI-11. |
 
 ---
 
