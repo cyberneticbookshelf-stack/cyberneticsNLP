@@ -6,6 +6,23 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.5.4] — 2026-04-26
+
+> Session: 26 April 2026 (Cowork) — reader's guide suite completed; HTML reports rebuilt; presentation patched to 26 April taxonomy.
+
+### Added
+
+- **`data/outputs/book_nlp_cosine_guide.html`** — new reader's guide for the Cosine Similarity page (`cosine.html`). Covers plain-language overview of the three views (cluster averages, full matrix, top pairs), interpretation guidance (vocabulary similarity ≠ intellectual proximity), TF-IDF cosine formula, and per-view construction details. Guide link auto-injected into `cosine.html` nav by `06_build_report.py` (rerun required, completed this session).
+- **`data/outputs/book_nlp_clusters_guide.html`** — new reader's guide for the Clusters page (`clusters.html`). Covers the LSA 2D scatter and K-Means cluster table; the LDA topics vs K-Means clusters distinction (soft mixture vs hard partition, different input matrices — CountVectorizer for LDA, TF-IDF for K-Means); and the low silhouette scores (0.004–0.022) confirming no statistically valid hard cluster structure. Includes full K-Means inertia/silhouette table (k=2–9, current run).
+- **`data/outputs/book_nlp_keyphrases_guide.html`** — new reader's guide for the Key Phrases page (`keyphrases.html`). Covers per-book TF-IDF keyphrase extraction (distinct from corpus-wide topic words), Fig 7 construction (pooling keyphrases by dominant topic), search/filter usage, and interpretive traps (proper nouns, register phrases, OCR-inflated n-grams, keyphrases ≠ argument summaries). Technical appendix: `extract_keyphrases()` parameters (`max_features=500`, `ngram_range=(1,3)`, 4-char minimum tokens).
+
+### Fixed
+
+- **`data/outputs/book_nlp_index_guide.html`** — updated throughout for the 26 April 2026 full-text canonical run (`run_20260426_k9_s5`). Changes: (1) topic stability table updated — 9 new names + current scores (T1 0.261 moderate, T2 0.441 stable, T3 0.512 stable, T4 0.529 stable, T5 0.178 moderate, T6 0.458 stable, T7 0.045 unstable, T8 0.287 moderate, T9 0.421 stable; mean 0.348); (2) `max_iter` corrected 20 → 100; (3) perplexity/coherence table replaced with live full-text sweep values (k=9: perplexity 3650.7, coherence 0.0780 — values are higher than the prior sampled-run table because full-body text contributes substantially more words per document); (4) stability counts corrected: "Six of nine stable, T1/T2/T9 moderate" → "Five stable, three moderate (T1/T5/T8), T7 unstable"; (5) T9 "Residual / Outlier Cluster" caveat paragraph removed and replaced with T7 instability caveat; (6) footer date updated.
+- **`presentation/patch_deck.py`** — updated to apply 26 April 2026 canonical facts. Changes: (1) `CANONICAL_NAMES` block updated to finalised 26 April taxonomy with position-indexed comments and safety note re "Extensions of Cybernetics" T3↔T9 name collision; (2) `edit_slide_11()` — stability figures corrected from stale 0.357/9/9 (prior patch run) to 0.348/5/9 with T7 unstable; LDA input description fixed from "abstractive summaries (not raw text)" → "full body text, front/back matter stripped (--full-text)" (abstractive summaries are NMF input only); (3) `edit_slide_14()` — era heading renames: "Fragmentation & Specialisation" → "Cybernetics at Social Scale" (Beer/VSM + Luhmann scope); "Expansion & Revival" → "Diffusion and Injection"; dominant-topic attributions remapped to 26 April topic positions; (4) `edit_slide_23()` — "Phase 2 — Analysis" column header renamed to "Possible Extensions".
+
+---
+
 ## [0.5.3] — 2026-04-25
 
 > Sessions: 25 April 2026 (Cowork) — canonical run definition corrected; first genuine full-text run executed.

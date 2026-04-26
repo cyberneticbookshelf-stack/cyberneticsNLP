@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-patch_deck.py — apply v0.5.1 canonical facts to CyberneticsNLP_Talk_v2.pptx.
+patch_deck.py — apply v0.5.3 canonical facts to CyberneticsNLP_Talk_v2.pptx.
 
 Usage (on the NLP machine, from project root):
     python3 presentation/patch_deck.py
@@ -35,16 +35,20 @@ DST = V3
 # If json/nlp_results.json provides topic_names keyed differently, we map into
 # this canonical sequence. T1 → index 0.
 CANONICAL_NAMES = [
-    'History and Biography of Cybernetics',
-    'Cybernetics of Psychology',
-    'Extensions of Cybernetics',
-    'Cybernetic Management Theory',
-    'Biological Systems Cybernetics',
-    'Formal Foundations of Cybernetics',
-    'Cross-Domain Applications of Cybernetics',
-    'Cybernetics of Posthumanism',
-    'Cultural Applications of Cybernetics',
+    'History and Historiography of Cybernetics',   # T1
+    'Techno-political Complexes',                  # T2
+    'Engineering Control',                         # T3
+    'Social and Organisational Cybernetics',       # T4
+    'Formal Foundations of Cybernetics',           # T5
+    'Reinventing Selves and Others, Past and Future',  # T6
+    'Psychological and Behavioural Regulation and Control',  # T7
+    'Biological and Neural Cybernetics',           # T8
+    'Extensions of Cybernetics',                   # T9
 ]
+# 26 April 2026 — finalised by Paul Wong from run_20260426_k9_s5
+# WARNING: "Extensions of Cybernetics" also appeared at T3 in the old
+# (pre-26-Apr) taxonomy — search-and-replace by name is unsafe; always
+# patch by topic index/position.
 N_WORDS = 6  # top words per topic shown on slide
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -268,12 +272,34 @@ def edit_slide_10(pres):
 
 
 def edit_slide_11(pres):
-    """Update mean stability and stable-count figures (appear twice)."""
-    ok1 = walk_and_replace(pres, 10, "mean stability 0.327, 5/9 topics stable",
-                                     "mean stability 0.357, 9/9 topics stable")
-    ok2 = walk_and_replace(pres, 10, "5-seed stability complete (mean=0.327)",
-                                     "5-seed stability complete (mean=0.357, 9/9 stable)")
-    return ok1 or ok2
+    """Update mean stability, stable-count, and LDA input description.
+
+    26 April 2026 run (run_20260426_k9_s5): mean=0.348, 5/9 stable, T7 unstable (0.045).
+    Previous patch had set incorrect 0.357/9/9 figures from a pre-naming run.
+    Also fixes the LDA input description: LDA uses full body text (--full-text),
+    not abstractive summaries (that is NMF only).
+    """
+    # Stability figures — search for what v3 currently has (from previous patch run)
+    ok1 = walk_and_replace(pres, 10,
+        "mean stability 0.357, 9/9 topics stable",
+        "mean stability 0.348, 5/9 topics stable (T7 unstable, 0.045)")
+    ok2 = walk_and_replace(pres, 10,
+        "5-seed stability complete (mean=0.357, 9/9 stable)",
+        "5-seed stability complete (mean=0.348, 5/9 stable; T7 unstable)")
+    # Also handle v2 originals in case v3 was not yet patched on stability
+    if not ok1:
+        ok1 = walk_and_replace(pres, 10,
+            "mean stability 0.327, 5/9 topics stable",
+            "mean stability 0.348, 5/9 topics stable (T7 unstable, 0.045)")
+    if not ok2:
+        ok2 = walk_and_replace(pres, 10,
+            "5-seed stability complete (mean=0.327)",
+            "5-seed stability complete (mean=0.348, 5/9 stable; T7 unstable)")
+    # Fix incorrect LDA input description (abstractive summaries → full body text)
+    ok3 = walk_and_replace(pres, 10,
+        "Input: abstractive summaries (not raw text)",
+        "Input: full body text, front/back matter stripped (--full-text)")
+    return ok1 or ok2 or ok3
 
 
 def edit_slide_13(pres, topic_data):
@@ -357,29 +383,63 @@ def edit_slide_5(pres):
 
 
 def edit_slide_14(pres):
-    """Remap 'Dominant: T#' attributions from the defunct 18 April taxonomy to
-    the Run C names that actually live in json/nlp_results.json.
+    """Remap 'Dominant: T#' attributions to the 26 April 2026 taxonomy.
 
-    Per-era mappings chosen by fit between top-words and historical narrative:
-      Foundational (1940s–60s): T6 Formal Foundations · T8 Cybernetic Management
-      Second-order (1960s–70s): T2 Cybernetics and Circularity (bateson) · T3 Biological Systems
-      Fragmentation (1980s–90s): T8 Cybernetic Management · T6 Formal Foundations
-      Expansion (2000s–25): T5 Cultural Applications · T1 Cybernetics of Political Economy
+    ⚠️  REVIEW REQUIRED: These era-dominant topic assignments are best-guess
+    mappings based on top-word profiles. Paul should verify before the talk.
+
+    26 April taxonomy (for reference):
+      T1 History and Historiography of Cybernetics    (machine, computer, wiener)
+      T2 Techno-political Complexes                   (technology, cybernetic, project, architecture)
+      T3 Engineering Control                          (variable, input, output, equation, rate, feedback)
+      T4 Social and Organisational Cybernetics        (social, organization, decision, complexity)
+      T5 Formal Foundations of Cybernetics            (language, machine, object, probability, entropy)
+      T6 Reinventing Selves and Others, Past/Future   (family, person, tell, feel, child, therapy)
+      T7 Psychological and Behavioural Reg & Control  (behavior, brain, emotion, social, mental)
+                                                      *** UNSTABLE (0.045) — treat with caution ***
+      T8 Biological and Neural Cybernetics            (cell, brain, machine, neuron, energy, organism)
+      T9 Extensions of Cybernetics                   (bateson, social, body, communication, technology)
+
+    Proposed era mappings (confirm with domain judgment):
+      Foundational (1940s–60s): T3 Engineering Control · T5 Formal Foundations
+      Second-order (1960s–70s): T9 Extensions of Cybernetics · T8 Biological and Neural
+      Fragmentation (1980s–90s): T4 Social and Organisational · T3 Engineering Control
+      Expansion (2000s–25):     T9 Extensions of Cybernetics · T6 Reinventing Selves and Others
     """
     remaps = [
-        ("Dominant: T6 Formal Foundations · T4 Cybernetic Management",
-         "Dominant: T6 Formal Foundations · T8 Cybernetic Management Theory"),
-        ("Dominant: T2 Cybernetics of Psychology · T5 Biological Systems",
-         "Dominant: T2 Cybernetics and Circularity · T3 Biological Systems Cybernetics"),
-        ("Dominant: T4 Cybernetic Management · T6 Formal Foundations",
-         "Dominant: T8 Cybernetic Management Theory · T6 Formal Foundations"),
-        ("Dominant: T8 Cybernetics of Posthumanism · T9 Cultural Applications",
-         "Dominant: T5 Cultural Applications of Cybernetics · T1 Cybernetics of Political Economy"),
+        # Foundational: control theory + information theory born together
+        ("Dominant: T6 Formal Foundations · T8 Cybernetic Management Theory",
+         "Dominant: T3 Engineering Control · T5 Formal Foundations of Cybernetics"),
+        # Second-order: Bateson (T9 top word) + Maturana/Varela biological
+        ("Dominant: T2 Cybernetics and Circularity · T3 Biological Systems Cybernetics",
+         "Dominant: T9 Extensions of Cybernetics · T8 Biological and Neural Cybernetics"),
+        # Fragmentation: Beer/VSM management + ongoing control engineering
+        ("Dominant: T8 Cybernetic Management Theory · T6 Formal Foundations",
+         "Dominant: T4 Social and Organisational Cybernetics · T3 Engineering Control"),
+        # Expansion: interdisciplinary extensions + therapy/self/reflexivity
+        ("Dominant: T5 Cultural Applications of Cybernetics · T1 Cybernetics of Political Economy",
+         "Dominant: T9 Extensions of Cybernetics · T6 Reinventing Selves and Others, Past and Future"),
     ]
+    # Era heading renames (substantive reframings agreed 26 April 2026)
+    heading_remaps = [
+        # 1980s–90s: Beer/VSM + Luhmann = cybernetics applied at social scale,
+        # not merely "fragmentation"
+        ("Fragmentation & Specialisation", "Cybernetics at Social Scale"),
+        ("Fragmentation and Specialisation", "Cybernetics at Social Scale"),
+        # 2000s–25: cybernetics concepts diffuse into digital humanities, enactivism
+        # etc. and are injected into new contexts — not a "revival"
+        ("Expansion & Revival", "Diffusion and Injection"),
+        ("Expansion and Revival", "Diffusion and Injection"),
+    ]
+
     any_hit = False
-    for old, new in remaps:
+    for old, new in heading_remaps + remaps:
         if walk_and_replace(pres, 13, old, new):
             any_hit = True
+        else:
+            print(f"  [slide 14] string not found (may already be patched): {old[:60]}…")
+    if not any_hit:
+        print("  [slide 14] ⚠️  No strings matched — check slide 14 manually")
     return any_hit
 
 
@@ -388,7 +448,14 @@ def edit_slide_22(pres):
 
 
 def edit_slide_23(pres):
-    """Replace the 'Immediately' column items with current sprint work."""
+    """Replace the 'Immediately' column items and rename Phase 2 column header."""
+    # Rename "Phase 2 — Analysis" → "Possible Extensions" (agreed 26 April 2026)
+    for slide_idx in (21, 22):  # search both candidate indices (slide may shift)
+        if walk_and_replace(pres, slide_idx, "Phase 2 \u2014 Analysis", "Possible Extensions"):
+            break
+        if walk_and_replace(pres, slide_idx, "Phase 2 - Analysis", "Possible Extensions"):
+            break
+
     s = pres.slides[22]
     # Shapes [4..7] are the four arrow-lines.
     new_items = [
