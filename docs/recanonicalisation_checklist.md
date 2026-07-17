@@ -1,6 +1,9 @@
 # Re-canonicalisation checklist — post-reconstruction canonical run
 
-**Status:** Staged, not yet applied. Blocked on the `--rebuild-clean` run.
+**Status:** Staged, not yet applied. First `--rebuild-clean` ran 17 Jul 2026 but was
+**incomplete** (still 544 analysed; 28-book ingestion gap — KI-13). Now blocked on §0
+(regenerate the stale April `books_metadata_full.csv` from the reconstructed DB) before a
+clean re-run.
 **Trigger:** Calibre DB reconstruction (July 2026) → stale clean cache (KI-13) →
 the 26 April canonical run (`run_20260426_k9_s5`, 541 books, equivalence class
 `23b29233a67b2938`) no longer describes the analysed corpus.
@@ -13,7 +16,42 @@ values, not guessed.
 
 ---
 
-## 0. Run the rebuild (on the NLP machine)
+## 0. Refresh the reconstructed metadata export (do FIRST — on the NLP machine)
+
+**Why this is step 0:** the July reconstruction regenerated `csv/books_lang.csv` and
+the `csv/books_text_*.csv` shards, but **did NOT regenerate `csv/books_metadata_full.csv`**
+— it is still dated **11 Apr** with **old ids**. Two consequences proven by the
+17 Jul rebuild (see KI-13 §"28-book audit"):
+- `03_nlp_pipeline.py:319` reads `books_metadata_full.csv` for the pub-type filter, so the
+  rebuild filtered against **stale old-id April pub_type** — re-IDed books are matched on the
+  wrong row, and the 11 brand-new books have no pub_type at all (defaulted to include).
+- Separately, `split_books_text.sh` builds `books_text_*.csv` with `WHERE format='PDF'` (no id
+  bound). A book with **no PDF-format `books_text` row** — EPUB-only, or PDF text-extraction
+  never produced a row — is silently dropped from the corpus. This is what happened to id 207
+  (the reworded *Next Step in Management*); the emergent min source id of 271 is a *consequence*,
+  not an id floor.
+
+Regenerate the metadata export from the reconstructed DB:
+
+```
+python src/00_export_calibre.py            # rewrites csv/books_metadata_full.csv from metadata.db
+#   → verify: file mtime is today, and it contains the new ids (2797/2799/2801/2806-2810, id 207)
+python3 -c "import csv,sys; csv.field_size_limit(sys.maxsize); \
+  r={row['id']:row.get('pub_type','') for row in csv.DictReader(open('csv/books_metadata_full.csv'),delimiter='\t')}; \
+  print('rows:',len(r)); print({i:r.get(i,'MISSING') for i in ('207','2797','2799','2801','2806','2807','2808','2809','2810','2174','2701','2707','2776','2778','2790')})"
+```
+
+All 15 ids above must resolve to a real `pub_type` (not `MISSING`). **Separately check id 207
+has a PDF-format text row:** `sqlite3 metadata.db "SELECT book,format FROM books_text WHERE
+book=207;"` — if it returns no `PDF` row, either re-run PDF text extraction for that book in
+Calibre so a `format='PDF'` `books_text` row exists, or accept its exclusion and record it.
+Do **not** touch `WHERE format='PDF'` in `split_books_text.sh` (it is load-bearing — one row
+per book via `UNIQUE(book, format)`); the fix is to make the missing PDF row exist, not to
+widen the format filter.
+
+---
+
+## 0b. Run the rebuild (on the NLP machine)
 
 ```
 bash src/run_all.sh --stream --rebuild-clean
@@ -21,8 +59,19 @@ bash src/run_all.sh --stream --rebuild-clean
 
 This discards `json/books_clean.jsonl`, re-cleans every shard from the
 reconstructed corpus, writes `json/books_clean.manifest.json`, and runs the full
-pipeline. Expect the analysed count to rise from 544 toward ~556 (12 English
-recoveries — see KI-13), pending content-language detection and the min-chars gate.
+pipeline.
+
+> **17 Jul 2026 result (incomplete — do NOT treat as done):** the first `--rebuild-clean`
+> ran but still analysed **544** — the ingestion gap persisted because §0 had not been done.
+> A 28-book audit (KI-13) found **12 confirmed analysable-monograph gaps** (ids 207, 2087,
+> 2186, 2257, 2271, 2283, 2511, 2517, 2716, 2797, 2799, 2801), **5 correctly excluded**
+> (2193/2239/2306 non-monograph; 2138 fr / 2359 ca), and **11 brand-new books unverifiable
+> without the §0 export** (2174, 2701, 2707, 2776, 2778, 2790, 2806–2810). After §0 the count
+> should rise to **~556–567** (≥12 monograph recoveries + however many of the 11 new books are
+> monographs). Root cause of the persistence: books were flagged **No-meta** and skipped by
+> streaming clean despite having reconstructed metadata — resolving §0 removes the No-meta
+> mismatch. Confirm all 12 confirmed-monograph ids appear in `json/nlp_results.json['book_ids']`
+> after the re-run.
 
 ---
 
@@ -161,7 +210,8 @@ Group B, that's the place to remove it.
 
 ## Done-when
 
-- [ ] `--rebuild-clean` run completed; §1 table filled.
+- [ ] §0 done: `books_metadata_full.csv` regenerated from the reconstructed DB (today's mtime, new ids resolve to real pub_type); export id-floor checked so id 207 has a text row.
+- [ ] `--rebuild-clean` re-run completed; analysed count ~556–567 (not 544); all 12 confirmed-monograph ids present in `nlp_results.json['book_ids']`; §1 table filled.
 - [ ] Group A applied; Group B counts removed/dynamicised; Group C deck re-derived.
 - [ ] Topic names re-validated (§3); "provisional" caveat retained.
 - [ ] New CHANGELOG + contributions rows added (Group D).

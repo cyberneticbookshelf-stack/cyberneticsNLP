@@ -46,7 +46,89 @@ Last updated: 20 April 2026 (v0.4.7)
 | KI-09 | AshbyX/NorbertX `json/` divergence — NorbertX is canonical | Monitor |
 | KI-10 | **Stability band thresholds inconsistent across scripts.** `09c_validate_topics.py` and the reader's guides use: stable ≥0.30, moderate 0.15–0.30, unstable <0.15. `log_pipeline_run.py` uses different implicit thresholds (observed on 26 April run: T2 at 0.441 → ~; T8 at 0.287 → ✗; T6 at 0.458 → ✓), consistent with approximately stable ≥0.45, moderate 0.30–0.45, unstable <0.30. Produces conflicting counts: `09c` reports 5/3/1; `log_pipeline_run.py` shows 3/2/4. Both scripts read from the same `topic_stability.json`. Fix: define canonical thresholds in one place (e.g. `src/pipeline_db.py` or a new `src/stability_bands.py`) and import in both. Decision needed on which set is correct — the ≥0.30 thresholds (used in `09c`, guides, sprint notes) are more permissive and consistent with what has been reported externally. | Post-presentation |
 | KI-11 | **Release HTMLs reflect rebuild run, not logged canonical run.** The `run_all.sh` rebuild on 26 April (for HTML report refresh after name propagation) produced `nlp_hash c8e3c71bf8a3d910`, which differs from the logged canonical run `run_20260426_k9_s5` (`nlp_hash 901e5ec924248fe2`). Both runs share equivalence class `23b29233a67b2938` (same k, n_books, max_features, pipeline_mode, seeds_used), so the topic structure is comparable, but the shipped HTML reports do not exactly correspond to the logged run. Not a problem for the Tuesday presentation but is a gap in the audit trail. The survey workflow is unaffected (it operates on the logged canonical run). Longer-term: `log_pipeline_run.py` should optionally accept a `--mark-as-release` flag that records the nlp_hash of the most recent run as the release build, distinct from the analytical canonical run. | Post-presentation |
-| KI-13 | **Streaming clean cache silently stale after Calibre DB reconstruction.** (Number follows the CLAUDE.md active-KI list, which reached KI-12; this ROADMAP table's local sequence skips KI-12.) The Calibre DB was corrupted and reconstructed (July 2026); book ids were reassigned and some authors normalised (e.g. `Emery, Fred E.` → `Emery, Frederick Edmund`, old ids 2188/2382/2383 → new 2799/2801/2797). `parse_and_clean_stream.py:294` skips books whose id already appears in `books_clean.jsonl` (id-only skip check), so the reconstructed corpus was never re-ingested: `run_20260716-5` analysed **544 books from a pre-reconstruction cache** while the shards and `metadata.db` (739 books) already held the reconstructed set. Diagnosis (`check_clean_cache` + sweep): **27 books have PDF text in the reconstructed `metadata.db` but are absent from the cache** — 12 English (genuine recoveries: 3 re-IDed Emery works + 9 brand-new incl. Luhmann *Ecological Communication*, Kevin Kelly *Out of Control*, Jackson *Systems Approaches to Management*, Iberall *Toward a General Science of Viable Systems*) and 15 non-English correctly excluded by the language filter. A timestamp guard is insufficient — the cache was rewritten (15:02) *after* the shards (14:51) yet still missing shard-25's book 2797. **Fix (implemented):** `src/check_clean_cache.py` SHA-256-fingerprints each shard against `json/books_clean.manifest.json` (written at the last full rebuild); `run_all.sh --stream` aborts on mismatch, and `--rebuild-clean` moves the cache aside, re-cleans from shards, then rewrites the manifest. **Follow-up (open):** run `run_all.sh --stream --rebuild-clean`, then **re-establish the canonical run** — `n_books` changes (~544 → ~556 English), so it is a **new equivalence class**; the "541 monographs analysed" framing and the canonical k=9 fit/topic names must be re-validated, not carried over. | **Fix landed; re-canonicalisation open** |
+| KI-13 | **Streaming clean cache silently stale after Calibre DB reconstruction.** (Number follows the CLAUDE.md active-KI list, which reached KI-12; this ROADMAP table's local sequence skips KI-12.) The Calibre DB was corrupted and reconstructed (July 2026); book ids were reassigned and some authors normalised (e.g. `Emery, Fred E.` → `Emery, Frederick Edmund`, old ids 2188/2382/2383 → new 2799/2801/2797). `parse_and_clean_stream.py:294` skips books whose id already appears in `books_clean.jsonl` (id-only skip check), so the reconstructed corpus was never re-ingested: `run_20260716-5` analysed **544 books from a pre-reconstruction cache** while the shards and `metadata.db` (739 books) already held the reconstructed set. Diagnosis (`check_clean_cache` + sweep): **27 books have PDF text in the reconstructed `metadata.db` but are absent from the cache** — 12 English (genuine recoveries: 3 re-IDed Emery works + 9 brand-new incl. Luhmann *Ecological Communication*, Kevin Kelly *Out of Control*, Jackson *Systems Approaches to Management*, Iberall *Toward a General Science of Viable Systems*) and 15 non-English correctly excluded by the language filter. A timestamp guard is insufficient — the cache was rewritten (15:02) *after* the shards (14:51) yet still missing shard-25's book 2797. **Fix (implemented):** `src/check_clean_cache.py` SHA-256-fingerprints each shard against `json/books_clean.manifest.json` (written at the last full rebuild); `run_all.sh --stream` aborts on mismatch, and `--rebuild-clean` moves the cache aside, re-cleans from shards, then rewrites the manifest. **Follow-up (open):** run `run_all.sh --stream --rebuild-clean`, then **re-establish the canonical run** — `n_books` changes (~544 → ~556 English), so it is a **new equivalence class**; the "541 monographs analysed" framing and the canonical k=9 fit/topic names must be re-validated, not carried over. **Post-rebuild audit (17 Jul 2026, `runlog20260717.csv`):** `--rebuild-clean` ran (694 cleaned, 544 analysed) but **the ingestion gap persists — 28 books tagged `eng` in the reconstructed DB (`csv/books_lang.csv`, 722 total) never reached `books_clean.jsonl`.** Full list and mechanisms in the subsection below. | **Rebuild ran; ingestion gap persists — re-canonicalisation open** |
+
+#### KI-13 post-rebuild ingestion gap — 28-book audit (17 Jul 2026)
+
+Cross-check of the reconstructed Calibre DB (`csv/books_lang.csv`, 722 books all tagged `eng`)
+against the cleaned output (`json/books_clean.jsonl`, 694 books) after
+`run_all.sh --stream --rebuild-clean`. **28 `eng`-tagged books in the DB never reached the
+clean output**, so they were absent from the 544-book analysed set. Two mechanisms:
+
+- **(a) No PDF-format text row — 1 book.** id **207** (April id 2075, title reworded by the
+  reconstruction to *"An Appraisal of The Next Step in Management Cybernetics"*) has no row in
+  any `csv/books_text_*.csv`. `split_books_text.sh` selects `WHERE format='PDF'` from the
+  `books_text` table (no id bound), so a book with no PDF-extracted text row — EPUB-only, or PDF
+  text-extraction never produced a `books_text` row — is silently absent from the corpus. (The
+  emergent min source id of 271 is a *consequence* of this, not an id floor.)
+- **(b) Flagged "No-meta" and skipped during streaming clean despite having metadata in
+  `books_lang.csv` — ~27 books.** The cleaner's metadata source is out of sync with the
+  reconstructed DB, so books with valid reconstructed metadata were treated as metadata-less
+  and skipped.
+
+All four books earlier believed "dropped between April and July" resurface here under new
+ids and none were analysed: **2075→207, 2188→2799, 2382→2801, 2383→2797**.
+
+Full 28-book gap list, with **verified dispositions** (17 Jul, title/id-matched against
+April `csv/books_metadata_full.csv` `pub_type` + runtime language detector; the reconstruction
+did **not** regenerate `books_metadata_full.csv`, so this is the most current pub_type source
+available and is authoritative for books that existed pre-reconstruction):
+
+| id | title | verified disposition |
+|----|-------|----------------------|
+| 207 | An Appraisal of The Next Step in Management Cybernetics (was 2075) | **monograph, eng — REAL GAP** (recovered via old id 2075) |
+| 2087 | Psycho-Cybernetics 365: Thrive and Grow Every Day of the Year | **monograph — REAL GAP** |
+| 2138 | Cybernetic and Sculpture Environnement | pub_type=monograph but **fr** → correctly lang-excluded |
+| 2174 | Autopoietic Organization Theory (Luhmann) | **unverified — no April metadata** (new; title → likely monograph) |
+| 2186 | Balinese Character: A Photographic Analysis (Bateson/Mead) | **monograph — REAL GAP** |
+| 2193 | Progress in Biocybernetics: Volume 2 | anthology → correctly pub-type-excluded |
+| 2239 | Cybernetics: Circular, Causal and Feedback Mechanisms (Macy) | proceedings → correctly pub-type-excluded |
+| 2257 | How Brains Make Up Their Minds | **monograph — REAL GAP** |
+| 2271 | Cybernetic Principles of Learning and Educational Design | **monograph — REAL GAP** |
+| 2283 | From Cells to Societies: Models of Complex Coherent Action | **monograph — REAL GAP** |
+| 2306 | Whole Earth Catalog Access to Tools | catalog → correctly pub-type-excluded |
+| 2359 | Ecological Communication | pub_type=monograph but **ca** → correctly lang-excluded |
+| 2511 | Beyond Dispute: The Invention of Team Syntegrity | **monograph — REAL GAP** |
+| 2517 | Invention: The Care and Feeding of Ideas | **monograph — REAL GAP** |
+| 2701 | Self-Steering and Cognition in Complex Systems | **unverified — no April metadata** (new) |
+| 2707 | Subjectivity, Information, Systems | **unverified — no April metadata** (new) |
+| 2716 | The Cybernetic Foundation Mathematics | **monograph — REAL GAP** |
+| 2776 | Helmsmen and Heroes: Control Theory as a Key to Past and Future | **unverified — no April metadata** (new) |
+| 2778 | Out of Control: The Rise of Neo-Biological Civilization (Kevin Kelly) | **unverified — no April metadata** (new; title → likely monograph) |
+| 2790 | Systems Approaches to Management | **unverified — no April metadata** (new; title → likely monograph) |
+| 2797 | Futures We Are In (was 2383) | **monograph — REAL GAP** |
+| 2799 | Democracy at Work: The Norwegian Industrial Democracy Program (was 2188) | **monograph — REAL GAP** |
+| 2801 | A Choice of Futures (was 2382) | **monograph — REAL GAP** |
+| 2806 | The Technoscientific Turn of Philosophy | **unverified — no April metadata** (new) |
+| 2807 | Cybernetic System Design for a Complex World: The Variety Calculus | **unverified — no April metadata** (new) |
+| 2808 | Systems Theory and Scientific Philosophy (Ashby application) | **unverified — no April metadata** (new) |
+| 2809 | Toward a General Science of Viable Systems | **unverified — no April metadata** (new) |
+| 2810 | Cyberspace for Beginners | **unverified — no April metadata** (new) |
+
+**Verified tally (28):** **12 confirmed analysable-monograph gaps** (207, 2087, 2186, 2257,
+2271, 2283, 2511, 2517, 2716, 2797, 2799, 2801) that should have been in the 544 but weren't;
+**5 correctly excluded** (3 non-monograph pub-type: 2193 anthology, 2239 proceedings, 2306
+catalog; 2 non-English: 2138 fr, 2359 ca); **11 unverifiable** because they are brand-new
+books absent from April `books_metadata_full.csv` (2174, 2701, 2707, 2776, 2778, 2790,
+2806–2810) — titles suggest most are monographs, but pub_type cannot be confirmed without a
+fresh export. **So the true analysable shortfall is ≥12 and up to ~23**, putting the corrected
+analysed count at ~556–567, not 544.
+
+**Caveats confirmed:** (i) `books_lang.csv` labels 2138/2359 `eng` even though they are fr/ca —
+its uniform `eng` labelling must not be trusted; only the runtime auto-detector is reliable.
+(ii) The reconstruction did **not** regenerate `csv/books_metadata_full.csv` (still Apr 11), so
+the July pipeline's own pub-type filter (`03_nlp_pipeline.py:319`, reads that file) ran against
+**stale, old-id April metadata** — a second arm of the same reconstruction-sync problem, and a
+reason the 11 new books can't be dispositioned here.
+
+**Next:** (1) regenerate `csv/books_metadata_full.csv` from the reconstructed `metadata.db`
+(via `00_export_calibre.py`) so pub_type is current and the 11 new books can be dispositioned;
+(2) for id 207 (and any EPUB-only book), ensure a `format='PDF'` `books_text` row exists
+(re-run PDF text extraction in Calibre) or extend ingestion to EPUB text — the current
+`WHERE format='PDF'` in `split_books_text.sh` silently drops PDF-less books; (3) make streaming
+clean key on `(id, metadata-fingerprint)` or otherwise resolve the No-meta mismatch so books
+with reconstructed metadata are not skipped; (4) re-run, confirm the ≥12 monographs land in the
+analysed set, then re-establish the canonical run.
 
 ### Longer-running backlog
 
