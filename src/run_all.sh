@@ -2,20 +2,33 @@
 # run_all.sh — Run the full Book NLP Pipeline (both book-level and chapter-level)
 #
 # Usage (from project root):
-#   bash src/run_all.sh              # small corpus (<~300 books): standard path
-#   bash src/run_all.sh --stream     # large corpus: streaming parse+clean
+#   bash src/run_all.sh                        # small corpus (<~300 books): standard path
+#   bash src/run_all.sh --stream               # large corpus: streaming parse+clean
+#   bash src/run_all.sh --stream --rebuild-clean   # discard the clean cache and re-clean all shards
 #
 # --stream processes one books_text_*.csv at a time via parse_and_clean_stream.py,
-# writing directly to books_clean.json without creating a large books_parsed.json.
-# Recommended for corpora over ~300 books.
+# appending each cleaned book to books_clean.jsonl (streaming) without holding a
+# large books_parsed.json in memory. After all chunks are processed, the JSONL is
+# materialised into books_clean.json (dict keyed by book id) — the format that
+# 03_nlp_pipeline.py and every downstream stage expects. Recommended for corpora
+# over ~300 books.
+#
+# --rebuild-clean deletes json/books_clean.jsonl before streaming, forcing every
+# shard to be re-cleaned from scratch. Required whenever the Calibre DB has been
+# reconstructed or re-sharded: the incremental clean skips books by id, so new or
+# re-IDed books (and re-extracted text on unchanged ids) are otherwise silently
+# ignored and the pipeline analyses stale text. --stream auto-aborts with an
+# instruction to use this flag if it detects the cache is older than any input.
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STREAM=0
 TEST=0
+REBUILD_CLEAN=0
 for arg in "$@"; do
-    [ "$arg" = "--stream" ] && STREAM=1
-    [ "$arg" = "--test"   ] && TEST=1
+    [ "$arg" = "--stream" ]        && STREAM=1
+    [ "$arg" = "--test"   ]        && TEST=1
+    [ "$arg" = "--rebuild-clean" ] && REBUILD_CLEAN=1
 done
 
 # ── Runlog: capture all pipeline output to a dated CSV in data/outputs/ ───────
@@ -90,12 +103,73 @@ mkdir -p data/outputs figures
 mkdir -p csv json   # pipeline expects input CSVs in csv/ and writes JSON to json/
 
 if [ $STREAM -eq 1 ]; then
+    # ── Clean-cache staleness guard (KI-13) ──────────────────────────────────
+    # parse_and_clean_stream.py skips books whose id is already in
+    # books_clean.jsonl, so a reconstructed / re-sharded Calibre corpus (new
+    # ids, re-IDed books, or re-extracted text on an unchanged id) is silently
+    # ignored and topics get fitted on stale text. check_clean_cache.py compares
+    # a SHA-256 fingerprint of each shard against a manifest written at the last
+    # full rebuild (timestamps are not reliable — the cache can be rewritten
+    # after the shards yet still be incomplete).
+    CLEAN_JSONL="json/books_clean.jsonl"
+    if [ $REBUILD_CLEAN -eq 1 ]; then
+        if [ -f "$CLEAN_JSONL" ]; then
+            echo ""
+            echo "── --rebuild-clean: discarding stale clean cache ──"
+            mv -f "$CLEAN_JSONL" "${CLEAN_JSONL}.bak.$(date +%Y%m%d%H%M%S)"
+            echo "   moved $CLEAN_JSONL -> ${CLEAN_JSONL}.bak.* (will be rebuilt from shards)"
+        fi
+        rm -f json/books_clean.manifest.json   # rewritten after the rebuild
+    elif ! python3 "$SCRIPT_DIR/check_clean_cache.py"; then
+        echo ""
+        echo "════════════════════════════════════════════════════════════════"
+        echo "⚠  STALE CLEAN CACHE — pipeline aborted (KI-13)"
+        echo "════════════════════════════════════════════════════════════════"
+        echo "   The shards have changed since the clean cache was last built"
+        echo "   (see the check_clean_cache reasons above). The streaming clean"
+        echo "   skips books by id, so the reconstructed / re-sharded corpus"
+        echo "   would be silently ignored and topics fitted on stale text."
+        echo ""
+        echo "   Rebuild the clean cache from the current shards:"
+        echo "       bash src/run_all.sh --stream --rebuild-clean"
+        echo "════════════════════════════════════════════════════════════════"
+        exit 1
+    fi
+    # ─────────────────────────────────────────────────────────────────────────
     echo ""
     echo "── parse_and_clean_stream.py (all books_text_*.csv) ──"
     for csv_file in csv/books_text_*.csv; do
         echo "   $csv_file..."
         python3 "$SCRIPT_DIR/parse_and_clean_stream.py" "$csv_file"
     done
+    # Materialise books_clean.jsonl → books_clean.json (dict keyed by book id).
+    # 03_nlp_pipeline.py and downstream stages read books_clean.json; without this
+    # step --stream runs would either fail at 03 or silently reuse a stale JSON.
+    echo ""
+    echo "── materialise books_clean.jsonl → books_clean.json ──"
+    python3 -c "
+import json, os, sys
+jsonl_path = 'json/books_clean.jsonl'
+json_path  = 'json/books_clean.json'
+if not os.path.exists(jsonl_path):
+    print(f'ERROR: {jsonl_path} not found — parse_and_clean_stream produced no output', file=sys.stderr)
+    sys.exit(1)
+books = {}
+with open(jsonl_path, encoding='utf-8') as f:
+    for line in f:
+        line = line.strip()
+        if not line: continue
+        rec = json.loads(line)
+        books[str(rec['id'])] = rec
+with open(json_path, 'w', encoding='utf-8') as f:
+    json.dump(books, f, ensure_ascii=False)
+print(f'Wrote {json_path}: {len(books)} books ({os.path.getsize(json_path):,} bytes)')
+"
+    # After a full rebuild the cache provably matches the current shards — record
+    # the shard fingerprints so future runs can detect a reconstructed corpus.
+    if [ $REBUILD_CLEAN -eq 1 ]; then
+        python3 "$SCRIPT_DIR/check_clean_cache.py" --write-manifest
+    fi
 else
     run 01_parse_books.py
     run 02_clean_text.py
