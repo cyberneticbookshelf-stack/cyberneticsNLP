@@ -1,6 +1,6 @@
 # CyberneticsNLP
 
-**Version:** 0.4.3 (2026-04-15) · last updated 2026-04-16
+**Version:** 0.5.5 in progress (last released 0.5.4) · last updated 2026-07-18
 **Valid for:** 2026 work program (publication target 2026; may carry into 2027)
 **Repository:** https://github.com/cybersonic/CyberneticsNLP
 **Local path:** Cybersonic → `~/CyberneticsNLP/`
@@ -13,7 +13,7 @@
 
 A reproducible NLP pipeline for topic modelling, clustering, keyphrase extraction, summarisation, controlled vocabulary analysis, and visualisation applied to a cybernetics book corpus extracted from a Calibre library.
 
-**Corpus:** 726 books · 1954–2025 · random seed 99 · NLP pipeline: 695 books total (22 excluded by publication type policy → 704 retained; further reduced to 695 by `--min-chars 10000` filter) · **v0.4.3 canonical corpus: 542 books** (pub-type filter: monographs + collected works only; `--full-text --seeds 5 --lemmatize --max-features 15000 --run-id k9`; Run C `nlp_results_k9.json` confirmed canonical 14 April 2026)
+**Corpus:** 726 books · 1954–2025 · random seed 99 · NLP pipeline: 695 books total (22 excluded by publication type policy → 704 retained; further reduced to 695 by `--min-chars 10000` filter) · **canonical corpus (26 Apr 2026): 541 monographs and collected works analysed** ([2133] excluded — OCR corruption; `run_20260426_k9_s5`, equivalence class `23b29233a67b2938`; `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000`). ⚠️ **Under re-canonicalisation** after the July 2026 Calibre reconstruction — count moving to ~556–567; see KI-13 and `docs/recanonicalisation_checklist.md`. (The 726/695 figures above predate the reconstruction; post-reconstruction the collection is ~739.)
 
 The pipeline maps the intellectual landscape of cybernetics — tracing topic evolution, canonical figures, concept velocity, and entity relationships across 70 years of literature.
 
@@ -302,12 +302,12 @@ Full rationale: `docs/decisions.md` (1,600+ lines) · Full methodology: `docs/me
 | KI-01 | 6 books (IDs: 1416, 240, 1772, 1718, 1727, 1262) — OCR failures | **Resolved 3 April** — Calibre reindex + re-stream; all pass alpha ≥ 0.60 |
 | KI-02 | NLP run on 675 books with legacy k=7 | **Resolved 3 April** — canonical k=9 run on 695 books complete |
 | KI-03 | Dictionary inconsistency between AshbyX and NorbertX (SCOWL en_US-large) | **Superseded** — project moved to Cybersonic; monitor Cybersonic environment for reproducibility |
-| KI-04 | Amazon/Google/Facebook as high-degree nodes in entity network — ebook metadata noise | Fix pending: add to `15_entity_classify.py` exclusion list |
-| KI-05 | T9 (Residual/Outlier): [249] Reflexion and Control loading=1.000 dominates | Document in paper; may resolve after exclusion filter implemented |
-| KI-06 | Monograph assumption violations (proceedings/handbook/reader) not yet filtered from pipeline | Pending signal inventory + document unit decision |
+| KI-04 | Amazon/Google/Facebook as high-degree nodes in entity network — ebook metadata noise | **Resolved** — `KNOWN_TECH_PLATFORMS` in `src/14_entity_network.py`; noise filters in `09b`; Internet Archive strings in `02`. (CLAUDE.md active KI‑04) |
+| KI-05 | T9 (Residual/Outlier): single-book loading=1.000 dominates | **Resolved (by interpretation)** — T9 labelled "Residual / Outlier Cluster"; the dominant single-book loading is accepted as the topic's catch-all role, not a defect. (CLAUDE.md active KI‑05; `docs/decisions.md`) |
+| KI-06 | Monograph assumption violations (proceedings/handbook/reader) not yet filtered from pipeline | **Resolved** — pub-type filter in `src/03_nlp_pipeline.py` includes only `monograph`/`collected works`. (CLAUDE.md active KI‑06) |
 | KI-13 | Streaming clean cache stale after July 2026 Calibre DB reconstruction. Post-`--rebuild-clean` audit (17 Jul, `runlog20260717.csv`) found a **28-book ingestion gap**: 12 confirmed analysable-monograph recoveries (207, 2087, 2186, 2257, 2271, 2283, 2511, 2517, 2716, 2797, 2799, 2801), 5 correctly excluded (2193/2239/2306 non-monograph; 2138 fr / 2359 ca), 11 brand-new unverifiable (2174, 2701, 2707, 2776, 2778, 2790, 2806–2810). Corrected analysed count **~556–567, not 544**. Mechanisms: (a) id 207 has no `format='PDF'` `books_text` row → dropped by `split_books_text.sh`; (b) ~27 No-meta skips in streaming clean. Second arm: reconstruction never regenerated `books_metadata_full.csv` (Apr 11, old ids), so the pub-type filter ran on stale metadata. | **Guard landed** (`check_clean_cache.py` + `run_all.sh --rebuild-clean`); re-canonicalisation open — re-export `books_metadata_full.csv`, fix id-207 PDF row + No-meta skip, re-run. Detail: `docs/ROADMAP.md` §"KI-13 post-rebuild ingestion gap"; steps: `docs/recanonicalisation_checklist.md` |
 
-> **Note:** this table is behind the active KI tracking in `CLAUDE.md` — KI-07–KI-12 are not listed here, and the KI-04/05/06 statuses above are stale (all resolved in the active tracking). Numbering also differs from `CLAUDE.md`'s active list. Sync pending.
+> **Note:** the **canonical** KI list lives in `CLAUDE.md` ("Known issues (active)") and `docs/ROADMAP.md`. This table is a partial mirror: it uses an older numbering (KI-01–03 differ from the active scheme) and omits KI-07–KI-12. Statuses synced 18 Jul 2026. To avoid future drift, treat CLAUDE.md/ROADMAP as authoritative; structural de-duplication (reduce this table to a pointer) pending an ownership decision.
 
 ---
 
