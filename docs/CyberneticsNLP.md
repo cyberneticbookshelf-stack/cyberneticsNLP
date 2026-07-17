@@ -1,0 +1,345 @@
+# CyberneticsNLP
+
+**Version:** 0.4.3 (2026-04-15) · last updated 2026-04-16
+**Valid for:** 2026 work program (publication target 2026; may carry into 2027)
+**Repository:** https://github.com/cybersonic/CyberneticsNLP
+**Local path:** Cybersonic → `~/CyberneticsNLP/`
+**Status:** Phase 1 in progress — pipeline consolidation
+**Archive after:** Publication → `05 Archive/`
+
+---
+
+## Overview
+
+A reproducible NLP pipeline for topic modelling, clustering, keyphrase extraction, summarisation, controlled vocabulary analysis, and visualisation applied to a cybernetics book corpus extracted from a Calibre library.
+
+**Corpus:** 726 books · 1954–2025 · random seed 99 · NLP pipeline: 695 books total (22 excluded by publication type policy → 704 retained; further reduced to 695 by `--min-chars 10000` filter) · **v0.4.3 canonical corpus: 542 books** (pub-type filter: monographs + collected works only; `--full-text --seeds 5 --lemmatize --max-features 15000 --run-id k9`; Run C `nlp_results_k9.json` confirmed canonical 14 April 2026)
+
+The pipeline maps the intellectual landscape of cybernetics — tracing topic evolution, canonical figures, concept velocity, and entity relationships across 70 years of literature.
+
+The paper's core contribution is not merely that the pipeline is reproducible, but that its design decisions are **epistemically justified** for a book corpus specifically. Back-of-book indexes, bibliography depth, chapter structure, and long-form argument arc are affordances of books that are absent or structurally different in journal articles and conference papers. Feature selection is calibrated to these affordances. See `docs/memo_media_aware_nlp_epistemic_affordances.md` for the theoretical framework.
+
+---
+
+## Authorship
+
+| Author | Role |
+|--------|------|
+| Paul Wong (ANU School of Cybernetics · ORCID 0000-0001-6515-1860) | Lead — conceptualisation, domain expertise, corpus assembly, validation, supervision |
+| Claude Sonnet 4.6 (Anthropic) | Lead — software, formal analysis, visualisation, documentation |
+
+Full CRediT taxonomy: see `docs/contributions.md` in project folder.
+
+Where journals do not permit AI authorship, Claude Sonnet 4.6 will be listed in Acknowledgements.
+
+---
+
+## Current Sprint
+
+**Tuesday 28 April readiness — release HTML + presentation refresh**
+- [x] **Rerun `bash src/run_all.sh`** on the NLP machine to rebuild all HTML reports and Excel workbooks against the finalised topic names. ✓ Done 26 April 2026 (runlog `runlog20260426.csv`, 12:02–13:09 AEST; rebuild run nlp_hash `c8e3c71bf8a3d910`; equivalence class `23b29233a67b2938`). Reader's guide nav links added to all five release-scope pages via `06_build_report.py` rerun.
+- [ ] **Spot-check the five release-scope HTMLs** against `data/outputs/topic_validation.md` — confirm `index.html`, `clusters.html`, `keyphrases.html`, `cosine.html`, `book_nlp_entity_network.html` all show the 26 April finalised names (Fig 3 dropdown, keyphrases topic filter, entity-network topic colours, etc.). Guides confirmed present on all pages; deeper end-to-end review deferred to next session.
+- [x] **Patch `CyberneticsNLP_Talk_v2.pptx`** (vault) → v3 with finalised names. ✓ Done 26 April 2026. `presentation/patch_deck.py` updated with 26 April TAXONOMY, stability corrections (0.348/5/9; T7 unstable), LDA input fix, era heading renames ("Cybernetics at Social Scale", "Diffusion and Injection"), "Phase 2 — Analysis" → "Possible Extensions". Manual layout formatting applied in PowerPoint. `v3.pptx` committed.
+- [x] **Provenance refresh on the deck** — corpus counts (542 parsed / 541 analysed), canonical run reference, "preliminary findings" framing handled by `patch_deck.py`. ✓ Done.
+- [ ] **Final review pass** — read all five release HTMLs and the deck end-to-end as a colleague would; check provenance notice visible at all scroll positions; check for any stale references to old names, old corpus counts, or pre-25-April figures.
+
+**Topic naming reliability (post-presentation — agreed)**
+- [ ] **Implement run-records system** — for each pipeline run, record: run parameters (k, seeds, min-chars, date), top 10 words per topic, top N books per topic (by loading score), human-assigned name, rater ID, date of naming. Store as `json/topic_run_records.json`
+- [ ] **Implement n-run comparison report** — `python src/compare_topic_runs.py --runs N` triggers N pipeline runs (or reads last N records from `topic_run_records.json`) and generates a comparison report across all N runs. User selects N. Report shows: per-topic book presence matrix across N runs, stable word core, naming records table, inter-run book overlap %, and agreement status. Layout must scale to arbitrary N (not fixed two-column).
+- [ ] **Multi-rater naming protocol** — at least two independent raters name each topic per run; record disagreements; compute inter-rater agreement (e.g. Cohen's kappa or % agreement on names)
+- [ ] **Revise naming status** — current k=9 names are **provisional** (single run, single rater); names should only be considered stable once agreement is established across ≥3 runs and ≥2 raters
+
+**Documentation — complete to close v0.4.2 / v0.4.3**
+- [x] ~~Append `new_decisions_methodology_apr7.md` entries to `docs/decisions.md` and `docs/methodology.md`~~ — **done**: content was already in docs before upload; temp file cleaned up
+- [x] ~~Update `docs/contributions.md` with 8 April Chat + 14 April + 15 April sessions~~ — **done 15 April 2026**
+- [x] ~~Update `docs/CHANGELOG.md` with v0.4.2 and v0.4.3 entries~~ — **done 15 April 2026**
+- [x] ~~Push v0.4.2 tag to GitHub~~ — **superseded**: v0.4.2 was never separately tagged; v0.4.3 tagged and pushed to `origin/main` (confirmed 16 April 2026)
+
+**Infrastructure**
+- [x] ~~Confirm OneDrive sync across AshbyX and NorbertX~~ — **resolved**: project moved off OneDrive to Cybersonic (`~/CyberneticsNLP/`)
+- [ ] Install RAPIDS cuML on Cybersonic for GPU-accelerated LDA (optional — CPU run already viable)
+- [ ] Fix KI-04 — add Amazon/Google/Facebook to `15_entity_classify.py` exclusion list (post-presentation)
+
+**Moratorium — do not start until signal inventory and document unit decision complete**
+- [ ] **Signal inventory audit** — for each book, record observable structural signals: index present/absent, reference location (end-of-book/chapter-level/none), distinct author count, chapter count, publication era
+- [ ] **Document unit decision** — formally decide proceedings/anthology treatment policy before implementing exclusions in pipeline
+- [ ] **Implement exclusion filter** — add `book_styles.json` lookup to `03_nlp_pipeline.py` to exclude 22 proceedings/handbook/reader books from LDA analysis
+- [ ] **Sampling strategy review** — review `sample_book()` in `03_nlp_pipeline.py` with book style as conditioning variable
+- [ ] **Validation framework extension** — add style-stratified validation to `09c_validate_topics.py`
+- [ ] **Weighted second pass** — `python src/03_nlp_pipeline.py --weighted` after exclusion filter implemented
+- [ ] **Regenerate 17 missing/bad summaries** — via `generate_summaries_api.py`
+
+**Classifier (post-presentation)**
+- [ ] Second active learning round — review new `monograph_sample_*.csv`
+- [ ] Add reviewed labels to Calibre `custom_column_5`
+- [ ] Retrain classifier — target recall improvement on 71 false negatives
+- [ ] More negative examples needed — especially anthologies and textbooks
+- [ ] Consider `h_toc_contributor_names` heuristic once TOC extraction verified
+
+**Classification redesign (post-moratorium)**
+- [ ] **Hand-label ~150 books** — functional ground truth (which pipeline assumptions does each book violate?) — NOT categorical labels
+- [ ] **Multi-label scorer redesign** — after signal inventory complete
+
+**Completed this sprint (v0.4.2 → v0.4.3)**
+- [x] Full-text LDA refactor: `--full-text`, `--run-id`, `--name-topics` flags added to `03_nlp_pipeline.py` ✓
+- [x] Run B (full-text, ~690 books, k=9): 6/9 stable, mean stability=0.352 — Run B names agreed by Paul Wong ✓
+- [x] pub-type filter implemented: 542-book corpus (monographs + collected works only) ✓
+- [x] k-selection sweep (k=8/9/10/12) on 542-book corpus with `--seeds 5 --lemmatize`: k=9 recommended ✓
+- [x] Run C (`nlp_results_k9.json`): 542 books, `--seeds 5 --lemmatize --full-text --max-features 15000 --run-id k9` — 5/9 stable, mean stability=0.327 ✓
+- [x] 9-topic taxonomy for Run C agreed by Paul Wong (14 April 2026, Session 2): T1 History and Biography of Cybernetics, T2 Cybernetics of Psychology, T3 Extensions of Cybernetics, T4 Cybernetic Management Theory, T5 Biological Systems Cybernetics, T6 Formal Foundations of Cybernetics, T7 Cross-Domain Applications of Cybernetics, T8 Cybernetics of Posthumanism, T9 Cultural Applications of Cybernetics ✓
+- [x] Run C confirmed canonical for v0.4.3 (pipeline_mode verified on Cybersonic; Run A overwritten by Run B confirmed) ✓
+- [x] `docs/consolidation_14apr2026.md` compiled — canonical facts, all runs, slide deck discrepancy audit, task list ✓
+- [x] `docs/decisions.md` — new entry: "Why corpus-scale NLP is framed as a qualitatively distinct epistemic mode" ✓
+- [x] `docs/methodology.md` — new entry: "Corpus-scale epistemic access: what the pipeline reveals and what it cannot" (includes index compilation caveat and preserved/lost table) ✓
+- [x] `docs/CHANGELOG.md` — v0.4.2 and v0.4.3 entries appended ✓
+- [x] `docs/contributions.md` — entries for all 14 April and 15 April sessions appended; script count and line counts updated ✓
+- [x] `CyberneticsNLP_Talk.pptx` → `CyberneticsNLP_Talk_v2.pptx`: all v0.4.3 facts, preliminary findings framing, index-as-controlled-vocabulary, epistemic affordance at corpus scale, NMF "not presented in this talk" ✓
+
+**Completed this sprint (v0.4.1 → v0.4.2)**
+- [x] OCR reindex for 6 known failures (IDs: 240, 1262, 1416, 1718, 1727, 1772) — all pass ✓
+- [x] `books_clean.jsonl` fully re-streamed (695 books, all 25 CSVs) ✓
+- [x] `books_clean.json` regenerated from scratch (`clean_text` key, 169MB) ✓
+- [x] Alpha-ratio front-matter bias fix (`_alpha_ratio()` patched) ✓
+- [x] k=9 canonical pipeline run (695 books, 7/9 stable, 0 dead) ✓
+- [x] k=10 comparison run — k=9 confirmed as final solution ✓
+- [x] Topic validation (`09c_validate_topics.py`) completed ✓
+- [x] 9-topic taxonomy agreed (provisionally) and recorded in `topic_validation.json` — single rater, single run; full reliability validation pending ✓
+- [x] Full pipeline run (steps 03–15) on 695 books ✓
+- [x] Entity network rebuilt (1,846 nodes, 13,444 edges) ✓
+- [x] Enrichment pipeline rebuilt (full Primo fetch; 285/726 found) ✓
+- [x] 4 manual reclassifications (verified=True in `book_styles.json`) ✓
+- [x] Publication type exclusion policy established (22 books, 704 retained) ✓
+- [x] Theoretical §16 (document unit problem) and §17 (temporal dimension) added to memo ✓
+- [x] GitHub push completed (v0.4.1) ✓
+- [x] `contributions.md` and `CHANGELOG.md` updated to v0.4.1 ✓
+- [x] All HTML reports fixed — corpus count (675→695), topic labels, NMF/LDA name separation ✓
+- [x] Entity network rebuilt with correct k=9 LDA names ✓
+- [x] `embedding_results.json` stale cache deleted and rebuilt ✓
+- [x] `06_build_report_chapters.py` — NMF/LDA name confusion fixed (line 27) ✓
+- [x] Monograph binary classifier (`heuristic_features.py`, `train_monograph_classifier.py`) — precision=0.89, recall=0.68 ✓
+- [x] Active learning cycle established: 197 expert labels, 40 new labels from first review round ✓
+- [x] Terminological decisions: "expert labels" (not "ground truth"); classifier training data integrity rule established ✓
+- [x] Book-level LDA reports reviewed by Paul — confirmed **presentation-ready** ✓
+
+---
+
+## Phase 1 — Pipeline Consolidation (in progress)
+
+Core pipeline is functional. Focus is on data quality and reproducibility.
+
+- [x] Streaming corpus ingestion
+- [x] LDA topic model (k=9, book-level — canonical solution locked 3 April 2026)
+- [x] NMF topic model (8 topics, chapter-level — names written to `nlp_results_chapters.json` 8 April 2026)
+- [x] Abstractive summaries via API (695 books; 17 requiring regeneration)
+- [x] Index extraction and canonical vocabulary (262 person name merging rules)
+- [x] Index grounding (lift scores, concept density, concept velocity)
+- [x] Time series report with concept velocity (Chart 7)
+- [x] Entity relational network (4 node kinds, 4 layout algorithms)
+- [x] Entity classification (heuristics + spaCy + Wikidata)
+- [x] Regression test suite (15 tests)
+- [ ] Complete spaCy + Wikidata classification pass
+- [ ] Complete paragraph-window edge computation
+- [ ] Regenerate 17 outstanding summaries
+- [ ] Weighted second pass (run after full pipeline complete)
+
+---
+
+## Phase 2 — Analysis and Interpretation
+
+- [ ] **Index quality stratification** — compute 5-year moving average of `status` outcomes (`ok`/`truncated`/`garbled`/`no_index`) by `pubdate` from `books_clean.json`; characterise the temporal diffusion curve of indexing practice across the corpus; assess whether NLP results differ between books with rich vs. absent/algorithmic indexes
+- [ ] **Topic validation (triangulation)** — apply five-signal framework to all 9 LDA topics: LDA top words → high-loading titles → aggregated index terms → keyphrases → year distribution; flag noisy topics for merging or splitting; document divergence cases
+- [ ] Events analysis — extract and classify historical events from index terms
+- [ ] Co-citation network — who cites whom? Build from bibliography sections
+- [ ] Temporal entity analysis — how do person/concept networks change across decades?
+- [ ] Cross-corpus comparison — cybernetics vs systems theory, complexity science, AI/ML
+- [ ] Topic evolution — track how LDA topic distributions shift 1954→2025
+- [ ] Canonical figures — rank persons by centrality, temporal span, cross-topic reach
+
+---
+
+## Phase 3 — Publication
+
+- [ ] Paper draft — *Mapping the Cybernetics Intellectual Landscape: A Computational Analysis of 695 Books* — includes extended methodological discussion on epistemic justification of pipeline design for book corpora (media-aware NLP, index-as-primary-signal, index quality stratification, triangulation validation framework)
+- [x] Confirm paper scope: epistemic justification of design decisions folds into main paper as extended methods, not a separate methodological paper — **confirmed 1 April 2026**
+- [ ] Search bibliometrics / scientometrics / STS literature for prior use of "epistemic affordances" or equivalent concept before finalising terminology
+- [ ] Merge `contributions.md` authorship statement into manuscript
+- [ ] Zenodo deposit — archive pipeline with DOI
+- [ ] Journal target — TBD (candidates: *Kybernetes*, *Systems Research and Behavioral Science*, *Digital Humanities Quarterly*)
+- [ ] GitHub release — tag v1.0 when pipeline fully validated
+
+---
+
+## Topic Solutions
+
+> Three LDA runs are documented here. Runs used different corpora and/or text representations. No names should be considered stable — all are provisional, single-rater. **Run C is the v0.4.3 canonical.**
+
+---
+
+**Book-level LDA — Run C: Full-text, pub-type filtered (14 April 2026) ← v0.4.3 CANONICAL**
+542 books (monographs + collected works only) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --run-id k9`
+File: `json/nlp_results_k9.json` · **5/9 stable · mean stability=0.327 · T9 highest (0.622)**
+
+⚠️ Names below are **provisional**: agreed by a single rater (Paul Wong) in a single session (14 April 2026, Session 2). Subject to the naming reliability protocol in `docs/memo_topic_naming_reliability.md`.
+
+| # | Name | Stability | Notes |
+|---|------|-----------|-------|
+| T1 | History and Biography of Cybernetics | 0.131 low | Low stability due to Lem/Čapek fiction outliers; cluster coherent |
+| T2 | Cybernetics of Psychology | 0.559 stable | |
+| T3 | Extensions of Cybernetics | 0.153 low | Brier, Yuk Hui, actor-network theory |
+| T4 | Cybernetic Management Theory | 0.349 stable | Beer's VSM tradition |
+| T5 | Biological Systems Cybernetics | 0.224 moderate | Sterling, Schulkin, Laughlin |
+| T6 | Formal Foundations of Cybernetics | 0.289 moderate | Mathematical + computational |
+| T7 | Cross-Domain Applications of Cybernetics | 0.306 stable | Urban systems, church, border security |
+| T8 | Cybernetics of Posthumanism | 0.306 stable | |
+| T9 | Cultural Applications of Cybernetics | 0.622 **most stable** | Highest stability across all k values in sweep |
+
+---
+
+**Book-level LDA — Run B: Full-text (14 April 2026, Session 1) ← historical reference**
+~690 books (min-chars 10000, no pub-type filter) · `--full-text --topics 9 --max-features 15000`
+File: `json/nlp_results.json` · **6/9 stable · 1 unstable · mean stability=0.352**
+Predates pub-type filter; superseded by Run C as canonical.
+
+| # | Name | Stability |
+|---|------|-----------|
+| T1 | Second-Order Systems Theory & Constructivism | 0.484 stable |
+| T2 | Digital Media Arts, Posthumanism & Cultural Studies | 0.453 stable |
+| T3 | *(unstable — do not name)* | 0.132 unstable |
+| T4 | System Dynamics (Forrester School) | 0.349 stable |
+| T5 | Political & Governance Cybernetics | 0.336 stable |
+| T6 | Biological Cybernetics: Homeostasis & Allostasis | 0.189 moderate |
+| T7 | Systemic Psychotherapy & Family Therapy | 0.357 stable |
+| T8 | Popular, Literary & Metaphorical "Cybernetics" | 0.598 most stable |
+| T9 | History of Cybernetics | 0.271 moderate |
+
+---
+
+**Book-level LDA — Run A: Sampled (3 April 2026) ← historical reference**
+695 books · `--min-chars 10000 --lemmatize --topics 9 --seeds 5`
+Text input: 3 × 20k-char slices (10%/50%/85%) = **60k chars (~12k words) per book** · 7/9 stable · 0 dead · mean stability=0.382
+
+⚠️ Names below are **provisional**: agreed by a single rater (Paul Wong) in a single session. Superseded by Run C as canonical; retained here for comparison. File was overwritten by Run B on Cybersonic (confirmed 14 April 2026).
+
+| # | Name | Stability |
+|---|------|-----------|
+| T1 | Management Cybernetics | stable |
+| T2 | Second-Order Cybernetics Applied to Social Systems | stable |
+| T3 | Dynamical Systems, Homeostasis & Biological Regulation | stable |
+| T4 | Psychological Cybernetics | stable |
+| T5 | Non-Anglophone Engineering Cybernetics | unstable |
+| T6 | Mathematical Foundations of Cybernetics | stable |
+| T7 | Cultural Cybernetics, Posthumanism & Digital Media | stable |
+| T8 | Applied Cybernetics & Computers in Society | stable |
+| T9 | Residual / Outlier Cluster | unstable |
+
+**Chapter-level (NMF, 8 topics — names written to `nlp_results_chapters.json` 8 April 2026)**
+
+| # | Name | Key Terms |
+|---|------|-----------|
+| T1 | Human & Social Experience | argues, human, author, understanding, explores |
+| T2 | Mathematical & Formal Systems | mathematical, system, functions, models, demonstrates |
+| T3 | General Systems Theory | theory, cybernetics, systems, opening, sections |
+| T4 | Management & Organisational Cybernetics | organizational, management, decision making, model |
+| T5 | Control Theory & Engineering | control, feedback, control systems, mechanisms, loops |
+| T6 | Popular & Applied Cybernetics | examines, technological, analysis, human, technology |
+| T7 | Applied Cybernetics & Technology | — |
+| T8 | Biological & Cognitive Systems | — |
+
+---
+
+## Key Design Decisions (summary)
+
+- **LDA for books, NMF for chapters** — LDA fails on short chapter texts (~2,000 words); NMF on clean abstractive summaries is more appropriate for diverse, short documents
+- **Abstractive summaries as NMF input** — removes OCR noise, boilerplate, and multilingual artefacts that pollute raw chapter text
+- **Multi-point text sampling (10%/50%/85%, 60k chars total)** — three 20,000-character slices concatenated (positions confirmed from `03_nlp_pipeline.py`): 10% (past front matter), 50% (argumentative core), 85% (conclusions); minimum 4,000-char offset avoids publisher/copyright pages. Total input to LDA ≈ 60,000 characters (~12,000 words) per book.
+- **35% verbatim similarity threshold** — empirically chosen to catch genuinely extractive summaries while allowing natural phrasing overlap
+- **NPMI coherence for topic selection** — avoids gensim dependency; implemented directly with numpy/sklearn
+- **Back-of-book index as primary signal** — for book corpora, the index is a hand-curated concept ontology unavailable in any other scholarly medium; treated as a primary analytical feature, not a supplementary one
+- **Index quality as covariate, not uniform feature** — indexing practice is temporally stratified: manual/variable (~pre-1985), concordance-tool/shallow (~1985–2010), algorithmic-or-absent (~post-2010); modelled using `status` field in `index_terms.json` enriched with publication decade
+- **Topic validation by triangulation** — five independent signals: LDA top words, high-loading book titles, aggregated index terms from those titles, per-book keyphrases, publication year distribution; divergence between LDA words and index terms flags a noisy topic
+
+Full rationale: `docs/decisions.md` (1,600+ lines) · Full methodology: `docs/methodology.md` (2,000+ lines) · Epistemic justification: `docs/memo_media_aware_nlp_epistemic_affordances.md`
+
+---
+
+## Open Questions
+
+**Text representation and topic stability**
+- The two runs (60k-char sample vs full body text) produced substantially different topic solutions — not just shifted names but different cluster membership. This raises a prior question: **which text representation is epistemically appropriate for this corpus?** The sampled run captured concentrated terminology from three positions; the full-text run captures the full argument, including discursive/narrative register. For a study whose claims rest on epistemic affordances of book-length texts, the full-text approach is more defensible — but the tradeoff (T3 instability, T8 popular-register cluster) needs to be documented.
+- **T8 (Popular/Literary "Cybernetics")** is a new finding from the full-text run: a highly stable cluster of fiction, self-help, and sports books using "cybernetics" metaphorically. Should these be excluded from the analytical corpus, or documented as a distinct stratum (non-academic cybernetics discourse)?
+- **T3 instability** may be addressable by implementing the exclusion filter (moratorium-blocked): several T3 books (Fossen, Jumarie, Grössing) are the technical proceedings/engineering handbooks the filter targets. Run 3 after exclusion filter to test.
+
+**Topic naming reliability**
+- How many pipeline runs are needed before names can be considered stable? Suggested threshold: ≥3 runs with consistent top-book composition.
+- Who should serve as independent raters? At least one rater with domain expertise in cybernetics independent of the pipeline development.
+- What constitutes "agreement" on a topic name — exact match, synonym, or shared conceptual referent? A coding rubric is needed.
+- Should the run-records system capture names per-run (re-named fresh each time), or anchor to a reference name and score drift?
+- Is the recurrent mismatch between top words and top books a naming problem, a model stability problem, or a feature of LDA on book corpora that should be documented as a methodological finding rather than fixed?
+
+**Pipeline / infrastructure**
+- ~~What is the right LDA k?~~ **Resolved**: k=9 canonical (3 April 2026)
+- What is the right document unit for proceedings and anthologies? Are chapters the right unit, or should these books be excluded entirely? — moratorium pending decision
+- Should `sample_book()` be conditioned on book style (e.g. sample differently for anthologies vs monographs)? Slice positions are currently fixed at 10%/50%/85% (20,000 chars each); anthologies may benefit from chapter-boundary-aligned sampling. — pending signal inventory
+- Should entity network include a "works" node kind for cited books?
+- Is Wikidata rate limit (2 req/sec) acceptable for future full re-runs?
+- Should `test_pipeline.py` run as a GitHub Action on each push?
+- What is the right `n_books` threshold for canonical vocab? (Currently 3)
+
+**Epistemic justification / methodology**
+- Is "epistemic affordances" the right term, or does existing literature in bibliometrics, scientometrics, or STS already name this concept? Search before finalising.
+- Should index quality stratification be modelled formally (regression of `status` on `pubdate` and publisher) or treated as a stated limitation?
+- Is publisher or disciplinary metadata available from Calibre to model the disciplinary gradient in index quality alongside the temporal one?
+- How to handle born-digital books with no index — exclude from index-term analysis, or treat absence as a meaningful signal in itself?
+- Is the triangulation validation framework generalisable to other book corpora, or is it specific to cybernetics?
+- Should the signal inventory replace or supplement the current book style classifier? What is the relationship between the two approaches?
+
+---
+
+## Known Issues
+
+| ID | Issue | Status |
+|----|-------|--------|
+| KI-01 | 6 books (IDs: 1416, 240, 1772, 1718, 1727, 1262) — OCR failures | **Resolved 3 April** — Calibre reindex + re-stream; all pass alpha ≥ 0.60 |
+| KI-02 | NLP run on 675 books with legacy k=7 | **Resolved 3 April** — canonical k=9 run on 695 books complete |
+| KI-03 | Dictionary inconsistency between AshbyX and NorbertX (SCOWL en_US-large) | **Superseded** — project moved to Cybersonic; monitor Cybersonic environment for reproducibility |
+| KI-04 | Amazon/Google/Facebook as high-degree nodes in entity network — ebook metadata noise | Fix pending: add to `15_entity_classify.py` exclusion list |
+| KI-05 | T9 (Residual/Outlier): [249] Reflexion and Control loading=1.000 dominates | Document in paper; may resolve after exclusion filter implemented |
+| KI-06 | Monograph assumption violations (proceedings/handbook/reader) not yet filtered from pipeline | Pending signal inventory + document unit decision |
+| KI-13 | Streaming clean cache stale after July 2026 Calibre DB reconstruction. Post-`--rebuild-clean` audit (17 Jul, `runlog20260717.csv`) found a **28-book ingestion gap**: 12 confirmed analysable-monograph recoveries (207, 2087, 2186, 2257, 2271, 2283, 2511, 2517, 2716, 2797, 2799, 2801), 5 correctly excluded (2193/2239/2306 non-monograph; 2138 fr / 2359 ca), 11 brand-new unverifiable (2174, 2701, 2707, 2776, 2778, 2790, 2806–2810). Corrected analysed count **~556–567, not 544**. Mechanisms: (a) id 207 has no `format='PDF'` `books_text` row → dropped by `split_books_text.sh`; (b) ~27 No-meta skips in streaming clean. Second arm: reconstruction never regenerated `books_metadata_full.csv` (Apr 11, old ids), so the pub-type filter ran on stale metadata. | **Guard landed** (`check_clean_cache.py` + `run_all.sh --rebuild-clean`); re-canonicalisation open — re-export `books_metadata_full.csv`, fix id-207 PDF row + No-meta skip, re-run. Detail: `docs/ROADMAP.md` §"KI-13 post-rebuild ingestion gap"; steps: `docs/recanonicalisation_checklist.md` |
+
+> **Note:** this table is behind the active KI tracking in `CLAUDE.md` — KI-07–KI-12 are not listed here, and the KI-04/05/06 statuses above are stale (all resolved in the active tracking). Numbering also differs from `CLAUDE.md`'s active list. Sync pending.
+
+---
+
+## Session Log
+
+| Date | Focus | Platform | Version |
+|------|-------|----------|---------|
+| 2026-03-20 | Initial pipeline (steps 01–10), corpus ingestion, LDA/NMF | Cowork | v0.1.0 |
+| 2026-03-21 | Index grounding, time series Chart 7, weighted pass, embedding comparison | Cowork | v0.2.0 |
+| 2026-03-24 | Entity network (step 14), entity classifier (step 15), integrity checker, regression tests | Cowork | v0.3.0 |
+| 2026-03-27 | Entity classifier audit (121 corrections), 4 layouts, index canonicalisation, README rewrite, GitHub/OneDrive setup | Cowork | v0.4.0 |
+| 2026-03-31 | Data quality pipeline overhaul: `preprocess_raw_text()` in 01; ASCII gate fix + case normalisation in 02; stopword expansion + compound hyphen-joining + `--min-chars` flag in 03; `alpha_ratio` raised + `FOREIGN_HEADER_RE` + `_canonical_term()` in 09; SCOWL en_US-large dictionary installed on AshbyX/NorbertX; full corpus re-clean (675 books) | Chat | post-v0.4.0 |
+| 2026-04-01 | Theoretical framework: media-aware NLP and epistemic affordances; index-as-primary-signal rationale; index quality stratification by era (pre-digital / early digital / born-digital); topic validation triangulation framework (5 signals); paper scope confirmed — extended methods folds into main paper; ran remaining pipeline scripts (all without error); LDA coherence sweep k=2–12: best k=11 (coherence=0.0887, perplexity=1487.1), 5-seed run at k=11 (⚠️ script defaulted to sweep — agreed fixed k=20 run still pending); discussed auto-naming LDA topics via Claude API; memo filed → `docs/memo_media_aware_nlp_epistemic_affordances.md` | Chat | post-v0.4.0 |
+| 2026-04-02 | Documentation update (Cowork): synced `CyberneticsNLP.md` session log and sprint; updated `contributions.md` and `CHANGELOG.md`; created `Handoff to Chat - 2 April 2026.md` | Cowork | post-v0.4.0 |
+| 2026-04-02 | Book style classifier: `00_classify_book_styles.py`, `00_fetch_worldcat_metadata.py`, `00_fetch_anu_primo.py`; `books_metadata_full.csv` (20 cols, replaces `books_lang.csv`; 726 books); OCLC removed (403-blocked), Open Library used; Primo edited_book → anthology; platform contributors suppressed; classifier identified as needing multi-label redesign (over-tuning recognised); ground truth ~150 books agreed as prerequisite. Theoretical §13–15: affordance as mixture, historical cybernetics narrative, NLP-as-affordance-at-scale (Paul's framing). New docs: `memo_attribution_annotations.md`, `draft_methods_corpus_construction.md` | Chat | post-v0.4.0 |
+| 2026-04-03 | Documentation update: processed Chat handoff; updated `CyberneticsNLP.md`, `contributions.md`, `CHANGELOG.md`; created next handoff | Cowork | post-v0.4.0 |
+| 2026-04-03 | Data quality: OCR reindex confirmed for 6 books (IDs 240, 1262, 1416, 1718, 1727, 1772); `books_clean.jsonl` fully re-streamed (695 books, all 25 CSVs); `books_clean.json` regenerated from scratch (169MB, `clean_text` key); k=9 pipeline run blocked by front-matter alpha-ratio bias — handed to Chat for fix | Cowork | post-v0.4.0 |
+| 2026-04-03 | Alpha-ratio front-matter fix; k=9 canonical run (695 books, 7/9 stable, 0 dead, mean stability=0.382); k=10 comparison (rejected); 9-topic taxonomy agreed and locked; full pipeline run (steps 03–15); enrichment pipeline rebuilt (Primo full fetch: 285/726); publication type exclusion policy (22 excluded, 704 retained); 4 manual reclassifications; §16 (document unit problem) and §17 (temporal dimension) added to memo; GitHub push | Chat | v0.4.1 |
+| 2026-04-03 | v0.4.1 bump: updated `CyberneticsNLP.md`, `contributions.md`, `CHANGELOG.md` with full session record | Cowork | v0.4.1 |
+| 2026-04-08 | Report quality fixes: all 8 HTML reports cleaned (675→695, topic label fixes, NMF/LDA name separation); monograph binary classifier (`heuristic_features.py`, `train_monograph_classifier.py`); active learning cycle established (197 expert labels, first review round complete); terminological decisions: "expert labels" not "ground truth"; classifier training data integrity rule; book-level LDA reports reviewed and confirmed presentation-ready | Chat | post-v0.4.1 |
+| 2026-04-14 | Vault update: vault docs updated to reflect 8 April session; contributions draft processed; v0.4.2 bump (documentation sprint) | Cowork | v0.4.2 |
+| 2026-04-14 | Full-text pipeline refactor (Session 1): confirmed `books_clean.json` stores full text (mean 346k chars); confirmed `sample_book()` uses 60k **chars** not words; refactored `03_nlp_pipeline.py` with `--full-text`, `--max-features`, `--run-id`, `--name-topics` flags + `strip_front_matter()` / `strip_back_matter()` functions; project confirmed moved from OneDrive/NorbertX to Cybersonic; Run B launched (`--full-text --topics 9 --seeds 5 --max-features 15000 --min-chars 10000` on ~690 books), 6/9 stable, mean stability=0.352; Run B topic names agreed by Paul Wong; k=9/10/12 concurrent sweeps on 542-book corpus initiated | Chat | v0.4.3 |
+| 2026-04-14 | k-sweep confirmation, canonical run decision, consolidation (Session 2): k-sweep (k=8/9/10/12) on 542-book pub-type filtered corpus completed; k=9 recommended; Run C k=9 (`nlp_results_k9.json`) names agreed by Paul Wong; Run C confirmed canonical for v0.4.3 (pipeline_mode check on Cybersonic; Run A overwrite confirmed); `docs/consolidation_14apr2026.md` compiled | Cowork | v0.4.3 |
+| 2026-04-15 | Slide deck update + documentation completion (Session 3): `CyberneticsNLP_Talk_v2.pptx` — all v0.4.3 facts, preliminary findings framing, index-as-controlled-vocabulary (+ compilation caveat), epistemic affordance at corpus scale (slides 5 and 23), NMF "not presented in this talk"; `docs/decisions.md`, `docs/methodology.md`, `docs/CHANGELOG.md`, `docs/contributions.md` all updated on Cybersonic; vault docs updated (this file, `Cybernetics Bookshelf.md`) | Cowork | v0.4.3 |
+| 2026-04-26 | Topic naming finalisation for 25 April full-text canonical run: 9 names revised by Paul Wong — substantive changes to T4 (now "Social and Organisational Cybernetics"; Beer/VSM + Luhmann scope), T6 ("Reinventing Selves and Others, Past and Future"), T7 ("Psychological and Behavioural Regulation and Control"), T9 ("Extensions of Cybernetics" — broader than the interim "Ecology, Posthumanism and Digital Ontology"); T1/T2/T3/T5/T8 capitalisation normalised. Propagation chain: `patch_topic_names.py` → `check_stale_vars.py --fix` → `09c_validate_topics.py --top 10 --md`. `README.md` topic-name table replaced with pointer to `nlp_results.json` / TAXONOMY / `topic_validation.md` (stops the table rotting on every re-naming). k=9 confirmed appropriate for full-text corpus. Run logged as `run_20260426_k9_s5`, equivalence class `23b29233a67b2938`, 2368 runlog lines ingested (recovery via `sqlite3 DELETE` + rerun after `nlp_hash` short-circuit gap — routed to ROADMAP #28). v0.5.3 ⚑ flag cleared; CLAUDE.md post-run validation block removed; canonical-k line updated. Survey workflow now unblocked. **Note:** session-log gap — entries for 18, 20, 21, 23, 25 April are in `docs/contributions.md` but not yet in this master doc. | Cowork | v0.5.3 |
+| 2026-04-26 | Tuesday release prep (v0.5.4): `run_all.sh` rebuild (12:02–13:09 AEST; rebuild nlp_hash `c8e3c71bf8a3d910`); reader's guide suite completed — `book_nlp_cosine_guide.html`, `book_nlp_clusters_guide.html`, `book_nlp_keyphrases_guide.html` written; `book_nlp_index_guide.html` corrected for full-text canonical facts (stability scores, max_iter, perplexity table, T7 instability caveat); `06_build_report.py` rerun to inject guide nav links into all five release-scope pages; `presentation/patch_deck.py` updated with 26 April TAXONOMY, stability corrections, LDA input fix, era heading renames ("Cybernetics at Social Scale" / "Diffusion and Injection"), "Phase 2 → Possible Extensions"; deck manual layout formatting applied; `CyberneticsNLP_Talk_v3.pptx` committed. ROADMAP KI-10 (stability band threshold inconsistency) and KI-11 (release HTML nlp_hash drift from rebuild run) recorded. v0.5.4 committed and pushed (`f667f03..f956039`). | Cowork | v0.5.4 |
+| 2026-07-17 | KI-13 follow-up — post-`--rebuild-clean` ingestion-gap audit of `data/outputs/runlog20260717.csv`: the 17 Jul rebuild cleaned 694 / analysed 544 but the gap persisted — 28 `eng`-tagged books in the reconstructed DB (`csv/books_lang.csv`, 722) never reached `json/books_clean.jsonl`. Verified vs April `books_metadata_full.csv`: 12 confirmed analysable-monograph gaps, 5 correctly excluded, 11 brand-new unverifiable; corrected count ~556–567 not 544. Mechanisms: (a) id 207 (was 2075, retitled) has no `format='PDF'` `books_text` row → dropped by `split_books_text.sh`; (b) ~27 No-meta skips in streaming clean; second arm — `csv/books_metadata_full.csv` never regenerated post-reconstruction, so the pub-type filter ran on stale April metadata. Docs updated: `docs/ROADMAP.md` KI-13 (verified 28-book table + 4-step fix), `docs/recanonicalisation_checklist.md` §0 (regenerate metadata via `00_export_calibre.py` before re-run), this file's Known Issues table. Committed `d8eedc5` + pushed; no code changes. | CLI | v0.5.5 |
+
+---
+
+## Related
+
+- [[CyberneticsAR]] — staged parallel project consuming NLP outputs as a product/service
+- [[Performance Agreement 2026]] — NLP paper and CyberneticsNLP cited as research outputs
+- [[02 Areas/Research]]
