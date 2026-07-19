@@ -24,9 +24,11 @@ Columns (22):
   amazon_id         — Amazon ASIN from identifiers (type=amazon or asin)
   source_url        — URL from custom column 1 (URL field)
   available_at      — provenance label from custom column 2 (Available at)
-  theme             — curatorial theme from custom column 4 (Theme)
-  pub_type          — manually assigned publication type from custom column 5
-                      (Publication Type). Values are comma-separated and
+  theme             — curatorial theme from the Calibre 'Theme' custom column
+                      (resolved by name, not number — see §9)
+  pub_type          — manually assigned publication type from the Calibre
+                      'Publication Type' custom column (resolved by name).
+                      Values are comma-separated and
                       non-disjoint: e.g. "monograph, textbook" is valid.
                       Canonical values: monograph, anthology, textbook,
                       proceedings, journal special issue, reference,
@@ -236,24 +238,46 @@ try:
 except Exception as e:
     print(f"  WARNING: could not load custom_column_2 (Available at): {e}")
 
-# ── 9. Custom column 4 — Theme ────────────────────────────────────────────────
-print("[10] Loading themes (custom column 4)...")
+# ── 9. Custom columns — resolve by Calibre name, NOT by hardcoded number ──────
+# The July 2026 Calibre reconstruction renumbered custom columns: 'Publication
+# Type' and 'Theme' swapped between custom_column_4/5. Binding by position
+# therefore silently inverts the export (pub_type ← subject, dropping the whole
+# corpus in 03_nlp_pipeline.py's pub-type filter). Resolve each column by its
+# Calibre `name` in the custom_columns table; fall back to the historical number
+# only if the name is absent. (custom_columns.id is the N in custom_column_N.)
+def _resolve_cc(col_name, fallback_num):
+    try:
+        row = conn.execute(
+            "SELECT id FROM custom_columns WHERE name = ?", (col_name,)).fetchone()
+        if row:
+            return int(row['id'])
+    except Exception as e:
+        print(f"  WARNING: custom_columns lookup for {col_name!r} failed: {e}")
+    print(f"  NOTE: {col_name!r} not found by name; "
+          f"falling back to custom_column_{fallback_num}")
+    return fallback_num
+
+_theme_cc   = _resolve_cc('Theme', 4)
+_pubtype_cc = _resolve_cc('Publication Type', 5)
+
+# ── 9a. Theme ─────────────────────────────────────────────────────────────────
+print(f"[10] Loading themes (custom_column_{_theme_cc} = Theme)...")
 theme_map = {}  # book_id → theme string
 try:
-    for row in conn.execute("SELECT book, value FROM custom_column_4"):
+    for row in conn.execute(f"SELECT book, value FROM custom_column_{_theme_cc}"):
         theme_map[str(row['book'])] = row['value'] or ''
 except Exception as e:
-    print(f"  WARNING: could not load custom_column_4 (Theme): {e}")
+    print(f"  WARNING: could not load custom_column_{_theme_cc} (Theme): {e}")
 
-# ── 9b. Custom column 5 — Publication Type ────────────────────────────────────
-print("[10b] Loading publication types (custom column 5)...")
+# ── 9b. Publication Type ──────────────────────────────────────────────────────
+print(f"[10b] Loading publication types (custom_column_{_pubtype_cc} = Publication Type)...")
 pubtype_map = {}  # book_id → publication type string (may be multi-valued)
 try:
-    for row in conn.execute("SELECT book, value FROM custom_column_5"):
+    for row in conn.execute(f"SELECT book, value FROM custom_column_{_pubtype_cc}"):
         pubtype_map[str(row['book'])] = (row['value'] or '').strip()
     print(f"  {len(pubtype_map)} books with Publication Type")
 except Exception as e:
-    print(f"  WARNING: could not load custom_column_5 (Publication Type): {e}")
+    print(f"  WARNING: could not load custom_column_{_pubtype_cc} (Publication Type): {e}")
 
 # ── 10. Languages ──────────────────────────────────────────────────────────────
 print("[11] Loading languages...")
