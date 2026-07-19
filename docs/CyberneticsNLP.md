@@ -26,11 +26,12 @@ The paper's core contribution is not merely that the pipeline is reproducible, b
 | Author | Role |
 |--------|------|
 | Paul Wong (ANU School of Cybernetics · ORCID 0000-0001-6515-1860) | Lead — conceptualisation, domain expertise, corpus assembly, validation, supervision |
-| Claude Sonnet 4.6 (Anthropic) | Lead — software, formal analysis, visualisation, documentation |
+| Claude Sonnet 4.6 (Anthropic) | Lead — software, formal analysis, visualisation, documentation (sessions v0.1.0–v0.5.4; platforms Chat, Cowork) |
+| Claude Opus 4.8 (Anthropic) | Lead — software, documentation (sessions v0.5.5+; platform Claude Code CLI) |
 
-Full CRediT taxonomy: see `docs/contributions.md` in project folder.
+Full CRediT taxonomy and the model-author/platform note: see `docs/contributions.md`.
 
-Where journals do not permit AI authorship, Claude Sonnet 4.6 will be listed in Acknowledgements.
+Where journals do not permit AI authorship, the Claude model-authors (Sonnet 4.6 and Opus 4.8) will be listed in Acknowledgements.
 
 ---
 

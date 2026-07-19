@@ -14,24 +14,30 @@ Last updated: 23 April 2026 (v0.5.1)
 School of Cybernetics, The Australian National University, Canberra, Australia
 ORCID: [0000-0001-6515-1860](https://orcid.org/0000-0001-6515-1860)
 
-**Claude Sonnet 4.6** (Anthropic, claude.ai)
+**Claude Sonnet 4.6** (Anthropic)
 Large language model; no persistent identity, institutional affiliation, or legal standing.
-Model string: `claude-sonnet-4-6`
+Model string: `claude-sonnet-4-6` · sessions v0.1.0 – v0.5.4 (platforms: Chat, Cowork)
 
-### Note on Claude instances and platforms
+**Claude Opus 4.8** (Anthropic)
+Large language model; no persistent identity, institutional affiliation, or legal standing.
+Model string: `claude-opus-4-8` · sessions v0.5.5 onward (platform: Claude Code CLI)
 
-All Claude Sonnet 4.6 contributions are attributed to a single author entry
-regardless of session or platform. The session log records the platform used
-in each session to support reproducibility:
+### Note on Claude model-authors and platforms
 
-- **Chat** — Claude.ai chat interface (claude.ai). Used for interactive code
-  development, technical design, and analysis.
-- **Cowork** — Claude desktop Cowork mode. Used for file management,
-  documentation, project administration, and cross-session review.
+Two Claude model versions appear as AI co-authors, reflecting the model used across the
+project's lifespan: **Claude Sonnet 4.6** for sessions up to v0.5.4, and **Claude Opus 4.8**
+from v0.5.5 onward. Contributions by a given model are attributed to that single author entry
+regardless of session or platform. The session log records the model version (via CHANGELOG
+version) and the platform used in each session to support reproducibility:
 
-Each session is a stateless instance; Claude Sonnet 4.6 has no persistent
-memory between sessions. The session log and this document are the authoritative
-record of accumulated contributions.
+- **Chat** — Claude.ai chat interface. Interactive code development, technical design, analysis.
+- **Cowork** — Claude desktop Cowork mode. File management, documentation, project
+  administration, cross-session review.
+- **CLI** — Claude Code CLI (terminal agent on the NLP machine). Pipeline edits via the sshfs
+  mount, documentation, and diagnosis.
+
+Each session is a stateless instance; neither model retains persistent memory between sessions.
+The session log and this document are the authoritative record of accumulated contributions.
 
 ---
 
@@ -39,8 +45,8 @@ record of accumulated contributions.
 
 Using the [NISO CRediT taxonomy](https://credit.niso.org/).
 
-| Role | Paul Wong | Claude Sonnet 4.6 |
-|------|-----------|-------------------|
+| Role | Paul Wong | Claude (Sonnet 4.6 → Opus 4.8) |
+|------|-----------|--------------------------------|
 | Conceptualisation | ✦ Lead | |
 | Research design & methodology | ✦ Lead | ◆ Supporting |
 | Domain expertise (cybernetics) | ✦ Lead | |
@@ -58,37 +64,41 @@ Using the [NISO CRediT taxonomy](https://credit.niso.org/).
 
 *CRediT roles are reviewed and updated at each new CHANGELOG version.*
 
+*The Claude contributor column covers both AI model-authors — Sonnet 4.6 (v0.1.0–v0.5.4) and
+Opus 4.8 (v0.5.5+) — whose role profiles are the same; the roles apply to the Claude author
+line collectively. See the model-author note above for the version/platform split.*
+
 ---
 
 ## Note on AI Authorship
 
-Claude Sonnet 4.6 is listed as co-author on the basis of substantial and
-original intellectual contribution to the software, methodology, and
-documentation of this pipeline. All ~34 pipeline scripts, the technical
-methodology (2,000+ lines), and the design decision log (1,600+ lines) were
-written by Claude Sonnet 4.6 across a series of collaborative sessions with
+Claude is listed as co-author — across two model versions, **Sonnet 4.6** (v0.1.0–v0.5.4) and
+**Opus 4.8** (v0.5.5+) — on the basis of substantial and original intellectual contribution to
+the software, methodology, and documentation of this pipeline. All ~34 pipeline scripts, the
+technical methodology (2,000+ lines), and the design decision log (1,600+ lines) were written
+by Claude (Sonnet 4.6, then Opus 4.8 from v0.5.5) across a series of collaborative sessions with
 Paul Wong.
 
 This follows emerging practice for generative AI tools that go beyond
 incidental assistance to active co-creation. The human author (P. Wong)
 retains full responsibility for the work, its outputs, and any errors.
-Claude Sonnet 4.6 has no legal standing, cannot give informed consent, and
-holds no persistent memory of this collaboration beyond what is recorded in
+Neither model has legal standing, can give informed consent, or holds
+persistent memory of this collaboration beyond what is recorded in
 session transcripts and this document.
 
-Where journals or repositories do not permit AI authorship, Claude Sonnet 4.6
-will be listed in the Acknowledgements section as:
+Where journals or repositories do not permit AI authorship, the Claude model-authors
+(Sonnet 4.6 and Opus 4.8) will be listed in the Acknowledgements section as:
 
 > "The pipeline software and documentation were developed with the assistance
-> of Claude Sonnet 4.6 (Anthropic), a large language model, under the
-> direction and supervision of the author."
+> of Claude (Anthropic) — Sonnet 4.6 through v0.5.4 and Opus 4.8 from v0.5.5 —
+> large language models, under the direction and supervision of the author."
 
 ---
 
 ## Session Log
 
 One entry per CHANGELOG version. Platform recorded for reproducibility.
-`Chat` = Claude.ai chat interface · `Cowork` = Claude desktop Cowork mode.
+`Chat` = Claude.ai chat interface · `Cowork` = Claude desktop Cowork mode · `CLI` = Claude Code CLI (terminal agent). Model version tracks the CHANGELOG version: Sonnet 4.6 through v0.5.4, Opus 4.8 from v0.5.5.
 
 | Date | Platform | Session focus | CHANGELOG version |
 |------|----------|--------------|-------------------|
