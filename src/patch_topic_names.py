@@ -29,114 +29,108 @@ data = json.load(open(target))
 # written about"), not as subject domains ("what cybernetics is about").
 # See docs/methodology.md for the full reframe and the PCT-dispersion
 # worked example.
+# Names finalised by Paul Wong, 19 July 2026, against the 566-book re-canonicalisation
+# run (post-Calibre-reconstruction, KI-13). This is a NEW equivalence class (566 books,
+# not the 541 of 26 April): topic positions permuted, so these are NOT a relabelling of
+# the April taxonomy — the clusters themselves moved (e.g. the old single "Social and
+# Organisational Cybernetics" split into social-systems T5 vs management T7). Provisional,
+# single-rater; the multi-rater stability protocol (sprint item 4) still applies.
 TAXONOMY = {
     'T1': {
-        'proposed_name': 'History and Historiography of Cybernetics',
+        'proposed_name': 'History of Information Age and Cybernetics',
         'notes': (
-            'Discursive register: historical and historiographical writing '
-            'about the cybernetics tradition itself. Wiener and Bateson '
-            'biographies, Macy Conferences history, accounts of the rise and '
-            'fall of cybernetics as a discipline. Top loadings include '
-            'Wiener-biography volumes and field-history monographs. '
-            'Provisional name agreed 25 April 2026 (full-text canonical run).'
+            'Discursive register: popular history and biography of computing, '
+            'information, and the cybernetics tradition. Top loadings: Stewart '
+            'Brand (Whole Earth, The Media Lab), Gleick (The Information), '
+            'Dark Hero of the Information Age (Wiener biography), Waldrop '
+            '(The Dream Machine), Markoff, Mayor (Gods and Robots). '
+            'Least stable topic this run (0.145).'
         ),
     },
     'T2': {
-        'proposed_name': 'Techno-political Complexes',
+        'proposed_name': 'Extensions and Exploration of Cybernetics',
         'notes': (
-            'Discursive register: political, economic, and geopolitical '
-            'analysis of cybernetic and computational systems. Cold War '
-            'computing, surveillance, big tech, multinationals, internet '
-            'capitalism — not necessarily drawn on state-level boundaries. '
-            'Provisional name agreed 25 April 2026 (full-text canonical run).'
+            'Heterogeneous exploration/extension cluster: voice, sound and '
+            'singing (A Cybernetic Study of Speaking and Singing anchors at '
+            '1.00), Sinophone cybernetics (Yuk Hui on technology in China, '
+            'Qian Xuesen), interdisciplinary "exploring cybernetics" volumes, '
+            'avatars and machine sensation. Moderate stability (0.173); the '
+            'most mixed of the nine.'
         ),
     },
     'T3': {
-        'proposed_name': 'Engineering Control',
+        'proposed_name': 'Biological and Ecological Regulation: Homeostasis & Allostasis',
         'notes': (
-            'Discursive register: classical control engineering and applied '
-            'feedback systems. State-space models, transfer functions, '
-            'controller design, plant dynamics. PCT books with strong '
-            'engineering vocabulary anchor here (see methodology.md §PCT '
-            'dispersion). '
-            'Provisional name agreed 25 April 2026 (full-text canonical run).'
+            'Discursive register: biological and ecological regulation. '
+            'Homeostasis/allostasis (Schulkin, Sterling — What Is Health?), '
+            'evolutionary and ecological systems (Corning, Holistic Darwinism; '
+            'Lovelock, Gaia; positive feedback in natural systems). '
+            'Stable (0.325).'
         ),
     },
     'T4': {
-        'proposed_name': 'Social and Organisational Cybernetics',
+        'proposed_name': 'Cybernetics of Self',
         'notes': (
-            'Discursive register: organisational and managerial cybernetics, '
-            'VSM lineage. Stafford Beer (Viability of Organizations, '
-            'Diagnosing the System), Luhmann, applied systems theory, '
-            'intelligent organisation design. '
-            'Provisional name agreed 25 April 2026 (full-text canonical run).'
+            'Discursive register: psycho-cybernetics, self-help, and applied '
+            'personal psychology. Maltz Psycho-Cybernetics franchise (multiple '
+            'editions), stress/self-regulation and counselling texts, '
+            'cybernetics-flavoured self-improvement (incl. Sexual/Volleyball '
+            'Cybernetics). Stable (0.322).'
         ),
     },
     'T5': {
-        'proposed_name': 'Formal Foundations of Cybernetics',
+        'proposed_name': 'Social Systems and Second-Order Constructivism',
         'notes': (
-            'Discursive register: mathematical, symbolic, and computational '
-            'methods. Information theory, Spencer-Brown (Laws of Form), '
-            'Rosen (relational biology), semantic communication, formal '
-            'control mathematics. PCT books that develop the formal '
-            'apparatus also anchor here — the largest single sub-cluster of '
-            '21 PCT-adjacent books in the corpus (see methodology.md §PCT '
-            'dispersion). '
-            'Provisional name agreed 25 April 2026 (full-text canonical run).'
+            'Discursive register: Luhmannian social systems theory and '
+            'second-order/constructivist epistemology. Luhmann anchors '
+            'strongly (Social Systems, Theory of Society, Theories of '
+            'Distinction, Essays on Self-Reference); Varela (Principles of '
+            'Biological Autonomy), actor-network and constructivist currents. '
+            'Stable (0.514). Splits, with T7, the April single "Social and '
+            'Organisational Cybernetics" topic.'
         ),
     },
     'T6': {
-        'proposed_name': 'Reinventing Selves and Others, Past and Future',
+        'proposed_name': 'Foundations of Cybernetics',
         'notes': (
-            'Discursive register: self-help, popular psychology, and pop '
-            'cultural application of cybernetics. Maltz lineage '
-            '(Psycho-Cybernetics and descendants), success / wellbeing '
-            'monographs, cybernetics-flavoured personal-development texts. '
-            'PCT books written for a general audience also anchor here. '
-            'Provisional name agreed 25 April 2026 (full-text canonical run).'
+            'Discursive register: mathematical and formal foundations. '
+            'Information theory, probability/entropy, formal control '
+            'mathematics and relational-biology formalism (Guiasu; '
+            'Mathematical Theory of Semantic Communication; Reflexion and '
+            'Control; Lange, Wholes and Parts; Louie, relational biology). '
+            'Moderate stability (0.225).'
         ),
     },
     'T7': {
-        'proposed_name': 'Psychological and Behavioural Regulation and Control',
+        'proposed_name': 'Management and Organisational Cybernetics',
         'notes': (
-            'Discursive register: affect-, allostasis- and stress-regulation '
-            'literature. Sapolsky-adjacent, Damasio-adjacent. NB: PCT '
-            'literature does NOT anchor here despite the topic name '
-            'suggesting it should — PCT vocabulary disperses to T5/T6/T8/T3 '
-            'by register. The mismatch between the topic name a PCT scholar '
-            'would expect and the topic content actually computed is itself '
-            'the worked example in docs/methodology.md §"LDA topics as '
-            'discursive registers, not subject domains". '
-            'Provisional name agreed 25 April 2026 (full-text canonical run).'
+            'Discursive register: organisational and managerial cybernetics, '
+            'VSM lineage and system dynamics. Espinosa (self-governance), '
+            'Lassl (Viability of Organizations), Emery/Thorsrud (Democracy at '
+            'Work), project/construction management, Forrester (Urban '
+            'Dynamics). Most stable topic this run (0.566).'
         ),
     },
     'T8': {
-        'proposed_name': 'Biological and Neural Cybernetics',
+        'proposed_name': 'Control and Feedback Systems',
         'notes': (
-            'Discursive register: homeostatic biology, neuroscience, '
-            'evolutionary perspectives. Rethinking Homeostasis, Information '
-            'Theory and Evolution, neural-cybernetic monographs. PCT books '
-            'that emphasise homeostatic and biological grounding anchor '
-            'here. '
-            'Provisional name agreed 25 April 2026 (full-text canonical run).'
+            'Discursive register: control engineering, feedback systems and '
+            'neural networks. Neural Networks as Cybernetic Systems, marine/'
+            'plant control (Fossen), Qian Xuesen (Engineering Cybernetics), '
+            'Powers (Living Control Systems, PCT). Stable (0.523). PCT '
+            'engineering vocabulary anchors here — the methodology.md §PCT '
+            'dispersion worked example should be re-checked against this new '
+            'equivalence class.'
         ),
     },
     'T9': {
-        'proposed_name': 'Extensions of Cybernetics',
+        'proposed_name': 'Digital Arts, Architecture, Design and Posthumanism',
         'notes': (
-            'Discursive register: cybernetics extended into adjacent domains '
-            'rather than developed within its classical core. Multiple '
-            'extension paths anchor here — ecology and environment, '
-            'posthumanism and more-than-human systems, second-order '
-            'cybernetics and autopoiesis, digital ontology and cosmotechnics. '
-            'Yuk Hui (digital ontology, recursivity), Maturana/Varela in '
-            'their philosophical mode, constructivist and posthuman currents. '
-            'Replaces the previous "Residual / Outlier Cluster" reading from '
-            'the 18 April 542-book sampled run; the full-text canonical run '
-            'of 25 April assigns coherent extension-domain content to this '
-            'position. Provisional name agreed 26 April 2026 (revised from '
-            '"Ecology, Posthumanism and Digital Ontology" — those are three '
-            'specific extensions; the topic accommodates more).'
+            'Discursive register: digital media arts, architecture/design, and '
+            'posthuman culture. Ascott (Telematic Embrace), Dixon (Digital '
+            'Performance), digital-culture architecture (Yiannoudes, Hight, '
+            'Vrachliotis), Situationist and posthumanist currents, cybernetic '
+            'poetics. Stable (0.495).'
         ),
     },
 }

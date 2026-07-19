@@ -95,15 +95,15 @@ N          = len(BC)
 n_topics   = R['n_topics']
 
 _LDA_BASE = [
-    'History and Historiography of Cybernetics',
-    'Techno-political Complexes',
-    'Engineering Control',
-    'Social and Organisational Cybernetics',
-    'Formal Foundations of Cybernetics',
-    'Reinventing Selves and Others, Past and Future',
-    'Psychological and Behavioural Regulation and Control',
-    'Biological and Neural Cybernetics',
-    'Extensions of Cybernetics',
+    'History of Information Age and Cybernetics',
+    'Extensions and Exploration of Cybernetics',
+    'Biological and Ecological Regulation: Homeostasis & Allostasis',
+    'Cybernetics of Self',
+    'Social Systems and Second-Order Constructivism',
+    'Foundations of Cybernetics',
+    'Management and Organisational Cybernetics',
+    'Control and Feedback Systems',
+    'Digital Arts, Architecture, Design and Posthumanism',
 ]
 # Note: _LDA_BASE is a fallback only — live names always come from
 # R['topic_names'] in nlp_results.json via patch_topic_names.py.
