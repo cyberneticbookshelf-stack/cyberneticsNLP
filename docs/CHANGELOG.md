@@ -10,9 +10,37 @@ Dates are AEST (UTC+11).
 
 > Sessions: 16–19 July 2026 (Claude Code CLI) — KI-13 (stale clean cache after the July
 > Calibre reconstruction) diagnosed and guarded; the post-rebuild 28-book ingestion gap
-> audited; documentation consolidated (CLAUDE.md ↔ master project doc). The pipeline
-> re-canonicalisation itself is staged but **not yet run** — the 541-book / k=9 /
-> `run_20260426_k9_s5` canonical facts still stand pending re-validation.
+> audited and closed; documentation consolidated (CLAUDE.md ↔ master project doc); and the
+> pipeline **re-canonicalised (19 July)** — new canonical `run_20260719_k9_s5` (**566 books**,
+> equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`) supersedes the 541-book
+> 26 April `run_20260426_k9_s5`.
+
+### Re-canonicalisation (KI-13, 19 July)
+
+- **`src/00_export_calibre.py` — bind custom columns by name, not number (`37e2138`).** The
+  July reconstruction renumbered Calibre's custom columns (custom_column_4↔5, Publication
+  Type↔Theme); the exporter bound them positionally, so a fresh export wrote the subject
+  ("Cybernetics") into `pub_type` and would have made `03_nlp_pipeline.py`'s pub-type filter
+  drop the entire corpus. Now resolves each column via the `custom_columns` name table (with a
+  numeric fallback). Verified: 583/739 books carry monograph/collected-works `pub_type`.
+- **Ingestion gap closed.** The §0 metadata regen fixed the No-meta skips. Of the 12 confirmed
+  gap monographs, 3 (re-IDed Emery works) recovered via the metadata fix; the other 8 had PDF
+  *files* but no indexed text (image-only scans — Bateson/Mead, Beer, Wiener, …) and were
+  recovered by **OCR + Calibre full-text re-indexing** (user-side), lifting the shard PDF-row
+  count 725 → 733.
+- **New canonical run.** `run_all.sh --stream --rebuild-clean` → **566 books analysed** (was
+  544), all 12 gap monographs present; k=9, mean stability 0.365 (6 stable / 2 moderate / 1
+  unstable, 09c bands). Ran on CPU (cuML/RAPIDS unavailable — GPU-backend parity not re-confirmed).
+  Logged as `run_20260719_k9_s5` (new equivalence class).
+- **`src/patch_topic_names.py` — 9 topic names finalised for the 566 fit (`06bf881`).** Positions
+  permuted vs April (April's single "Social and Organisational" split into Social Systems T5 vs
+  Management T7), so a relabelling by position was wrong. New names propagated into `_LDA_BASE`
+  across 8 scripts via `check_stale_vars.py --fix`; release reports regenerated. Provisional,
+  single-rater. Names T1–T9: History of Information Age and Cybernetics · Extensions and
+  Exploration of Cybernetics · Biological and Ecological Regulation: Homeostasis & Allostasis ·
+  Cybernetics of Self · Social Systems and Second-Order Constructivism · Foundations of
+  Cybernetics · Management and Organisational Cybernetics · Control and Feedback Systems ·
+  Digital Arts, Architecture, Design and Posthumanism.
 
 ### Fixed
 

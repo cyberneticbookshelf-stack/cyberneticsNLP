@@ -21,7 +21,7 @@ A reproducible NLP pipeline for topic modelling, clustering, keyphrase
 extraction, summarisation, controlled vocabulary analysis, and visualisation
 applied to a cybernetics book corpus extracted from a Calibre library.
 
-**Corpus:** 695 books in collection (1954–2025) · 541 monographs and collected works analysed
+**Corpus:** 739 books in reconstructed collection (July 2026 rebuild) · 566 monographs and collected works analysed
 
 ---
 
@@ -249,7 +249,7 @@ python3 src/generate_summaries_api.py --workers 1  # sequential, ~112 min
 ```
 
 Fully resumable — safe to interrupt and restart. Estimated cost: ~$25–35
-for 541 books from scratch (only missing books are processed on reruns —
+for 566 books from scratch (only missing books are processed on reruns —
 if most summaries already exist, the incremental cost is a few cents).
 
 ---
@@ -338,7 +338,7 @@ All reports are written to `data/outputs/`.
 
 ### Book-level (LDA, k=9)
 
-Canonical run: monographs and collected works only ([2133] excluded — OCR corruption),
+Canonical run: monographs and collected works only (OCR-corrupt books excluded),
 full-text with front/back matter stripped, 15,000-feature vocabulary, spaCy lemmatisation,
 `--topics 9 --seeds 5`. Current per-topic stability and run parameters live in
 `json/topic_stability.json` and `json/nlp_results.json`; aggregate figures and runlog are
@@ -376,7 +376,7 @@ static table went stale. Authoritative sources:
 ## Input Data Format
 
 ### `csv/books_metadata_full.csv` (tab-separated)
-Full Calibre metadata export: 695 books, 20 columns including `id`, `title`, `pubdate`, `author_sort`, `lang_code`, `inclusion_stratum`, `archive_id`, `in_title`, `in_description`, `in_tags`, and per-field keyword flags.
+Full Calibre metadata export: 739 books, 20 columns including `id`, `title`, `pubdate`, `author_sort`, `lang_code`, `inclusion_stratum`, `archive_id`, `in_title`, `in_description`, `in_tags`, and per-field keyword flags. (Publication Type / Theme columns are resolved by Calibre column *name*, not number — see KI-13.)
 
 ### `csv/books_text_*.csv` (CSV, two columns)
 Columns: `id`, `searchable_text`

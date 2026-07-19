@@ -22,8 +22,8 @@ Session history, changelog, and open work live in the canonical logs — not her
 
 - **Repo:** `~/CyberneticsNLP/` on the NLP machine, accessed via the sshfs mount inside the vault
 - **Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
-- **Canonical corpus framing:** "541 monographs and collected works analysed" from a 695-book Calibre collection. [2133] *Cybernation and Social Change* excluded (OCR corruption — KI-08).
-- **Canonical k:** 9 (validated on sampled runs 3–14 April 2026; confirmed on the first full-text canonical run by Paul Wong, 26 April 2026 — `run_20260426_k9_s5`, equivalence class `23b29233a67b2938`). `run_all.sh` enforces `--topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100 --gpu`. Topic names finalised 26 April 2026 (single rater, single run — sprint item 4 still requires ≥3 runs × ≥2 raters before names can be considered stable).
+- **Canonical corpus framing:** "566 monographs and collected works analysed" from a 739-book reconstructed Calibre collection (July 2026 rebuild — KI-13). Supersedes the 26 April "541 analysed / 695-book" framing.
+- **Canonical k:** 9 (validated April 2026; **re-established on the post-reconstruction full-text run, 19 July 2026** — `run_20260719_k9_s5`, equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`). `run_all.sh` enforces `--topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100 --gpu` (the 19 July run executed on **CPU** — cuML/RAPIDS not installed — so GPU-backend parity is not yet re-confirmed). Topic names finalised 19 July 2026 (single rater, single run — sprint item 4 still requires ≥3 runs × ≥2 raters before names can be considered stable). Prior canonical: `run_20260426_k9_s5` / class `23b29233a67b2938` (541 books), now historical.
 - **Current run record:** query `data/pipeline.db` (`pipeline_runs`, `runlog_entries`) or read the latest `data/outputs/runlogYYYYMMDD.csv`. Don't rely on hardcoded figures here — they rot.
 - **Current version:** read `docs/CHANGELOG.md` (top entry).
 

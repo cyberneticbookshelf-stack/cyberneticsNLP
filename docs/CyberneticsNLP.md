@@ -13,7 +13,7 @@
 
 A reproducible NLP pipeline for topic modelling, clustering, keyphrase extraction, summarisation, controlled vocabulary analysis, and visualisation applied to a cybernetics book corpus extracted from a Calibre library.
 
-**Corpus:** 726 books · 1954–2025 · random seed 99 · NLP pipeline: 695 books total (22 excluded by publication type policy → 704 retained; further reduced to 695 by `--min-chars 10000` filter) · **canonical corpus (26 Apr 2026): 541 monographs and collected works analysed** ([2133] excluded — OCR corruption; `run_20260426_k9_s5`, equivalence class `23b29233a67b2938`; `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000`). ⚠️ **Under re-canonicalisation** after the July 2026 Calibre reconstruction — count moving to ~556–567; see KI-13 and `docs/recanonicalisation_checklist.md`. (The 726/695 figures above predate the reconstruction; post-reconstruction the collection is ~739.)
+**Corpus:** reconstructed Calibre collection ~739 books (July 2026 rebuild) · 1954–2025 · **canonical corpus (19 Jul 2026): 566 monographs and collected works analysed** (`run_20260719_k9_s5`, equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`; `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --max-iter 100`, CPU). Supersedes the 26 April 541-book canonical (`run_20260426_k9_s5` / `23b29233a67b2938`); this re-canonicalisation followed the July Calibre reconstruction + KI-13 recovery. Pre-reconstruction figures (726 collection / 695 pipeline) are historical.
 
 The pipeline maps the intellectual landscape of cybernetics — tracing topic evolution, canonical figures, concept velocity, and entity relationships across 70 years of literature.
 
@@ -37,15 +37,16 @@ Where journals do not permit AI authorship, the Claude model-authors (Sonnet 4.6
 
 ## Current Sprint
 
-**Re-canonicalisation after the July 2026 Calibre reconstruction (KI-13) — *current focus***
+**Re-canonicalisation after the July 2026 Calibre reconstruction (KI-13) — *complete 19 Jul 2026***
 
-The Calibre DB was corrupted and rebuilt (July 2026): ids reassigned, corpus grown, clean cache went stale. The 26 April canonical run (`run_20260426_k9_s5`, 541 books, class `23b29233a67b2938`) no longer describes the analysed corpus. Full staging steps and every file to update: `docs/recanonicalisation_checklist.md`.
+The Calibre DB was corrupted and rebuilt (July 2026): ids reassigned, corpus grown, clean cache went stale. The re-canonicalisation is now done — new canonical `run_20260719_k9_s5` (**566 books**, class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`). Full staging record: `docs/recanonicalisation_checklist.md`.
 
-- [ ] **§0 — regenerate `csv/books_metadata_full.csv`** from the reconstructed `metadata.db` (`src/00_export_calibre.py`); it is still Apr 11 / old ids, so the pub-type filter has been running on stale metadata and the 11 new books can't be dispositioned.
-- [ ] **Close the ingestion gap (KI-13)** — id 207 has no `format='PDF'` `books_text` row; ~27 books flagged No-meta and skipped by streaming clean despite reconstructed metadata. Target: recover the ≥12 confirmed analysable-monograph gaps.
-- [ ] **Re-run** `bash src/run_all.sh --stream --rebuild-clean`; confirm analysed count ~556–567 (not 544) and all 12 confirmed-monograph ids present in `nlp_results.json['book_ids']`.
-- [ ] **Re-establish the canonical run** — new equivalence class; capture the §1 facts and propagate the new count/framing across `CLAUDE.md`, `README.md`, `patch_topic_names.py`, and the deck (checklist §2–4).
-- [ ] **Re-validate topic names** against the new fit — positions can permute across equivalence classes; do not carry the 26 April taxonomy over blindly.
+- [x] **§0 — regenerated `csv/books_metadata_full.csv`** from the reconstructed `metadata.db`. Exposed + fixed a corpus-dropping bug: the reconstruction swapped custom_column_4↔5 (Publication Type↔Theme); `00_export_calibre.py` now binds them **by name** (KI-13, commit `37e2138`).
+- [x] **Closed the ingestion gap (KI-13)** — §0 metadata regen fixed the No-meta skips; the 8 image-only monographs (Bateson/Mead, Beer, Wiener, …) were **OCR'd + Calibre FTS re-indexed** (Paul, user-side); all 12 gap monographs now admit.
+- [x] **Re-ran** `run_all.sh --stream --rebuild-clean` — **566 analysed** (was 544); 12/12 gap ids present in `nlp_results.json['book_ids']`. Ran on CPU (GPU/cuML unavailable).
+- [x] **Re-established the canonical run** — logged as `run_20260719_k9_s5`; count/framing propagated across `CLAUDE.md`, `README.md`, this doc, `patch_topic_names.py`.
+- [x] **Re-validated topic names** against the new fit (finalised by Paul Wong, 19 Jul; provisional, single-rater). Positions permuted — see Topic Solutions.
+- [ ] **Remaining:** reader's-guide content rewrite; deck (`patch_deck.py`) update to the 566/new-name facts; GPU-backend parity re-confirmation; multi-rater naming (sprint item 4).
 
 *Superseded:* the April "Tuesday 28 release" sprint (release HTMLs + deck v3) completed 26 April 2026; those reports will be regenerated by the re-canonicalisation run, so the remaining spot-check/final-review items from that sprint are moot. Detail in `docs/CHANGELOG.md` (v0.5.4).
 
@@ -157,27 +158,53 @@ all scroll positions; topic names match current provisional LDA names; entity ne
 validated against domain knowledge; results framed as automated provisional analysis with no
 individual certified findings.
 
-> **Status:** the April release suite was completed 26 April 2026 (v0.5.4). These HTMLs will be
-> **regenerated** by the KI-13 re-canonicalisation run (see Current Sprint), so the file list
-> and the "defensible" checks must be re-confirmed against the new canonical run before
-> re-sharing.
+> **Status (19 Jul 2026):** regenerated on the 566-book re-canonicalisation run — all five
+> release pages carry the new topic names and the 566 corpus. **Still to do before re-sharing:**
+> the two reader's guides (`book_nlp_index_guide.html`, `book_nlp_keyphrases_guide.html`) are
+> hand-written and still show the April names/stability — content rewrite pending; and the
+> "defensible" checks should be re-confirmed against the new fit.
 
 ---
 
 ## Topic Solutions
 
-> Four book-level LDA runs are documented here (newest first). They used different corpora and/or
+> Five book-level LDA runs are documented here (newest first). They used different corpora and/or
 > text representations, so topic **positions and names are not comparable across runs**. All names are
-> provisional, single-rater. **The 26 April 2026 full-text run is the last established canonical.**
+> provisional, single-rater. **The 19 July 2026 post-reconstruction run is the current canonical.**
 >
-> ⚑ **Pending re-validation (KI-13):** the July 2026 Calibre reconstruction changed the analysed
-> corpus, so the "541 analysed" framing, the k=9 fit, and these names must all be re-validated by the
-> re-canonicalisation run before being carried forward — see **Current Sprint** and
-> `docs/recanonicalisation_checklist.md`.
+> ✅ **KI-13 re-canonicalisation complete (19 July 2026):** the July Calibre reconstruction was
+> re-ingested — the 28-book gap closed via OCR of image-only scans plus a custom-column metadata fix
+> (`00_export_calibre.py` now binds Publication Type/Theme by name). The new canonical analyses
+> **566 books** under a **new equivalence class** (`88c44bece9a5a875`). The 26 April "541" run is now
+> historical. Names were re-validated against the new fit — positions permuted, so this is not a
+> relabelling.
 
 ---
 
-**Book-level LDA — 26 April 2026 full-text canonical ← LAST ESTABLISHED CANONICAL (pending KI-13 re-validation)**
+**Book-level LDA — 19 July 2026 post-reconstruction full-text canonical ← CURRENT CANONICAL**
+566 books (monographs + collected works) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --max-iter 100` (executed on **CPU** — GPU/cuML unavailable)
+Run `run_20260719_k9_s5` · equivalence class `88c44bece9a5a875` · nlp_hash `e3a85b79ca484636`
+**6/9 stable · 2 moderate (T2/T6) · T1 unstable · mean stability=0.365** (09c bands, stable ≥0.30)
+
+⚠️ Names **provisional**: finalised by a single rater (Paul Wong), 19 July 2026, single run. Stable only after ≥3 runs × ≥2 raters (sprint item 4). Positions **permuted** vs 26 April — the clusters moved (April's single "Social and Organisational" split into Social Systems T5 vs Management T7; control engineering merged with neural networks into T8), so this is **not** a relabelling.
+
+| # | Name | Stability | Notes |
+|---|------|-----------|-------|
+| T1 | History of Information Age and Cybernetics | 0.145 unstable | Brand, Gleick, *Dark Hero* (Wiener bio), Markoff — popular computing/info-age histories |
+| T2 | Extensions and Exploration of Cybernetics | 0.173 moderate | Heterogeneous: voice/sound/singing + Sinophone (Yuk Hui, Qian Xuesen) |
+| T3 | Biological and Ecological Regulation: Homeostasis & Allostasis | 0.325 stable | Schulkin, Sterling, Corning, Lovelock (*Gaia*) |
+| T4 | Cybernetics of Self | 0.322 stable | Maltz *Psycho-Cybernetics* franchise, self-help, counselling |
+| T5 | Social Systems and Second-Order Constructivism | 0.514 stable | Luhmann ×4, Varela (autopoiesis), constructivism |
+| T6 | Foundations of Cybernetics | 0.225 moderate | Information theory, probability/entropy, formal + relational-biology models |
+| T7 | Management and Organisational Cybernetics | 0.566 stable | Espinosa, Lassl (VSM), Emery/Thorsrud, Forrester — most stable |
+| T8 | Control and Feedback Systems | 0.523 stable | Neural networks, marine/plant control, Qian (*Engineering Cybernetics*), Powers (PCT) |
+| T9 | Digital Arts, Architecture, Design and Posthumanism | 0.495 stable | Ascott, Dixon, digital-culture architecture, posthumanism |
+
+*Stability-band note (KI-11): `log_pipeline_run.py` uses a higher "stable" cutoff (~≥0.45) and reports **4** stable for these same scores; `09c_validate_topics.py` (≥0.30, used above) reports **6**. Same `topic_stability.json` — an open threshold inconsistency, not a data difference.*
+
+---
+
+**Book-level LDA — 26 April 2026 full-text canonical ← historical (superseded by 19 July re-canonicalisation)**
 541 books (monographs + collected works only) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --max-iter 100 --gpu`
 Run `run_20260426_k9_s5` · equivalence class `23b29233a67b2938` · nlp_hash `901e5ec924248fe2`
 **5/9 stable · 3 moderate (T1/T5/T8) · T7 unstable · mean stability=0.348** · perplexity 3650.7 · coherence 0.0780
@@ -334,7 +361,7 @@ Full rationale: `docs/decisions.md` (1,600+ lines) · Full methodology: `docs/me
 | KI-10 | Entity network concepts dropped 746→500 on fresh rebuild | **Resolved** — `run_all.sh` was running step 14 with `--no-windows`, excluding ~239 paragraph-only concept nodes; `--no-windows` removed. |
 | KI-11 | Stability band thresholds inconsistent: `log_pipeline_run.py` vs `09c_validate_topics.py` | **Open (post-presentation)** — `09c` uses stable ≥0.30 / moderate 0.15–0.30 / unstable <0.15; `log_pipeline_run.py` uses ~≥0.45; same `topic_stability.json`, conflicting counts. Centralise thresholds. (ROADMAP KI-10) |
 | KI-12 | Release HTMLs reflect rebuild nlp_hash, not logged canonical run | **Open (post-presentation)** — rebuild `c8e3c71bf8a3d910` differs from canonical logged `901e5ec924248fe2`; same equivalence class; survey workflow unaffected. (ROADMAP KI-11) |
-| KI-13 | Streaming clean cache stale after July 2026 Calibre DB reconstruction. Post-`--rebuild-clean` audit (17 Jul, `runlog20260717.csv`) found a **28-book ingestion gap**: 12 confirmed analysable-monograph recoveries (207, 2087, 2186, 2257, 2271, 2283, 2511, 2517, 2716, 2797, 2799, 2801), 5 correctly excluded (2193/2239/2306 non-monograph; 2138 fr / 2359 ca), 11 brand-new unverifiable (2174, 2701, 2707, 2776, 2778, 2790, 2806–2810). Corrected analysed count **~556–567, not 544**. Mechanisms: (a) id 207 has no `format='PDF'` `books_text` row → dropped by `split_books_text.sh`; (b) ~27 No-meta skips in streaming clean. Second arm: reconstruction never regenerated `books_metadata_full.csv` (Apr 11, old ids), so the pub-type filter ran on stale metadata. | **Guard landed** (`check_clean_cache.py` + `run_all.sh --rebuild-clean`); re-canonicalisation open — re-export `books_metadata_full.csv`, fix id-207 PDF row + No-meta skip, re-run. Detail: `docs/ROADMAP.md` §"KI-13 post-rebuild ingestion gap"; steps: `docs/recanonicalisation_checklist.md` |
+| KI-13 | Streaming clean cache stale after July 2026 Calibre DB reconstruction. Post-`--rebuild-clean` audit (17 Jul, `runlog20260717.csv`) found a **28-book ingestion gap**: 12 confirmed analysable-monograph recoveries (207, 2087, 2186, 2257, 2271, 2283, 2511, 2517, 2716, 2797, 2799, 2801), 5 correctly excluded (2193/2239/2306 non-monograph; 2138 fr / 2359 ca), 11 brand-new unverifiable (2174, 2701, 2707, 2776, 2778, 2790, 2806–2810). Corrected analysed count **~556–567, not 544**. Mechanisms: (a) id 207 has no `format='PDF'` `books_text` row → dropped by `split_books_text.sh`; (b) ~27 No-meta skips in streaming clean. Second arm: reconstruction never regenerated `books_metadata_full.csv` (Apr 11, old ids), so the pub-type filter ran on stale metadata. | **Resolved (19 Jul 2026).** Guard landed (`check_clean_cache.py` + `--rebuild-clean`); `00_export_calibre.py` now binds custom columns by **name** (the reconstruction had swapped Publication Type↔Theme — a positional export would have dropped the whole corpus); the 8 image-only monographs were **OCR'd + Calibre FTS re-indexed**, and the §0 metadata regen closed the No-meta gap. New canonical `run_20260719_k9_s5` — **566 books**, class `88c44bece9a5a875`. Detail: `docs/ROADMAP.md`; steps: `docs/recanonicalisation_checklist.md`. |
 
 > **Ownership (decided 19 Jul 2026):** this table is the **canonical orientation index** for
 > known issues. **`docs/ROADMAP.md`** holds the canonical per-issue resolution detail (commit
