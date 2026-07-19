@@ -6,6 +6,76 @@ Dates are AEST (UTC+11).
 
 ---
 
+## [0.5.5] — 2026-07-16 → 07-19 (in progress)
+
+> Sessions: 16–19 July 2026 (Claude Code CLI) — KI-13 (stale clean cache after the July
+> Calibre reconstruction) diagnosed and guarded; the post-rebuild 28-book ingestion gap
+> audited; documentation consolidated (CLAUDE.md ↔ master project doc). The pipeline
+> re-canonicalisation itself is staged but **not yet run** — the 541-book / k=9 /
+> `run_20260426_k9_s5` canonical facts still stand pending re-validation.
+
+### Fixed
+
+- **`src/run_all.sh` + `src/check_clean_cache.py` (new)** — clean-cache staleness guard
+  (KI-13). `parse_and_clean_stream.py` skips books by id, so the July 2026 Calibre DB
+  reconstruction (ids reassigned, books re-added) was never re-ingested: `run_20260716-5`
+  analysed 544 books from a pre-reconstruction cache. New `check_clean_cache.py`
+  SHA-256-fingerprints each `csv/books_text_*.csv` shard against
+  `json/books_clean.manifest.json` (written at the last full rebuild); `run_all.sh --stream`
+  aborts on mismatch. New `--rebuild-clean` flag moves the stale `books_clean.jsonl` aside,
+  re-cleans every shard, and rewrites the manifest. A timestamp guard was rejected as
+  insufficient — the cache was rewritten (15:02) after the shards (14:51) yet still missing
+  shard-25's book 2797. Guard lifecycle unit-tested (6 cases). (`be560c2`)
+- **`src/split_books_text.sh`** — `TOTAL_ROWS` derived dynamically from the PDF row count
+  (was hardcoded, silently truncating the tail as the corpus grew); `WHERE format='PDF'` +
+  `ORDER BY book` added. With 169 books now dual-format (EPUB+PDF) after the reconstruction,
+  the format filter prevents same-id row collisions in `01_parse_books.py`.
+
+### Documentation
+
+- **`docs/ROADMAP.md`, `CLAUDE.md`** — KI-13 added (stale clean cache after DB reconstruction;
+  fix landed, re-canonicalisation open).
+- **`docs/recanonicalisation_checklist.md` (new)** — staging note: numbers to capture from the
+  rebuild run and every committed location hardcoding the old 541-book / `run_20260426_k9_s5`
+  canonical facts. Gained **Section 0** (regenerate `csv/books_metadata_full.csv` from the
+  reconstructed `metadata.db` via `src/00_export_calibre.py` before re-running — the pub-type
+  filter had been running on stale Apr-11 old-id metadata).
+- **`docs/ROADMAP.md` KI-13** — rewritten with the verified post-`--rebuild-clean` 28-book
+  ingestion-gap table + a revised 4-step fix (`d8eedc5`).
+- **`docs/CyberneticsNLP.md`** — master project doc added into the repo (was vault-only)
+  (`a8bead3`); stale canonical framing synced (0.4.3/542 → 0.5.5-in-progress/541 + KI-13
+  re-canonicalisation flag) and KI-04/05/06 statuses set to Resolved (`42c3112`); Current
+  Sprint rewritten around the KI-13 re-canonicalisation (`a6cf03d`).
+- **Documentation consolidation (19 Jul)** — ownership between `CLAUDE.md` and the master doc
+  resolved to **"master doc owns all"**: `docs/CyberneticsNLP.md` is now canonical for Known
+  Issues, Current Sprint, and the Release goal, with `docs/ROADMAP.md` holding per-issue detail.
+  CLAUDE.md's five status sections (Release goal, Current sprint, Backlog #15, HTML report bugs,
+  Known issues) reduced to pointers; durable survey reference folded into its Architecture
+  section. Master-doc **Topic Solutions** block corrected: the stale "Run C / 542-book / v0.4.3
+  CANONICAL" marker replaced with the **26 April 2026 full-text canonical** table
+  (`run_20260426_k9_s5`, class `23b29233a67b2938`, 541 books; 5 stable / 3 moderate / T7
+  unstable; mean 0.348) plus a KI-13 re-validation flag; Run C demoted to historical.
+
+### Diagnosis (no code impact)
+
+- Sweep of reconstruction casualties: 27 books have PDF text in the reconstructed `metadata.db`
+  but were absent from the analysed cache — 12 English (3 re-IDed Emery works: old
+  2188/2382/2383 → new 2799/2801/2797; + 9 brand-new incl. Luhmann *Ecological Communication*,
+  Kevin Kelly *Out of Control*, Jackson *Systems Approaches to Management*) and 15 non-English
+  correctly excluded by the language filter. 0 stale ghosts (no orphaned old-id books in the
+  cache).
+- Post-`--rebuild-clean` audit (17 Jul, `runlog20260717.csv`): cleaned 694 / analysed 544, but
+  the gap persisted — **28 `eng`-tagged books** in the reconstructed DB (`csv/books_lang.csv`,
+  722) never reached `json/books_clean.jsonl`. Verified dispositions vs April
+  `books_metadata_full.csv`: **12 confirmed analysable-monograph gaps** (207, 2087, 2186, 2257,
+  2271, 2283, 2511, 2517, 2716, 2797, 2799, 2801), **5 correctly excluded** (2193/2239/2306
+  non-monograph; 2138 fr / 2359 ca), **11 brand-new unverifiable** (2174, 2701, 2707, 2776,
+  2778, 2790, 2806–2810). Corrected analysed count **~556–567, not 544**. Mechanisms: (a) id 207
+  has no `format='PDF'` `books_text` row → dropped by `split_books_text.sh`; (b) ~27 No-meta
+  skips in streaming clean despite valid reconstructed metadata.
+
+---
+
 ## [0.5.4] — 2026-04-26
 
 > Session: 26 April 2026 (Cowork) — reader's guide suite completed; HTML reports rebuilt; presentation patched to 26 April taxonomy.

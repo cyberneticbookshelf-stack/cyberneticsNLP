@@ -1,6 +1,6 @@
 # CyberneticsNLP
 
-**Version:** 0.5.5 in progress (last released 0.5.4) · last updated 2026-07-18
+**Version:** 0.5.5 in progress (last released 0.5.4) · last updated 2026-07-19
 **Valid for:** 2026 work program (publication target 2026; may carry into 2027)
 **Repository:** https://github.com/cybersonic/CyberneticsNLP
 **Local path:** Cybersonic → `~/CyberneticsNLP/`
@@ -132,13 +132,72 @@ Core pipeline is functional. Focus is on data quality and reproducibility.
 
 ---
 
-## Topic Solutions
+## Release goal — Book-level HTML for colleague sharing
 
-> Three LDA runs are documented here. Runs used different corpora and/or text representations. No names should be considered stable — all are provisional, single-rater. **Run C is the v0.4.3 canonical.**
+**Target:** release the book-level analysis HTML files to colleagues after presentation.
+**Standard:** *defensible* — genuine effort at error reduction, not certified error-free;
+consistent with the standing methodological principle (all outputs provisional) and the
+provenance notice carried in every report.
+
+**Files in scope** (nav links to the entity network, not per-book summaries):
+- `data/outputs/index.html` — main report (Fig 1–6 + topic proportions)
+- `data/outputs/clusters.html` — cluster composition
+- `data/outputs/keyphrases.html` — keyphrase analysis
+- `data/outputs/cosine.html` — cosine similarity
+- `data/outputs/book_nlp_entity_network.html` — entity relational network
+
+`books.html` (per-book summaries) is **not** in current release scope — summary quality is
+not yet at release standard (60k-token sampling limits). All four navigable pages link to the
+entity network via the nav tab.
+
+**"Defensible" means:** all known systematic errors (platform contamination, EOLSS noise,
+trailing fragments, node misclassifications) fixed or mitigated; provenance notice visible at
+all scroll positions; topic names match current provisional LDA names; entity network
+validated against domain knowledge; results framed as automated provisional analysis with no
+individual certified findings.
+
+> **Status:** the April release suite was completed 26 April 2026 (v0.5.4). These HTMLs will be
+> **regenerated** by the KI-13 re-canonicalisation run (see Current Sprint), so the file list
+> and the "defensible" checks must be re-confirmed against the new canonical run before
+> re-sharing.
 
 ---
 
-**Book-level LDA — Run C: Full-text, pub-type filtered (14 April 2026) ← v0.4.3 CANONICAL**
+## Topic Solutions
+
+> Four book-level LDA runs are documented here (newest first). They used different corpora and/or
+> text representations, so topic **positions and names are not comparable across runs**. All names are
+> provisional, single-rater. **The 26 April 2026 full-text run is the last established canonical.**
+>
+> ⚑ **Pending re-validation (KI-13):** the July 2026 Calibre reconstruction changed the analysed
+> corpus, so the "541 analysed" framing, the k=9 fit, and these names must all be re-validated by the
+> re-canonicalisation run before being carried forward — see **Current Sprint** and
+> `docs/recanonicalisation_checklist.md`.
+
+---
+
+**Book-level LDA — 26 April 2026 full-text canonical ← LAST ESTABLISHED CANONICAL (pending KI-13 re-validation)**
+541 books (monographs + collected works only) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --max-iter 100 --gpu`
+Run `run_20260426_k9_s5` · equivalence class `23b29233a67b2938` · nlp_hash `901e5ec924248fe2`
+**5/9 stable · 3 moderate (T1/T5/T8) · T7 unstable · mean stability=0.348** · perplexity 3650.7 · coherence 0.0780
+
+⚠️ Names **provisional**: finalised by a single rater (Paul Wong) in a single session (26 April 2026). Names are stable only after ≥3 runs × ≥2 raters (sprint item 4). Positions/names do **not** carry over from earlier runs — e.g. "Extensions of Cybernetics" named T3 in the pre-25-April sampled taxonomy occupies T9 here.
+
+| # | Name | Stability | Notes |
+|---|------|-----------|-------|
+| T1 | History and Historiography of Cybernetics | 0.261 moderate | Wiener/Bateson biographies, Macy Conferences, field history |
+| T2 | Techno-political Complexes | 0.441 stable | Cold War computing, surveillance, big tech, internet capitalism |
+| T3 | Engineering Control | 0.512 stable | State-space, transfer functions, controller design; PCT engineering vocab anchors here |
+| T4 | Social and Organisational Cybernetics | 0.529 stable | Beer/VSM recursive org model + Luhmann social-institutions scope |
+| T5 | Formal Foundations of Cybernetics | 0.178 moderate | Mathematical + computational foundations |
+| T6 | Reinventing Selves and Others, Past and Future | 0.458 stable | |
+| T7 | Psychological and Behavioural Regulation and Control | 0.045 unstable | ⚠️ PCT does *not* anchor here despite the name — a methodological feature, not a defect |
+| T8 | Biological and Neural Cybernetics | 0.287 moderate | |
+| T9 | Extensions of Cybernetics | 0.421 stable | Broad framing: ecology, posthumanism, second-order cybernetics, digital ontology |
+
+---
+
+**Book-level LDA — Run C: Full-text, pub-type filtered (14 April 2026) ← historical (superseded by 26 April canonical)**
 542 books (monographs + collected works only) · `--full-text --topics 9 --seeds 5 --lemmatize --max-features 15000 --run-id k9`
 File: `json/nlp_results_k9.json` · **5/9 stable · mean stability=0.327 · T9 highest (0.622)**
 
@@ -161,7 +220,7 @@ File: `json/nlp_results_k9.json` · **5/9 stable · mean stability=0.327 · T9 h
 **Book-level LDA — Run B: Full-text (14 April 2026, Session 1) ← historical reference**
 ~690 books (min-chars 10000, no pub-type filter) · `--full-text --topics 9 --max-features 15000`
 File: `json/nlp_results.json` · **6/9 stable · 1 unstable · mean stability=0.352**
-Predates pub-type filter; superseded by Run C as canonical.
+Predates pub-type filter; superseded (by Run C, in turn by the 26 April canonical).
 
 | # | Name | Stability |
 |---|------|-----------|
@@ -181,7 +240,7 @@ Predates pub-type filter; superseded by Run C as canonical.
 695 books · `--min-chars 10000 --lemmatize --topics 9 --seeds 5`
 Text input: 3 × 20k-char slices (10%/50%/85%) = **60k chars (~12k words) per book** · 7/9 stable · 0 dead · mean stability=0.382
 
-⚠️ Names below are **provisional**: agreed by a single rater (Paul Wong) in a single session. Superseded by Run C as canonical; retained here for comparison. File was overwritten by Run B on Cybersonic (confirmed 14 April 2026).
+⚠️ Names below are **provisional**: agreed by a single rater (Paul Wong) in a single session. Superseded (by Run C, in turn by the 26 April canonical); retained here for comparison. File was overwritten by Run B on Cybersonic (confirmed 14 April 2026).
 
 | # | Name | Stability |
 |---|------|-----------|
@@ -265,12 +324,22 @@ Full rationale: `docs/decisions.md` (1,600+ lines) · Full methodology: `docs/me
 | KI-01 | 6 books (IDs: 1416, 240, 1772, 1718, 1727, 1262) — OCR failures | **Resolved 3 April** — Calibre reindex + re-stream; all pass alpha ≥ 0.60 |
 | KI-02 | NLP run on 675 books with legacy k=7 | **Resolved 3 April** — canonical k=9 run on 695 books complete |
 | KI-03 | Dictionary inconsistency between AshbyX and NorbertX (SCOWL en_US-large) | **Superseded** — project moved to Cybersonic; monitor Cybersonic environment for reproducibility |
-| KI-04 | Amazon/Google/Facebook as high-degree nodes in entity network — ebook metadata noise | **Resolved** — `KNOWN_TECH_PLATFORMS` in `src/14_entity_network.py`; noise filters in `09b`; Internet Archive strings in `02`. (CLAUDE.md active KI‑04) |
-| KI-05 | T9 (Residual/Outlier): single-book loading=1.000 dominates | **Resolved (by interpretation)** — T9 labelled "Residual / Outlier Cluster"; the dominant single-book loading is accepted as the topic's catch-all role, not a defect. (CLAUDE.md active KI‑05; `docs/decisions.md`) |
-| KI-06 | Monograph assumption violations (proceedings/handbook/reader) not yet filtered from pipeline | **Resolved** — pub-type filter in `src/03_nlp_pipeline.py` includes only `monograph`/`collected works`. (CLAUDE.md active KI‑06) |
+| KI-04 | Amazon/Google/Facebook as high-degree nodes in entity network — ebook metadata noise | **Resolved** — `KNOWN_TECH_PLATFORMS` in `src/14_entity_network.py`; noise filters in `09b`; Internet Archive strings in `02`. |
+| KI-05 | T9 (Residual/Outlier): single-book loading=1.000 dominates | **Resolved (by interpretation)** — T9 labelled "Residual / Outlier Cluster"; the dominant single-book loading is accepted as the topic's catch-all role, not a defect. (`docs/decisions.md`) |
+| KI-06 | Monograph assumption violations (proceedings/handbook/reader) not yet filtered from pipeline | **Resolved** — pub-type filter in `src/03_nlp_pipeline.py` includes only `monograph`/`collected works`. |
+| KI-07 | ~130 misclassified entity nodes + EOLSS contamination + plural/comma fragments | **Resolved** — regex pre-filters (`_TRAILING_FUNC`, `_CTA_BACK_MATTER`, `_EOLSS_NOISE`, `_TRAILING_COLON`) in `src/14_entity_network.py` run before cache lookup; `MANUAL_CORRECTIONS` in `src/15_entity_classify.py` extended across five batches. |
+| KI-08 | 541 vs 542 book count — one book dropped at runtime | **Resolved** — [2133] *Cybernation and Social Change* added to `ocr-excluded`; parsed and cleaned normally but excluded before LDA/TF-IDF + entity network. Canonical: 542 parsed, 541 analysed. |
+| KI-09 | ~150 singular/plural node pairs split PMI signal | **Resolved** — `_singular_form()` + `concept_plural_map` in `src/14_entity_network.py` merge plurals into singulars (book-set union); `_CONCEPT_PLURAL_EXCEPTIONS` protects 35 `-ics` field names. |
+| KI-10 | Entity network concepts dropped 746→500 on fresh rebuild | **Resolved** — `run_all.sh` was running step 14 with `--no-windows`, excluding ~239 paragraph-only concept nodes; `--no-windows` removed. |
+| KI-11 | Stability band thresholds inconsistent: `log_pipeline_run.py` vs `09c_validate_topics.py` | **Open (post-presentation)** — `09c` uses stable ≥0.30 / moderate 0.15–0.30 / unstable <0.15; `log_pipeline_run.py` uses ~≥0.45; same `topic_stability.json`, conflicting counts. Centralise thresholds. (ROADMAP KI-10) |
+| KI-12 | Release HTMLs reflect rebuild nlp_hash, not logged canonical run | **Open (post-presentation)** — rebuild `c8e3c71bf8a3d910` differs from canonical logged `901e5ec924248fe2`; same equivalence class; survey workflow unaffected. (ROADMAP KI-11) |
 | KI-13 | Streaming clean cache stale after July 2026 Calibre DB reconstruction. Post-`--rebuild-clean` audit (17 Jul, `runlog20260717.csv`) found a **28-book ingestion gap**: 12 confirmed analysable-monograph recoveries (207, 2087, 2186, 2257, 2271, 2283, 2511, 2517, 2716, 2797, 2799, 2801), 5 correctly excluded (2193/2239/2306 non-monograph; 2138 fr / 2359 ca), 11 brand-new unverifiable (2174, 2701, 2707, 2776, 2778, 2790, 2806–2810). Corrected analysed count **~556–567, not 544**. Mechanisms: (a) id 207 has no `format='PDF'` `books_text` row → dropped by `split_books_text.sh`; (b) ~27 No-meta skips in streaming clean. Second arm: reconstruction never regenerated `books_metadata_full.csv` (Apr 11, old ids), so the pub-type filter ran on stale metadata. | **Guard landed** (`check_clean_cache.py` + `run_all.sh --rebuild-clean`); re-canonicalisation open — re-export `books_metadata_full.csv`, fix id-207 PDF row + No-meta skip, re-run. Detail: `docs/ROADMAP.md` §"KI-13 post-rebuild ingestion gap"; steps: `docs/recanonicalisation_checklist.md` |
 
-> **Note:** the **canonical** KI list lives in `CLAUDE.md` ("Known issues (active)") and `docs/ROADMAP.md`. This table is a partial mirror: it uses an older numbering (KI-01–03 differ from the active scheme) and omits KI-07–KI-12. Statuses synced 18 Jul 2026. To avoid future drift, treat CLAUDE.md/ROADMAP as authoritative; structural de-duplication (reduce this table to a pointer) pending an ownership decision.
+> **Ownership (decided 19 Jul 2026):** this table is the **canonical orientation index** for
+> known issues. **`docs/ROADMAP.md`** holds the canonical per-issue resolution detail (commit
+> hashes, file-level changes), with `docs/CHANGELOG.md` / `docs/contributions.md`. `CLAUDE.md`
+> now points here and no longer carries its own KI table. KI-01–03 are retained as historical
+> (resolved/superseded under an older numbering that predates the active KI-04+ scheme).
 
 ---
 

@@ -14,7 +14,7 @@ Session history, changelog, and open work live in the canonical logs — not her
 - CRediT / session rows: `docs/contributions.md`
 - Design decisions: `docs/decisions.md`
 - Open backlog: `docs/ROADMAP.md`
-- Master project doc (sprint list, session log, known issues): `02 Projects/CyberneticsNLP/CyberneticsNLP.md` in the vault
+- Master project doc — **canonical** for sprint list, session log, known issues, and the release goal: `docs/CyberneticsNLP.md` (in-repo; the vault copy at `02 Projects/CyberneticsNLP/CyberneticsNLP.md` mirrors it)
 
 ---
 
@@ -111,10 +111,11 @@ Numbered scripts in `src/` form a linear pipeline orchestrated by `run_all.sh`.
 - Two regex filters in `14_entity_network.py` (`_TRAILING_FUNC`, `_CTA_BACK_MATTER`, `_EOLSS_NOISE`, `_TRAILING_COLON`) run **before** cache lookup so stale cache entries cannot override them.
 
 **Survey infrastructure (orthogonal to the NLP pipeline):**
-- `data/pipeline.db` — SQLite, 8 tables. Replaces the older 3-table `data/topic_naming.db`. All survey scripts import from `src/pipeline_db.py`.
+- `data/pipeline.db` — SQLite, 8 tables (`equivalence_classes`, `pipeline_runs`, `runlog_entries`, `naming_sessions`, `topic_ratings`, `google_form_configs`, `google_form_responses`). Replaces the older 3-table `data/topic_naming.db`. All survey scripts import from `src/pipeline_db.py`.
 - **Equivalence class** = SHA-256(16) of `(k, n_books, max_features, pipeline_mode, seeds_used)`. Two runs in the same class are comparable up to topic permutation.
 - **nlp_hash** = SHA-256(16) of `nlp_results.json` — identifies a specific run instance.
 - `credentials.json` + `token.json` are gitignored (see `.gitignore`).
+- **Survey scripts:** `pipeline_db.py` (DB module: `open_db()`, `compute_file_hash()`, `compute_run_hash()`, `find_run_by_nlp_hash()`) · `log_pipeline_run.py` (manual run logging; `--test` marks survey-ineligible) · `generate_google_form.py` (form from `nlp_results.json`; enforces run-logging) · `ingest_google_responses.py` (idempotent response fetch) · `get_google_token.py` (one-time OAuth) · `migrate_pipeline_db.py` (one-shot `topic_naming.db` migration) · `record_topic_run.py` (interim local HTTP server).
 
 **Output directories:**
 - `json/` — pipeline intermediates (see `README.md` for full inventory)
@@ -299,80 +300,33 @@ The mapping from generic placeholders to actual infrastructure identifiers lives
 
 ## Release goal — Book-level HTML for colleague sharing
 
-**Target:** Release the book-level analysis HTML files to colleagues after presentation.
-**Standard:** Defensible — genuine effort at error reduction; not certified error-free.
-Consistent with the standing methodological principle and the provenance notice in all
-reports.
-
-**Files in scope for release (nav links to entity network, not summaries):**
-- `data/outputs/index.html` — main report (Fig 1–6 + topic proportions)
-- `data/outputs/clusters.html` — cluster composition
-- `data/outputs/keyphrases.html` — keyphrase analysis
-- `data/outputs/cosine.html` — cosine similarity
-- `data/outputs/book_nlp_entity_network.html` — entity relational network
-
-`books.html` (per-book summaries) is **not** in the current release scope — summary quality
-is not yet at release standard (60k-token sampling limits). All four navigable pages link
-to the entity network via the nav tab.
-
-**"Defensible" means:** all known systematic errors (platform contamination, EOLSS noise,
-trailing fragments, node misclassifications) are fixed or mitigated; provenance notice
-visible at all scroll positions; topic names match current provisional LDA names; entity
-network validated against domain knowledge; results framed as automated provisional
-analysis with no individual certified findings.
+Canonical target, file list, and the "defensible" standard live in the master doc:
+`docs/CyberneticsNLP.md` §"Release goal — Book-level HTML for colleague sharing" (under
+Phase 3). The standing *all outputs are provisional* principle above governs release framing.
 
 ---
 
-## Current sprint — Topic naming reliability
+## Current sprint
 
-**Item 1 complete:** full `pipeline.db` survey infrastructure built.
-
-**Core database:** `data/pipeline.db` (8 tables). Shared by all survey scripts via
-`src/pipeline_db.py`. Tables: `equivalence_classes`, `pipeline_runs`, `runlog_entries`,
-`naming_sessions`, `topic_ratings`, `google_form_configs`, `google_form_responses`.
-
-**Canonical workflow:**
-1. `bash src/run_all.sh` — pipeline run; runlog auto-saved.
-2. Review runlog. If satisfied: `python src/log_pipeline_run.py --runlog …`.
-3. `python src/generate_google_form.py` — creates a form for the logged run (blocks test runs).
-4. Share form URL with raters.
-5. `python src/ingest_google_responses.py` — idempotent.
-
-**Survey scripts:**
-- `src/pipeline_db.py` — DB module; schema; `open_db()`, `compute_file_hash()`, `compute_run_hash()`, `find_run_by_nlp_hash()`
-- `src/log_pipeline_run.py` — manual run logging; shows equivalence class; `--test` marks run survey-ineligible
-- `src/migrate_pipeline_db.py` — one-shot migration from `topic_naming.db`
-- `src/get_google_token.py` — one-time OAuth (run on a machine with browser)
-- `src/generate_google_form.py` — creates Google Form from `nlp_results.json`; enforces run-logging pre-condition
-- `src/ingest_google_responses.py` — fetches responses into `naming_sessions` + `topic_ratings`
-- `src/record_topic_run.py` — local HTTP server (interim); uses `pipeline_db`
-
-**Items 2–4 open** (tracked in `docs/ROADMAP.md` and the master project doc):
-2. **n-run comparison report** — `src/compare_topic_runs.py --runs N`. Draft: `02 Projects/CyberneticsNLP/docs/src_draft/compare_topic_runs.py`.
-3. **Multi-rater naming protocol** — ≥2 independent raters per topic per run; inter-rater agreement.
-4. **Revise naming status** — current k=9 names are provisional (single run, single rater). Names stable only after ≥3 runs and ≥2 raters agree.
+Sprint focus, item lists, and the KI-13 re-canonicalisation plan live in the master doc:
+`docs/CyberneticsNLP.md` §"Current Sprint". Operational survey commands are under
+**Commands** above; the `pipeline.db` schema and survey scripts under **Architecture**
+(§"Survey infrastructure").
 
 ---
 
-## Backlog item — User correction mechanism (ROADMAP #15)
+## Backlog item — User correction mechanism
 
-Entity network HTML is shared publicly. Viewers will spot misclassifications.
-**Future task:** add in-report UI for users to flag corrections (wrong kind, duplicate,
-fragment). Corrections feed back into `MANUAL_CORRECTIONS` after review.
-Open design questions: capture channel, correction schema, review workflow.
+Entity-network HTML is shared publicly; viewers will spot misclassifications. Design intent
+and open questions (capture channel, correction schema, review workflow) live in
+`docs/ROADMAP.md` #15.
 
 ---
 
 ## HTML report bugs
 
-Canonical list in `docs/ROADMAP.md`. KI numbers in this file refer to pipeline/data issues;
-ROADMAP # refers to code/UI bugs. The ROADMAP's older KI-01–KI-09 list is stale (v0.4.2)
-and should not be confused with the active KI tracking below.
-
-| ROADMAP # | Report file | Description | Status |
-|-----------|-------------|-------------|--------|
-| #16 | `index.html` Fig 3 + `keyphrases.html` | Topic filter dropdowns used stale names. Root cause: `patch_topic_names.py` TAXONOMY overwrote `nlp_results.json` on every run. Fixed: TAXONOMY updated; `_LDA_BASE` fallback updated; `lda_names` added to `kp_data`; keyphrases JS fixed. | ✅ Done |
-| #17 | `book_nlp_entity_network.html` | Provenance notice (`position:fixed;top:0`) covered the app header. Fixed in `src/14_entity_network.py`: notice is now `flex-shrink:0` static, injected before `<div class="header">`. | ✅ Done |
+Canonical list lives in `docs/ROADMAP.md` (#16–#18, all ✅ Done). KI numbers in this file
+refer to pipeline/data issues; ROADMAP # refers to code/UI bugs.
 
 ---
 
@@ -397,21 +351,11 @@ replaced with generic descriptions here (security principle). Actual values live
 
 ## Known issues (active)
 
-Resolution detail (commit hashes, file-level changes) is in `docs/CHANGELOG.md` and
-`docs/contributions.md`. This table is the orientation index only.
-
-| ID | Issue | Status |
-|----|-------|--------|
-| KI-04 | Amazon/Google as high-degree nodes — ebook metadata noise | **Resolved.** `KNOWN_TECH_PLATFORMS` in `src/14_entity_network.py`; noise filters in `src/09b_build_index_analysis.py`; Internet Archive strings in `src/02_clean_text.py`. |
-| KI-05 | T9: book [249] loading=1.000 dominates | **Resolved (by interpretation).** Topic T9 labelled **"Residual / Outlier Cluster"** — the dominant single-book loading is accepted as a feature of the topic's role as a catch-all for material that doesn't cohere with the other eight topics, not a defect to be filtered. Label applied in `src/patch_topic_names.py:108-109` TAXONOMY and visible in `data/outputs/index.html`. Rationale recorded in `docs/decisions.md`. |
-| KI-06 | Proceedings/handbook books not yet filtered from pipeline | **Resolved.** Pub-type filter in `src/03_nlp_pipeline.py:295-333` includes only books whose Calibre `pub_type` contains `monograph` or `collected works`. Consistent with canonical framing ("541 monographs and collected works analysed"). Two lenient-default caveats (unlabelled books default to include; missing metadata CSV skips the filter silently) tracked as ROADMAP #25. |
-| KI-07 | ~130 misclassified nodes + EOLSS contamination + plural/comma fragments | **Resolved.** Regex pre-filters (`_TRAILING_FUNC`, `_CTA_BACK_MATTER`, `_EOLSS_NOISE`, `_TRAILING_COLON`) in `src/14_entity_network.py` run before cache lookup; `MANUAL_CORRECTIONS` in `src/15_entity_classify.py` extended across five batches. |
-| KI-08 | 541 vs 542 book count — one book dropped at runtime | **Resolved.** [2133] *Cybernation and Social Change* added to `ocr-excluded` list. Parsed and cleaned normally but excluded before LDA/TF-IDF fitting and entity network construction. Canonical corpus: 542 parsed, 541 analysed. |
-| KI-09 | ~150 singular/plural node pairs split PMI signal | **Resolved.** `_singular_form()` + `concept_plural_map` in `src/14_entity_network.py`; plurals merged into singulars with book-set union. `_CONCEPT_PLURAL_EXCEPTIONS` protects 35 `-ics` field names (cybernetics, thermodynamics, …). |
-| KI-10 | Entity network concepts dropped 746→500 on fresh rebuild | **Resolved.** Root cause: `run_all.sh` was running step 14 with `--no-windows`, excluding ~239 concept nodes that only have paragraph-level edges. Fix: `--no-windows` removed from `run_all.sh`. |
-| KI-11 | Stability band thresholds inconsistent: `log_pipeline_run.py` vs `09c_validate_topics.py` | **Open (post-presentation).** `09c` uses stable ≥0.30 / moderate 0.15–0.30 / unstable <0.15; `log_pipeline_run.py` uses different implicit thresholds (~≥0.45 stable). Same `topic_stability.json`, conflicting counts. Fix: centralise thresholds. See ROADMAP KI-10. |
-| KI-12 | Release HTMLs reflect rebuild nlp_hash, not logged canonical run | **Open (post-presentation).** Rebuild run (`c8e3c71bf8a3d910`) differs from canonical logged run (`901e5ec924248fe2`); same equivalence class. Survey workflow unaffected. See ROADMAP KI-11. |
-| KI-13 | Streaming clean cache silently stale after Calibre DB reconstruction | **Fix landed; re-canonicalisation open.** July 2026 Calibre DB was corrupted and reconstructed (ids reassigned, authors normalised). `parse_and_clean_stream.py` skips books by id, so the reconstructed corpus was never re-ingested — `run_20260716-5` analysed 544 books from a pre-reconstruction cache. 27 books have PDF text in the reconstructed `metadata.db` but are missing from the cache (12 English recoveries incl. 3 re-IDed Emery works; 15 non-English correctly lang-excluded). Fix: `src/check_clean_cache.py` fingerprints shards vs `json/books_clean.manifest.json`; `run_all.sh --stream` aborts on mismatch, `--rebuild-clean` rebuilds and rewrites the manifest. **Next:** run `--rebuild-clean`, then re-establish canonical run (new equivalence class; "541 analysed" framing and k=9 fit need re-validation). See ROADMAP KI-13. |
+The canonical KI orientation index lives in the master doc: `docs/CyberneticsNLP.md`
+§"Known Issues". Per-issue resolution detail (commit hashes, file-level changes) is in
+`docs/ROADMAP.md`, with `docs/CHANGELOG.md` / `docs/contributions.md`. At last sync the active
+set was **KI-04–KI-13** — KI-11, KI-12, KI-13 open (post-presentation / re-canonicalisation);
+the rest resolved.
 
 ---
 
