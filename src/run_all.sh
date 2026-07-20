@@ -182,7 +182,7 @@ fi
 # at k=9 afterwards to restore the canonical solution before committing.
 #
 # To restore canonical k=9 after a comparison run:
-#   python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100 --gpu
+#   python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100
 #   python3 src/patch_topic_names.py   # re-apply agreed topic taxonomy
 #   python3 src/check_stale_vars.py --fix
 #   python3 src/09c_validate_topics.py --top 10 --md

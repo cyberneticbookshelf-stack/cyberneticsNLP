@@ -23,7 +23,7 @@ Session history, changelog, and open work live in the canonical logs — not her
 - **Repo:** `~/CyberneticsNLP/` on the NLP machine, accessed via the sshfs mount inside the vault
 - **Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
 - **Canonical corpus framing:** "566 monographs and collected works analysed" from a 739-book reconstructed Calibre collection (July 2026 rebuild — KI-13). Supersedes the 26 April "541 analysed / 695-book" framing.
-- **Canonical k:** 9 (validated April 2026; **re-established on the post-reconstruction full-text run, 19 July 2026** — `run_20260719_k9_s5`, equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`). `run_all.sh` enforces `--topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100 --gpu` (the 19 July run executed on **CPU** — cuML/RAPIDS not installed — so GPU-backend parity is not yet re-confirmed). Topic names finalised 19 July 2026 (single rater, single run — sprint item 4 still requires ≥3 runs × ≥2 raters before names can be considered stable). Prior canonical: `run_20260426_k9_s5` / class `23b29233a67b2938` (541 books), now historical.
+- **Canonical k:** 9 (validated April 2026; **re-established on the post-reconstruction full-text run, 19 July 2026** — `run_20260719_k9_s5`, equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`). `run_all.sh` enforces `--topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100`; the canonical backend is **CPU** (sklearn). `--gpu` was deliberately removed from the live command 25 Apr 2026 (broken cuML/RAPIDS conda env — see `run_all.sh:197-201`) and is **not** part of canonical provenance. The 19 July run correctly ran on CPU (`gpu_used=False`) — this is by design, not a silent fallback. GPU (cuML) is a repaired-env *speed* option only; because cuML and sklearn are different LDA implementations, a GPU run would not reproduce the CPU `nlp_hash`, so it is not a route to backend "parity". Topic names finalised 19 July 2026 (single rater, single run — sprint item 4 still requires ≥3 runs × ≥2 raters before names can be considered stable). Prior canonical: `run_20260426_k9_s5` / class `23b29233a67b2938` (541 books), now historical.
 - **Current run record:** query `data/pipeline.db` (`pipeline_runs`, `runlog_entries`) or read the latest `data/outputs/runlogYYYYMMDD.csv`. Don't rely on hardcoded figures here — they rot.
 - **Current version:** read `docs/CHANGELOG.md` (top entry).
 
@@ -49,7 +49,7 @@ on the same day).
 
 **Restore canonical k=9 after a k-sweep comparison run:**
 ```
-python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100 --gpu
+python3 src/03_nlp_pipeline.py --min-chars 10000 --lemmatize --topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100
 python3 src/patch_topic_names.py
 python3 src/check_stale_vars.py --fix
 python3 src/09c_validate_topics.py --top 10 --md

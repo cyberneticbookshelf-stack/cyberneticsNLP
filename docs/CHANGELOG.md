@@ -6,7 +6,7 @@ Dates are AEST (UTC+11).
 
 ---
 
-## [0.5.5] — 2026-07-16 → 07-19 (in progress)
+## [0.5.5] — 2026-07-16 → 07-20 (in progress)
 
 > Sessions: 16–19 July 2026 (Claude Code CLI) — KI-13 (stale clean cache after the July
 > Calibre reconstruction) diagnosed and guarded; the post-rebuild 28-book ingestion gap
@@ -30,8 +30,12 @@ Dates are AEST (UTC+11).
   count 725 → 733.
 - **New canonical run.** `run_all.sh --stream --rebuild-clean` → **566 books analysed** (was
   544), all 12 gap monographs present; k=9, mean stability 0.365 (6 stable / 2 moderate / 1
-  unstable, 09c bands). Ran on CPU (cuML/RAPIDS unavailable — GPU-backend parity not re-confirmed).
-  Logged as `run_20260719_k9_s5` (new equivalence class).
+  unstable, 09c bands). Ran on **CPU** (`gpu_used=False`) — `--gpu` was removed from `run_all.sh`
+  on 25 Apr 2026 (broken cuML/RAPIDS conda env), so this is the canonical backend by design, not
+  a fallback. **CPU accepted as the canonical backend (20 Jul 2026):** no GPU re-run — cuML and
+  sklearn are different LDA implementations, so a GPU fit would not reproduce the CPU `nlp_hash`;
+  GPU remains a repaired-env speed option, not part of provenance. Logged as `run_20260719_k9_s5`
+  (new equivalence class).
 - **`src/patch_topic_names.py` — 9 topic names finalised for the 566 fit (`06bf881`).** Positions
   permuted vs April (April's single "Social and Organisational" split into Social Systems T5 vs
   Management T7), so a relabelling by position was wrong. New names propagated into `_LDA_BASE`
