@@ -15,6 +15,50 @@ Dates are AEST (UTC+11).
 > equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`) supersedes the 541-book
 > 26 April `run_20260426_k9_s5`.
 
+### Added
+
+- **`src/04b_llm_summarize.py` — abstractive book-level summary stage (opt-in).** New
+  companion to the extractive `04_summarize.py`: generates whole-book summaries in the same
+  three styles (descriptive / argumentative / critical) via the local vLLM service
+  (map-reduce, adapted from `csv/summarize.py`). Reads `books_clean.json` + the canonical
+  `book_ids` from `nlp_results.json`; feeds `clean_text` in directly (no file-extraction
+  path). Each book is condensed **once** with a neutral, fidelity-preserving map-reduce
+  (retains key concepts, central claims + evidence, and stated strengths/limitations), then
+  the three styles are cheap single-pass reduces over that condensed material — keeping the
+  dominant cost ~1× rather than 3×. **Resumable:** checkpoints to `json/llm_summaries.json`
+  after every book (atomic temp+rename), skips completed ids on re-run (`--force` to redo),
+  and leaves a failed book pending without losing progress. Retries transient API errors with
+  backoff, fails fast + friendly if the server is unreachable at startup, and a circuit-breaker
+  (`--max-failures`, default 3) aborts early + resumable if the server goes down mid-run rather
+  than grinding the rest of the list. Output is provisional per
+  the standing methodological principle. **Not wired into `06_build_report.py` yet** —
+  JSON-only this pass, pending side-by-side validation against the extractive output
+  (ROADMAP #29). Machine-name-free (tracked `src/`), per the security principle.
+- **`run_all.sh --llm-summaries` — opt-in flag** to run stage 04b as part of a full pipeline
+  run. Off by default (the vLLM server must be up and it is slow over the full corpus) and
+  guarded so a server-down / partial failure cannot abort the pipeline under `set -e`.
+- **`src/summarize.py` promoted to a tracked utility + `src/llm_summarize_lib.py` shared module.**
+  The standalone file→summary CLI (previously the gitignored `csv/summarize.py`) moved into
+  `src/`; the mechanical plumbing shared with `04b` (token estimate, paragraph chunking, the
+  retrying `chat` call, API-key resolution) factored into `llm_summarize_lib.py`, imported by
+  both — single source of truth, no drift. `summarize.py`'s CLI is unchanged. **Security:** the
+  hardcoded default API key (`"mytestkey"`) was removed from both tracked files — the key now
+  resolves via `resolve_api_key()` (CLI flag → `$API_KEY` env → non-secret `"EMPTY"` placeholder),
+  per the standing security principle (no credential values in committed files). The machine name
+  in `summarize.py`'s docstring was likewise genericised on the move into tracked `src/`.
+  **Behavioural note:** if the local server requires a specific key, set `$API_KEY` (or pass
+  `--api-key`) — it is no longer baked into the source.
+- **`04b_llm_summarize.py --endpoints` — multi-GPU data-parallel fan-out (ROADMAP #30).** With a
+  2nd GPU online, `--endpoints host:port,host:port` (e.g. `127.0.0.1:8004,127.0.0.1:8005`) runs
+  one worker thread per endpoint, each pulling books from a shared `queue.Queue` (dynamic
+  self-balancing across uneven book sizes) and writing through a single `threading.Lock`-guarded
+  checkpoint — threads give real parallelism since the LLM calls are blocking HTTP (GIL released).
+  Unreachable endpoints are dropped at startup; an endpoint that dies mid-run retires after
+  `--max-failures` and leaves its books pending (resumable) while the rest continue. Single
+  endpoint stays the default (unchanged). No server-side change needed — `serve_summarize.sh`
+  already launches N instances via `GPU=`/`PORT=` env vars. Offline-validated with a mocked
+  two-endpoint fan-out; live two-GPU throughput not yet measured.
+
 ### Re-canonicalisation (KI-13, 19 July)
 
 - **`src/00_export_calibre.py` — bind custom columns by name, not number (`37e2138`).** The

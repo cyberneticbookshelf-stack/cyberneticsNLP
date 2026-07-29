@@ -74,6 +74,20 @@ One-time setup: `python src/get_google_token.py` on a machine with browser acces
 Requires `index_analysis.json` from a prior full run. See the commented block at the end of
 `src/run_all.sh`.
 
+**Optional abstractive summaries (opt-in — needs the local vLLM service):**
+`04b_llm_summarize.py` generates whole-book LLM summaries (descriptive / argumentative /
+critical) → `json/llm_summaries.json`. Not in the default `run_all.sh` (server dependency +
+slow over the full corpus); resumable (per-book atomic checkpoint, skips completed on re-run).
+```
+python3 src/04b_llm_summarize.py            # standalone; --limit N to smoke-test first
+python3 src/04b_llm_summarize.py --endpoints 127.0.0.1:8004,127.0.0.1:8005   # fan out across 2 GPUs
+bash src/run_all.sh --llm-summaries         # opt-in flag, off by default (single endpoint)
+```
+Multi-GPU: launch one vLLM instance per GPU (`GPU=4 PORT=8004`, `GPU=5 PORT=8005` via
+`serve_summarize.sh`), then pass both to `--endpoints` (one worker per endpoint, shared queue,
+single locked checkpoint). Set `$API_KEY` to match the server's key. JSON-only for now — not
+wired into `06_build_report.py` (ROADMAP #29); multi-GPU fan-out done (ROADMAP #30).
+
 ---
 
 ## Architecture
@@ -84,6 +98,19 @@ Numbered scripts in `src/` form a linear pipeline orchestrated by `run_all.sh`.
 - `00_classify_book_styles.py` — heuristic style classification (title/author/publisher signals)
 - `00_fetch_worldcat_metadata.py`, `00_fetch_anu_primo.py` — Google Books / Open Library / ANU Primo enrichment
 - Writes `json/book_styles.json` (covariate for downstream analysis)
+
+**Optional stages (NOT in `run_all.sh` by default):**
+- `04b_llm_summarize.py` — abstractive book summaries via the local vLLM service (opt-in
+  `--llm-summaries`); companion to the extractive `04_summarize.py`. Reads `books_clean.json`
+  + `nlp_results.json` `book_ids`; writes `json/llm_summaries.json`. Resumable per-book.
+  JSON-only (not wired into `06_build_report.py` — ROADMAP #29). Multi-GPU scale-out: ROADMAP #30.
+
+**Local-vLLM summariser utilities (not pipeline stages):**
+- `summarize.py` — standalone file→summary CLI (`.pdf`/`.docx`/`.txt` …) against the local
+  vLLM service; format styles (prose/bullets/exec). Run from anywhere.
+- `llm_summarize_lib.py` — shared plumbing imported by `summarize.py` and `04b_llm_summarize.py`
+  (token estimate, paragraph chunking, retrying `chat`, `resolve_api_key`). API key resolves
+  from `$API_KEY` / `--api-key` (never hardcoded — security principle); no server key in source.
 
 **Main pipeline stages (in `run_all.sh`):**
 1. `01_parse_books.py` → `json/books_parsed.json`

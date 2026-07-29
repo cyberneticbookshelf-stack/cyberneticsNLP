@@ -4,6 +4,7 @@
 # Usage (from project root):
 #   bash src/run_all.sh                        # small corpus (<~300 books): standard path
 #   bash src/run_all.sh --stream               # large corpus: streaming parse+clean
+#   bash src/run_all.sh --llm-summaries        # also run 04b abstractive LLM summaries (opt-in; needs vLLM server)
 #   bash src/run_all.sh --stream --rebuild-clean   # discard the clean cache and re-clean all shards
 #
 # --stream processes one books_text_*.csv at a time via parse_and_clean_stream.py,
@@ -25,10 +26,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STREAM=0
 TEST=0
 REBUILD_CLEAN=0
+LLM_SUMMARIES=0
 for arg in "$@"; do
     [ "$arg" = "--stream" ]        && STREAM=1
     [ "$arg" = "--test"   ]        && TEST=1
     [ "$arg" = "--rebuild-clean" ] && REBUILD_CLEAN=1
+    [ "$arg" = "--llm-summaries" ] && LLM_SUMMARIES=1
 done
 
 # ── Runlog: capture all pipeline output to a dated CSV in data/outputs/ ───────
@@ -206,6 +209,15 @@ python3 "$SCRIPT_DIR/patch_topic_names.py"
 python3 "$SCRIPT_DIR/check_stale_vars.py" --fix
 python3 "$SCRIPT_DIR/09c_validate_topics.py" --top 10 --md
 run 04_summarize.py
+# Opt-in abstractive book summaries via the local vLLM service (--llm-summaries).
+# Off by default: needs the summariser server up and is slow over the full corpus.
+# Guarded so a server-down / partial failure never aborts the pipeline (set -e is
+# on); the stage is resumable, so a re-run picks up where it left off.
+if [ $LLM_SUMMARIES -eq 1 ]; then
+    echo ""; echo "── 04b_llm_summarize.py (opt-in) ──"
+    python3 "$SCRIPT_DIR/04b_llm_summarize.py" \
+        || echo "⚠ 04b_llm_summarize.py did not complete (vLLM server down?) — resumable on re-run; continuing."
+fi
 run 05_visualize.py
 run 06_build_report.py
 run 07_build_excel.py

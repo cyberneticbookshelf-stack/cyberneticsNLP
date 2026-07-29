@@ -1,5 +1,46 @@
 # Design Decisions & Rationale
 
+## Abstractive LLM summaries — map once, style three times; JSON-only before report wiring
+**Date:** 29 July 2026 | **Session:** CLI
+
+### Context
+A new opt-in stage (`src/04b_llm_summarize.py`) generates abstractive whole-book summaries via
+the local vLLM service, in the same three styles the extractive `04_summarize.py` and the HTML
+report already use: descriptive, argumentative, critical. Summarising the full 566-book corpus
+through a single GPU is the dominant cost.
+
+### Decision 1 — map once, style three times
+Rather than run three independent map-reduce passes per book (one per style), each book is
+condensed **once** with a neutral, fidelity-preserving map prompt that retains (a) key concepts,
+(b) central claims + their evidence, and (c) any stated strengths/limitations. The three styles
+are then cheap single-pass reduces over that condensed material.
+
+**Rationale.** The expensive part is mapping every chunk of a long book; style is a synthesis
+concern applied at the reduce step, not at extraction. Mapping once keeps the dominant cost at
+~1× rather than 3×. The neutral map prompt is written to preserve thesis + evidence + evaluative
+judgements specifically so the argumentative and critical reduces still have their raw material.
+A book short enough to fit one pass skips the condensing step entirely and is styled directly
+from full text (best fidelity).
+
+**Trade-off accepted.** The critical/argumentative reduces work over a condensed summary, not raw
+text, so any evaluative signal the neutral map dropped is unrecoverable downstream. Judged
+acceptable because the map prompt is explicitly instructed to preserve it and the compute saving
+is large over 566 books. If faithfulness spot-checks (ROADMAP #29) show the condensing loses
+critical material, the fallback is per-style map prompts at 3× cost.
+
+### Decision 2 — JSON-only before report wiring
+The stage writes `json/llm_summaries.json` and stops; `06_build_report.py` is untouched this
+pass. Abstractive summaries can hallucinate facts the extractive path structurally cannot, so per
+the standing *all outputs are provisional* principle they must be compared side-by-side against
+the extractive `summaries.json` and spot-checked for faithfulness before adoption. The record
+shape mirrors `summaries.json` for a clean future drop-in. Tracked in ROADMAP #29.
+
+### Decision 3 — opt-in, not in default `run_all.sh`
+The stage needs the vLLM server up and is slow over the full corpus, so it is not a default
+pipeline stage. It runs standalone or via the guarded `run_all.sh --llm-summaries` flag (off by
+default; `|| echo` guard so a server-down exit cannot abort the pipeline under `set -e`).
+Consistent with how the external-API pre-processing scripts are kept out of `run_all.sh`.
+
 ## Canonical LDA seed unified at random_state=42
 **Date:** 25 April 2026 | **Session:** Cowork
 
