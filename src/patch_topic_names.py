@@ -1,17 +1,60 @@
 """
 patch_topic_names.py
 ────────────────────
-Writes agreed topic names and notes into topic_validation.json.
+Writes agreed topic names and notes into topic_validation.json and
+nlp_results.json — matching each name to a topic **by content**, never by
+position.
+
 Run from project root:
-    python3 patch_topic_names.py
+    python3 src/patch_topic_names.py                # apply (gated)
+    python3 src/patch_topic_names.py --report       # show alignment, write nothing
+    python3 src/patch_topic_names.py --emit-signatures
+    python3 src/patch_topic_names.py --force        # apply despite a failed gate
+
+WHY THE GATE EXISTS (ROADMAP #32, 20 September 2026)
+────────────────────────────────────────────────────
+This script used to apply TAXONOMY['T1'] to topic index 0, TAXONOMY['T2'] to
+index 1, and so on. That is only valid while topic positions are stable, and
+they are not. When the corpus grew 566 -> 575 books, the clusters **recombined**:
+two July topics merged into one, one split across two, one dispersed, and one
+new topic emerged with no predecessor. **0 of 9 names landed on the right
+topic**, every downstream report shipped mislabelled, and nothing failed —
+`check_stale_vars.py` reported "9/9 match" throughout, because it compares
+scripts against nlp_results.json, which by then already held the wrong names.
+The error was caught only by hand-comparing top words against an old runlog.
+
+So the rule this script now enforces: **a name belongs to a run, not to a topic
+index.** Each TAXONOMY entry carries a SIGNATURE — the top words of the topic it
+was validated against. On every invocation the stored signatures are aligned
+against the current run's topics by word overlap (optimal assignment, not
+greedy), and names are applied along that alignment. If the alignment is weak or
+ambiguous, the script **refuses to write** rather than guessing.
+
+It also refuses outright when the equivalence class has changed, because a
+changed corpus is precisely the situation where names stop transferring — and a
+confident-looking alignment is then more dangerous than no alignment at all.
+Re-validate the names against the new run, then refresh this file's provenance
+and signatures with --emit-signatures.
 """
-import json, pathlib, sys
+import argparse
+import json
+import pathlib
+import sys
 
-target = pathlib.Path('json/topic_validation.json')
-if not target.exists():
-    sys.exit(f"ERROR: {target} not found — run from project root")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-data = json.load(open(target))
+# Alignment gate thresholds.
+# MIN_OVERLAP: a stored signature must share at least this Jaccard overlap with
+#   the topic it is matched to. Calibrated against the 20 Sep evidence: a topic
+#   that genuinely carried across runs scored 0.50-0.71 on top-8 words, while
+#   merged/dispersed topics scored 0.20-0.33. 0.50 sits at that boundary — but
+#   note the gate below refuses on a changed equivalence class regardless, so
+#   this threshold mainly guards same-class re-fits.
+# MIN_MARGIN: the best match must beat the runner-up by this much, otherwise the
+#   assignment is ambiguous (two names contending for one topic — the signature
+#   of a merge).
+MIN_OVERLAP = 0.50
+MIN_MARGIN = 0.10
 
 # ── Full-text canonical taxonomy (541-book corpus, 25 April 2026) ─────────────
 # First genuine full-text canonical run (--full-text --max-features 15000).
@@ -205,53 +248,277 @@ TAXONOMY = {
     },
 }
 
-# Apply to validation data
-topics = data.get('topics', data.get('validation', []))
-if not topics:
-    # Try top-level keys
-    print("Keys in topic_validation.json:", list(data.keys()))
-    sys.exit("ERROR: could not find topics list — check structure")
+# ── Provenance of the taxonomy above ─────────────────────────────────────────
+# The run these names were validated against. If the current run's equivalence
+# class differs from this, the names are not entitled to transfer — see the
+# module docstring.
+TAXONOMY_PROVENANCE = {
+    'run_id':            'run_20260920_k9_s5',
+    'equivalence_class': '3273ea3e577fdc99',
+    'nlp_hash':          '92b9f2d2151f0ee7',
+    'k':                 9,
+    'n_books':           575,
+    'validated':         '2026-09-20',
+    'rater':             'single (provisional — sprint item 4 requires >=3 runs x >=2 raters)',
+}
 
-updated = 0
-for topic in topics:
-    label = topic.get('topic_label', '')
-    if label in TAXONOMY:
-        topic['proposed_name'] = TAXONOMY[label]['proposed_name']
-        topic['notes']         = TAXONOMY[label]['notes']
-        updated += 1
-        print(f"  {label} → {TAXONOMY[label]['proposed_name']}")
+# ── Topic signatures ─────────────────────────────────────────────────────────
+# Top words of each topic **as validated**, used to match names to topics by
+# content. Regenerate with --emit-signatures after any re-validation, and update
+# TAXONOMY_PROVENANCE in the same edit — the two must always describe the same
+# run, or the gate is checking one run's names against another run's fingerprint.
+SIGNATURES = {
+    'T1': ['city', 'qian', 'chinese', 'water', 'xuesen', 'ancient', 'culture', 'china', 'century', 'invention', 'tion', 'technology'],
+    'T2': ['social', 'communication', 'society', 'environment', 'meaning', 'object', 'distinction', 'reality', 'philosophy', 'organization', 'language', 'complexity'],
+    'T3': ['decision', 'management', 'organization', 'variety', 'environment', 'organisation', 'manager', 'company', 'goal', 'feedback', 'market', 'cybernetic'],
+    'T4': ['cell', 'brain', 'animal', 'neuron', 'energy', 'organism', 'body', 'evolution', 'behavior', 'mechanism', 'biological', 'specie'],
+    'T5': ['computer', 'machine', 'technology', 'medium', 'cybernetic', 'body', 'artist', 'image', 'digital', 'object', 'robot', 'program'],
+    'T6': ['input', 'variable', 'equation', 'output', 'rate', 'define', 'feedback', 'network', 'energy', 'signal', 'property', 'probability'],
+    'T7': ['bateson', 'person', 'feel', 'family', 'child', 'tell', 'story', 'therapy', 'woman', 'talk', 'image', 'therapist'],
+    'T8': ['cybernetic', 'social', 'wiener', 'technology', 'political', 'economic', 'society', 'machine', 'culture', 'computer', 'architecture', 'network'],
+    'T9': ['machine', 'behavior', 'language', 'brain', 'computer', 'cybernetic', 'organism', 'perception', 'object', 'pattern', 'message', 'signal'],
+}
 
-if updated == 0:
-    print("No topics updated — checking structure:")
-    print(json.dumps(data, indent=2)[:500])
-    sys.exit("ERROR: topic_label field not found")
 
-json.dump(data, open(target, 'w'), ensure_ascii=False, indent=2)
-print(f"\nUpdated {updated}/9 topics in {target}")
+# ── Alignment machinery ──────────────────────────────────────────────────────
 
-# Also write topic names into nlp_results.json so report-building scripts
-# (06_build_report.py, 07_build_excel.py) pick up agreed names rather than
-# defaulting to generic 'Topic 1', 'Topic 2' etc.
-nlp_path = pathlib.Path('json/nlp_results.json')
-if nlp_path.exists():
+def jaccard(a, b):
+    sa, sb = set(a), set(b)
+    return len(sa & sb) / len(sa | sb) if (sa or sb) else 0.0
+
+
+def current_equivalence_class(nlp):
+    """Equivalence class of the loaded run, or None if it cannot be computed."""
+    try:
+        from pipeline_db import compute_run_hash
+        stab = nlp.get('stability') or {}
+        seeds = stab.get('seeds_used')
+        if not seeds:
+            return None
+        return compute_run_hash(
+            nlp['n_topics'], len(nlp['book_ids']), nlp.get('max_features'),
+            nlp.get('pipeline_mode'), seeds,
+        )
+    except Exception as exc:                      # pragma: no cover - diagnostic
+        print(f"  [class] could not compute equivalence class: {exc}")
+        return None
+
+
+def align(stored, current_words):
+    """Match stored signatures to current topics by optimal assignment.
+
+    stored        : {label: signature_words}
+    current_words : list of top-word lists, indexed by current topic index
+
+    Returns (mapping, scores, matrix) where mapping is {current_index: label},
+    scores is {label: (best_score, runner_up_score)}, and matrix is the full
+    label x index overlap grid for reporting.
+    """
+    labels = sorted(stored, key=lambda s: int(s[1:]))
+    matrix = {lab: [jaccard(stored[lab], cw) for cw in current_words]
+              for lab in labels}
+
+    # Optimal assignment — greedy would happily hand two names the same topic.
+    try:
+        from scipy.optimize import linear_sum_assignment
+        import numpy as np
+        cost = np.array([[-matrix[lab][i] for i in range(len(current_words))]
+                         for lab in labels])
+        rows, cols = linear_sum_assignment(cost)
+        pairs = list(zip(rows, cols))
+    except ImportError:                            # pragma: no cover - fallback
+        print("  [align] scipy unavailable — falling back to greedy assignment")
+        pairs, taken = [], set()
+        order = sorted(range(len(labels)),
+                       key=lambda r: -max(matrix[labels[r]]))
+        for r in order:
+            best = max((c for c in range(len(current_words)) if c not in taken),
+                       key=lambda c: matrix[labels[r]][c], default=None)
+            if best is not None:
+                taken.add(best)
+                pairs.append((r, best))
+
+    mapping, scores = {}, {}
+    for r, c in pairs:
+        lab = labels[r]
+        mapping[c] = lab
+        row = sorted(matrix[lab], reverse=True)
+        scores[lab] = (matrix[lab][c], row[1] if len(row) > 1 else 0.0)
+    return mapping, scores, matrix
+
+
+def print_alignment(mapping, scores, current_words, taxonomy):
+    print("\n  Alignment — stored name → current topic (by word overlap)")
+    print("  " + "─" * 74)
+    for idx in sorted(mapping):
+        lab = mapping[idx]
+        best, runner = scores[lab]
+        name = taxonomy.get(lab, {}).get('proposed_name', lab)
+        moved = '' if lab == f'T{idx + 1}' else f'  ⇠ was {lab}'
+        flag = ''
+        if best < MIN_OVERLAP:
+            flag = f'  ✗ WEAK (<{MIN_OVERLAP})'
+        elif best - runner < MIN_MARGIN:
+            flag = f'  ✗ AMBIGUOUS (runner-up {runner:.2f})'
+        print(f"  T{idx + 1:<2} {name[:46]:<48} {best:.2f}{moved}{flag}")
+        print(f"       now: {', '.join(current_words[idx][:8])}")
+
+
+def emit_signatures(nlp, cls):
+    """Print a paste-ready provenance + signature block for the current run."""
+    print("\n# ── paste into src/patch_topic_names.py, replacing both blocks ──")
+    print("TAXONOMY_PROVENANCE = {")
+    print(f"    'run_id':            '<run id from log_pipeline_run.py --list>',")
+    print(f"    'equivalence_class': '{cls}',")
+    print(f"    'nlp_hash':          '<nlp_hash from log_pipeline_run.py --list>',")
+    print(f"    'k':                 {nlp['n_topics']},")
+    print(f"    'n_books':           {len(nlp['book_ids'])},")
+    print(f"    'validated':         '<YYYY-MM-DD>',")
+    print(f"    'rater':             '<who>',")
+    print("}")
+    print("\nSIGNATURES = {")
+    for i in range(nlp['n_topics']):
+        print(f"    'T{i + 1}': {nlp['top_words'][i][:12]!r},")
+    print("}")
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[3])
+    ap.add_argument('--report', action='store_true',
+                    help='show the alignment and exit without writing')
+    ap.add_argument('--emit-signatures', action='store_true',
+                    help='print a paste-ready provenance + signature block')
+    ap.add_argument('--force', action='store_true',
+                    help='apply the alignment even if the gate fails (records a warning)')
+    ap.add_argument('--min-overlap', type=float, default=MIN_OVERLAP)
+    args = ap.parse_args()
+
+    nlp_path = pathlib.Path('json/nlp_results.json')
+    if not nlp_path.exists():
+        sys.exit(f"ERROR: {nlp_path} not found — run from project root")
     nlp = json.load(open(nlp_path))
-    # Build ordered name list: index 0 = T1, index 1 = T2, etc.
-    n_topics = nlp.get('n_topics', len(topics))
-    ordered_names = []
+
+    cls = current_equivalence_class(nlp)
+
+    if args.emit_signatures:
+        emit_signatures(nlp, cls or '<unavailable>')
+        return 0
+
+    n_topics = nlp['n_topics']
+    current_words = nlp['top_words']
+
+    print(f"Taxonomy validated against : {TAXONOMY_PROVENANCE['run_id']}  "
+          f"(class {TAXONOMY_PROVENANCE['equivalence_class']}, "
+          f"{TAXONOMY_PROVENANCE['n_books']} books)")
+    print(f"Current run                : class {cls}, "
+          f"{len(nlp['book_ids'])} books, k={n_topics}")
+
+    failures = []
+
+    # Gate 1 — k must match, or the taxonomy simply does not describe this run.
+    if n_topics != TAXONOMY_PROVENANCE['k']:
+        failures.append(
+            f"k mismatch: taxonomy is for k={TAXONOMY_PROVENANCE['k']}, "
+            f"this run is k={n_topics}")
+
+    # Gate 2 — a changed equivalence class means the corpus or configuration
+    # moved, which is exactly when names stop transferring.
+    class_changed = cls is not None and cls != TAXONOMY_PROVENANCE['equivalence_class']
+    if class_changed:
+        failures.append(
+            f"equivalence class changed ({TAXONOMY_PROVENANCE['equivalence_class']} "
+            f"→ {cls}) — names must be re-validated against this run, not carried over")
+
+    # Gate 3 — content alignment.
+    mapping, scores, _matrix = align(SIGNATURES, current_words)
+    for idx in sorted(mapping):
+        lab = mapping[idx]
+        best, runner = scores[lab]
+        if best < args.min_overlap:
+            failures.append(
+                f"{lab} ({TAXONOMY[lab]['proposed_name'][:40]}) matches T{idx + 1} "
+                f"at only {best:.2f} — below {args.min_overlap}")
+        elif best - runner < MIN_MARGIN:
+            failures.append(
+                f"{lab} ({TAXONOMY[lab]['proposed_name'][:40]}) is ambiguous: "
+                f"best {best:.2f} vs runner-up {runner:.2f}")
+
+    print_alignment(mapping, scores, current_words, TAXONOMY)
+
+    moved = [f"{mapping[i]}→T{i + 1}" for i in sorted(mapping)
+             if mapping[i] != f'T{i + 1}']
+    if moved:
+        print(f"\n  NOTE: {len(moved)} name(s) move position this run: "
+              f"{', '.join(moved)}")
+        print("  They will be applied along the alignment above, not by position.")
+
+    if failures:
+        print("\n" + "═" * 78)
+        print("  REFUSING TO APPLY NAMES — the taxonomy does not fit this run")
+        print("═" * 78)
+        for f in failures:
+            print(f"   ✗ {f}")
+        print("""
+  What to do:
+    1. Read the alignment above alongside data/outputs/topic_validation.md and
+       the top-loading books per topic. Expect merges and splits, not a tidy
+       permutation — that is what happened on 20 September.
+    2. Re-validate the names against THIS run. A name is a claim about a
+       cluster; if the cluster recombined, the claim needs re-making.
+    3. Edit TAXONOMY above, then run --emit-signatures and paste the new
+       provenance + signature blocks.
+    4. Re-run this script; the gate should pass.
+
+  --force applies the alignment anyway. Only do that if you have just
+  confirmed by eye that every name above is on the right topic.""")
+        if not args.force:
+            return 1
+        print("\n  --force given: applying anyway.")
+
+    if args.report:
+        print("\n  --report: no files written.")
+        return 0
+
+    # ── Apply, following the alignment ───────────────────────────────────────
+    ordered_names, ordered_notes = [], []
     for i in range(n_topics):
-        label = f'T{i+1}'
-        name = TAXONOMY.get(label, {}).get('proposed_name', label)
-        ordered_names.append(name)
+        lab = mapping.get(i)
+        ordered_names.append(TAXONOMY.get(lab, {}).get('proposed_name', f'T{i + 1}'))
+        ordered_notes.append(TAXONOMY.get(lab, {}).get('notes', ''))
+
+    target = pathlib.Path('json/topic_validation.json')
+    if target.exists():
+        data = json.load(open(target))
+        topics = data.get('topics', data.get('validation', []))
+        if not topics:
+            print("WARNING: no topics list in topic_validation.json — skipping it")
+        else:
+            updated = 0
+            for topic in topics:
+                label = topic.get('topic_label', '')
+                if not label.startswith('T'):
+                    continue
+                idx = int(label[1:]) - 1
+                if 0 <= idx < n_topics:
+                    topic['proposed_name'] = ordered_names[idx]
+                    topic['notes'] = ordered_notes[idx]
+                    updated += 1
+                    print(f"  {label} → {ordered_names[idx]}")
+            json.dump(data, open(target, 'w'), ensure_ascii=False, indent=2)
+            print(f"\nUpdated {updated}/{n_topics} topics in {target}")
+    else:
+        print(f"WARNING: {target} not found — skipping (run 09c first)")
+
+    # Write into nlp_results.json so the report builders pick up agreed names
+    # rather than defaulting to 'Topic 1', 'Topic 2', … . topic_notes is written
+    # alongside so 09c_validate_topics.py can overlay both (ROADMAP #27).
     nlp['topic_names'] = ordered_names
-    # Also write notes so 09c_validate_topics.py can overlay them onto
-    # topic_validation.json (fixed 26 April 2026, ROADMAP #27 — 09c had
-    # been clobbering proposed_name/notes that this script wrote).
-    ordered_notes = [
-        TAXONOMY.get(f'T{i+1}', {}).get('notes', '') for i in range(n_topics)
-    ]
     nlp['topic_notes'] = ordered_notes
     json.dump(nlp, open(nlp_path, 'w'), ensure_ascii=False)
     print(f"Updated nlp_results.json topic_names: {ordered_names}")
     print(f"Updated nlp_results.json topic_notes ({len(ordered_notes)} entries)")
-else:
-    print("WARNING: json/nlp_results.json not found — skipping nlp update")
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

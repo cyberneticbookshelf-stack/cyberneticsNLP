@@ -135,6 +135,29 @@ Dates are AEST (UTC+11).
 
 ### Fixed
 
+- **`src/patch_topic_names.py` — names now match topics by content, not position
+  (ROADMAP #32, 21 September).** The script applied `TAXONOMY['T1']` to topic index 0 and so
+  on, which held only while topic positions were stable. They are not: when the corpus grew
+  566 → 575 the clusters recombined and all nine names landed on the wrong topics, with no
+  error raised. Each name now carries a **signature** — the top words of the topic it was
+  validated against — alongside a `TAXONOMY_PROVENANCE` record (run id, equivalence class,
+  nlp_hash, k, n_books, date, rater). Stored signatures are aligned against the current run by
+  Jaccard overlap using optimal assignment (`scipy.linear_sum_assignment`, greedy fallback), so
+  two names cannot be assigned the same topic, and names follow the alignment rather than the
+  index. Three gates refuse to write and exit non-zero: k mismatch; changed equivalence class
+  (a changed corpus is exactly when names stop transferring, so it refuses however good the
+  alignment looks); and any match below `--min-overlap` (default 0.50) or within 0.10 of its
+  runner-up, which is the signature of a merge. On refusal it prints the full alignment and a
+  four-step re-validation procedure. New flags: `--report` (alignment, no writes),
+  `--emit-signatures` (paste-ready provenance + signature block for after re-validation),
+  `--force`. **Verified against the real failure:** replaying the July taxonomy against the
+  September run raises 7/9 alignment failures plus the class gate and writes nothing, and the
+  two matches it accepts (July T5→T2, T3→T4 at 0.67) are exactly the transfers that were
+  established by hand. Also verified 9/9 correct under an arbitrary permutation, idempotent on
+  re-apply, and 1.00 across all nine on the current run. Note `check_stale_vars.py` cannot
+  catch this class of error — it compares scripts against `nlp_results.json`, so it reported
+  "9/9 match" while every name was wrong; `patch_topic_names.py` is the gate, it only
+  propagates.
 - **`src/14_entity_network.py:532` — paragraph-window edges were irreproducible (ROADMAP #31,
   20 September).** Two runs over byte-identical inputs produced **1,131 vs 1,226** paragraph
   edges, moving published network figures (concept nodes 763 → 777, locations 74 → 73). Cause:
