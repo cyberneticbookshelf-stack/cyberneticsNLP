@@ -523,6 +523,8 @@ if not NO_WINDOWS:
 
     # Limit to top persons (by n_books) for performance
     TOP_PERSONS = 50
+    SCAN_CAP = 30            # books scanned per person (ranked by prominence)
+    PARA_SAMPLE_CHARS = 80000  # must match para_cooccur's sample_chars default
     top_persons = sorted(persons.items(), key=lambda x: -x[1]['n_books'])[:TOP_PERSONS]
 
     for p_idx, (p_tl, p_v) in enumerate(top_persons):
@@ -537,10 +539,23 @@ if not NO_WINDOWS:
         # inputs (1,131 vs 1,226 edges on two runs of 20260920-2, which in turn
         # moved concept nodes 763 → 777 and locations 74 → 73). Book-level edges
         # were unaffected — they use the full booksets with no cap.
-        # Known bias, accepted for now: ordering by ID favours lower book IDs,
-        # i.e. earlier Calibre accessions. Ranking by the person's prominence in
-        # each book would be the principled cap — see ROADMAP.
-        scan_bids = sorted(p_books)[:30]  # cap at 30 books; sorted = deterministic
+        # ROADMAP #34: rank by prominence, not by book id. Sorting by id made
+        # the cap deterministic but still arbitrary — it favoured low ids, i.e.
+        # earlier Calibre accessions, so which argumentative moments a person's
+        # paragraph edges could witness depended on acquisition order. Rank
+        # instead by how often the person is actually named in the book.
+        #
+        # The count uses the same leading PARA_SAMPLE_CHARS window that
+        # para_cooccur will scan, so a book where the person appears only past
+        # that window is correctly ranked at zero — it would contribute nothing
+        # anyway. Ties break on book id, keeping the result reproducible.
+        _needle = p_v['term'].split(',')[0].strip().lower()
+
+        def _prominence(_bid, _needle=_needle):
+            _t = BC.get(_bid, {}).get('clean_text', '')
+            return _t[:PARA_SAMPLE_CHARS].lower().count(_needle) if _t else 0
+
+        scan_bids = sorted(p_books, key=lambda b: (-_prominence(b), b))[:SCAN_CAP]
 
         window_counts = defaultdict(int)
         for bid in scan_bids:
@@ -678,7 +693,13 @@ for _nid in nodes:
             _stack.extend(_adj[_cur] - _visited)
         _components.append(_comp)
 _comp_sizes = sorted([len(c) for c in _components], reverse=True)
-_lcc = max(_components, key=len) if _components else []
+# ROADMAP #34: sort the component before sampling. _comp is built by DFS over
+# `_adj[_cur] - _visited`, a set difference, so its order varies per process
+# under string-hash randomisation. Seeding the RNG is not enough when the
+# population it samples from is itself unordered — that is why avg_path_length
+# and diameter still moved between runs (3.343 vs 3.341; diameter 7 vs 8) after
+# the #31 fix. Sorting makes the sampled statistics reproducible.
+_lcc = sorted(max(_components, key=len)) if _components else []
 
 # Sampled average path length (BFS on LCC sample)
 import random as _rnd
@@ -710,10 +731,13 @@ _density = round(2*_m / (_n*(_n-1)) if _n > 1 else 0, 6)
 
 # Hub nodes (top 1% by degree)
 _hub_thr = float(_np.percentile(_degs, 99)) if len(_degs) > 10 else _degs.max()
+# ROADMAP #34: tie-break on node id. Sorting on degree alone left equal-degree
+# hubs in dict order, so McLuhan and Mead (both degree 125) swapped places
+# between runs of identical data.
 _hubs = sorted(
     [(nid, _degree[nid], nodes[nid].get('label',''), nodes[nid].get('kind',''))
      for nid in nodes if _degree.get(nid,0) >= _hub_thr],
-    key=lambda x: -x[1])[:20]
+    key=lambda x: (-x[1], x[0]))[:20]
 
 _stats = {
     'n_nodes':          _n,
@@ -744,9 +768,17 @@ print(f"  Degree: mean={_deg_percentiles['mean']}  "
       f"max={_deg_percentiles['max']}")
 
 # ── Save JSON ─────────────────────────────────────────────────────────────────
+# ROADMAP #34: emit nodes and edges in a canonical order so entity_network.json
+# is byte-stable across runs. The graph itself was already deterministic after
+# #31, but the serialisation order was not (same multiset, different sequence),
+# which meant the file could not be hashed — a precondition for ever extending
+# provenance tracking beyond nlp_results.json. Display order is unaffected: the
+# viewer lays out by force simulation, not by array order.
 network = {
-    'nodes':       list(nodes.values()),
-    'edges':       all_edges,
+    'nodes':       sorted(nodes.values(), key=lambda n: n['id']),
+    'edges':       sorted(all_edges,
+                          key=lambda e: (e['source'], e['target'],
+                                         e.get('level', ''), e.get('type', ''))),
     'stats':       _stats,
     'n_persons':       len(persons),
     'n_organisations': len(organisations),

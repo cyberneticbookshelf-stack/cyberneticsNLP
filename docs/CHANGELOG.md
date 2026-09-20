@@ -135,6 +135,21 @@ Dates are AEST (UTC+11).
 
 ### Fixed
 
+- **`src/14_entity_network.py` — paragraph-window sample made principled, and the network file
+  made byte-stable (ROADMAP #34, 21 September).** Four changes. The **scan cap now ranks by
+  prominence**: each person's candidate books are ordered by how often that person is named in
+  the same leading 80,000-char window `para_cooccur` scans, rather than by book id, which had
+  tracked Calibre accession order. Over the 15 top persons with more than 30 candidate books,
+  the scanned window now holds **2.5× more mentions of the person** (832 → 2,108), so paragraph
+  edges rose 1,168 → 1,342 (+15%) and concept nodes 765 → 780 — a better sample rather than a
+  different one. **Sampled statistics are now reproducible**: `_lcc` is sorted before
+  `random.sample`, since the seed was fixed but the population was built by DFS over a set
+  difference and so was unordered — seeding is not enough when what you sample from varies.
+  **`entity_network.json` is byte-stable**: nodes and edges emit in canonical order, so the file
+  can finally be hashed, which #31 left unfinished; display is unaffected because the viewer
+  lays out by force simulation. **Hub ties break on node id.** Verified by two consecutive runs
+  producing identical MD5s with every statistic matching, including avg path length 3.385 and
+  diameter 8 — previously 3.343/3.341 and 7/8 on identical input.
 - **`src/text_matter.py` (new) — publisher front matter no longer reaches the chapter model
   (ROADMAP #35, 21 September).** The chapter NMF was spending one topic of eight on copyright
   language across 297 chapters. Root cause was an asymmetry rather than a cleaning failure:
