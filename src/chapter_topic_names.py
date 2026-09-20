@@ -12,8 +12,10 @@ WHY THIS MODULE EXISTS (ROADMAP #33, 21 September 2026)
     R['topic_names'] = _RB.get('topic_names')   # carry book-level names
 
 which crossed labels between two unrelated models. The book model is **LDA
-k=9**; the chapter model is **NMF k=8** with its own vocabulary and no names of
-its own. So chapter topics were labelled with book topic names by position —
+k=9**; the chapter model is a separate **NMF** fit with its own vocabulary and
+no names of its own (k=8 when the bug was found, k=9 since the #35 front-matter
+fix — the k is chosen by elbow and moves). So chapter topics were labelled with
+book topic names by position —
 chapter T2 (*function, state, input, output*) was presented as "Social Systems
 and Second-Order Constructivism", and so on. Both scripts also kept their own
 divergent `_BASE_NAMES` fallback list, so the two artefacts could disagree.
@@ -41,82 +43,97 @@ misnamed one is not.
 
 PROVENANCE = {
     'model':      'NMF, chapter-level',
-    'k':          8,
-    'n_chapters': 6449,
-    'run':        'run_20260920_k9_s5 (20 September 2026, 575-book corpus)',
+    'k':          9,
+    'n_chapters': 6307,
+    'run':        'run_20260920_k9_s5 corpus, chapters rebuilt 21 September 2026 '
+                  'after the ROADMAP #35 front-matter fix',
     'rater':      'proposed from top words + top-loading books; provisional, '
                   'single-source — not yet reviewed',
 }
+
+# Re-derived 21 September 2026. Removing publisher front matter (#35) did not
+# just delete a junk topic — it changed the model's shape. The elbow moved from
+# k=8 to k=9, and the freed capacity resolved structure that the boilerplate had
+# been masking: a distinct **brain / neural** topic and a distinct **information
+# theory** topic now exist, neither of which had a counterpart in the k=8 fit.
+# Chapter count fell 6,449 → 6,307. The #33 guard caught the k change and fell
+# back to unnamed labels until these names were re-derived, which is exactly
+# what it is for.
 
 # Ordered as validated. `signature` is the topic's top words at validation time
 # and is what resolve() matches on; list order is NOT relied upon.
 CHAPTER_TAXONOMY = [
     {
         'name': 'Self, Mind and Everyday Experience',
-        'signature': ['people', 'life', 'human', 'even', 'like', 'world', 'just',
-                      'something', 'mind', 'might', 'much', 'self'],
-        'notes': '953 chapters / 281 books. Psycho-Cybernetics and the self-help '
-                 'lineage, popular and anecdotal registers.',
+        'signature': ['people', 'just', 'like', 'time', 'even', 'make', 'might',
+                      'many', 'think', 'something', 'much', 'know'],
+        'notes': '615 chapters / 201 books. Psycho-Cybernetics and the self-help '
+                 'lineage; anecdotal, second-person register.',
     },
     {
         'name': 'Mathematical and Formal Systems',
-        'signature': ['function', 'state', 'system', 'input', 'time', 'output',
-                      'value', 'number', 'equation', 'values', 'rate', 'case'],
-        'notes': '1,101 chapters / 245 books. Formal models, state equations, '
+        'signature': ['function', 'state', 'input', 'system', 'output', 'time',
+                      'value', 'equation', 'number', 'values', 'case', 'form'],
+        'notes': '834 chapters / 204 books. State equations, formal models, '
                  'quantitative method.',
     },
     {
         'name': 'General Systems Theory',
-        'signature': ['systems', 'system', 'organization', 'environment',
-                      'complexity', 'complex', 'model', 'processes', 'self',
-                      'structure', 'social', 'different'],
-        'notes': '927 chapters / 247 books. Luhmann, autopoiesis, viable-systems '
-                 'and complexity registers.',
+        'signature': ['systems', 'system', 'theory', 'organization', 'complexity',
+                      'self', 'complex', 'social', 'environment', 'systems theory',
+                      'processes', 'general'],
+        'notes': '783 chapters / 223 books. Luhmann, autopoiesis, complexity.',
     },
     {
-        'name': 'Machines, Computers and Artificial Intelligence',
-        'signature': ['machine', 'computer', 'brain', 'machines', 'human',
-                      'intelligence', 'artificial', 'computers', 'neural',
-                      'digital', 'artificial intelligence', 'nervous'],
-        'notes': '603 chapters / 212 books. Previously unnamed — the old '
-                 '_BASE_NAMES list called this "History & Philosophy of '
-                 'Cybernetics", which belongs to the theory topic instead.',
+        'name': 'Management and Political Economy',
+        'signature': ['management', 'economic', 'production', 'development',
+                      'decision', 'national', 'growth', 'economy', 'project',
+                      'market', 'resources', 'political'],
+        'notes': '785 chapters / 204 books. Economic cybernetics, Cybersyn/Allende, '
+                 'state planning and development. In the k=8 fit management and '
+                 'political economy were a single mixed topic; this is its clearer '
+                 'successor.',
     },
     {
-        'name': 'History and Philosophy of Cybernetics',
-        'signature': ['theory', 'science', 'wiener', 'scientific', 'cybernetics',
-                      'philosophy', 'sciences', 'knowledge', 'social',
-                      'communication', 'general', 'theories'],
-        'notes': '938 chapters / 314 books — the widest book spread. Soviet and '
-                 'institutional histories, philosophy of the field.',
+        'name': 'Machines, Computing and the Cybernetic Tradition',
+        'signature': ['machine', 'computer', 'cybernetics', 'wiener', 'machines',
+                      'computers', 'intelligence', 'electronic', 'norbert',
+                      'cybernetic', 'norbert wiener', 'artificial'],
+        'notes': '605 chapters / 224 books. Machines and computing told through '
+                 'the field\'s own lineage — Wiener anchors it.',
     },
     {
         'name': 'Control Theory and Engineering',
-        'signature': ['control', 'feedback', 'loop', 'control system',
-                      'control systems', 'behavior', 'system', 'controlled',
-                      'systems', 'error', 'signal', 'controlling'],
-        'notes': '581 chapters / 193 books. PCT and control-engineering registers.',
+        'signature': ['control', 'feedback', 'control system', 'loop', 'system',
+                      'controlled', 'control systems', 'behavior', 'error',
+                      'reference', 'signal', 'variable'],
+        'notes': '477 chapters / 165 books. PCT and control-engineering registers.',
     },
     {
-        'name': 'Political Economy, Technology and Development',
-        'signature': ['economic', 'political', 'technology', 'social',
-                      'management', 'production', 'work', 'research',
-                      'development', 'national', 'technological', 'society'],
-        'notes': '1,049 chapters / 274 books. Previously unnamed ("Topic 7"). '
-                 'Economic cybernetics, Allende/Cybersyn, state and development.',
+        'name': 'Science, Philosophy and Culture',
+        'signature': ['human', 'world', 'science', 'social', 'knowledge', 'nature',
+                      'scientific', 'philosophy', 'life', 'cultural', 'history',
+                      'reality'],
+        'notes': '1,139 chapters / 327 books — the largest, and the widest book '
+                 'spread. Epistemology, philosophy of science, cultural theory.',
     },
     {
-        'name': '⚠ Front-matter artefact — not a topic',
-        'signature': ['part', 'electronic', 'minor', 'retrieval',
-                      'minor sections', 'sections', 'permission', 'information',
-                      'rights', 'storage', 'reproduced', 'recording'],
-        'artefact': True,
-        'notes': '297 chapters / 225 books. Publisher copyright boilerplate ("no '
-                 'part of this publication may be reproduced … retrieval system '
-                 '… without permission") that survived cleaning into the chapter '
-                 'segmentation path. One of eight chapter topics is spent on it. '
-                 'Labelled explicitly so readers are not invited to interpret it. '
-                 'Upstream fix (cleaning/segmentation) is ROADMAP #35.',
+        'name': 'Brain, Nerve and Neural Systems',
+        'signature': ['brain', 'nervous', 'neural', 'nervous system', 'neurons',
+                      'activity', 'cells', 'body', 'sensory', 'learning',
+                      'network', 'behavior'],
+        'notes': '591 chapters / 192 books. NEW at k=9 — no counterpart in the '
+                 'k=8 fit, where this material was dispersed. Neurophysiology, '
+                 'neural modelling, sensory systems.',
+    },
+    {
+        'name': 'Information Theory and Communication',
+        'signature': ['information', 'communication', 'theory', 'information theory',
+                      'language', 'entropy', 'message', 'shannon', 'semantic',
+                      'meaning', 'channel', 'symbols'],
+        'notes': '478 chapters / 204 books. NEW at k=9 — Shannon, entropy, '
+                 'semantic communication. Previously folded into the formal and '
+                 'theory topics.',
     },
 ]
 

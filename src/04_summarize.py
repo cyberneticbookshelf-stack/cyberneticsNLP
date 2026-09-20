@@ -28,6 +28,10 @@ JSON_DIR.mkdir(exist_ok=True)
 
 
 import re, json
+import sys as _sys
+_sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
+from text_matter import (strip_front_matter, strip_back_matter,
+                         boilerplate_ratio)
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -212,13 +216,41 @@ def main():
         R = json.load(f)
 
     summaries = {}
+    _dropped_boilerplate = 0
     for bid in R['book_ids']:
         title  = books[bid]['title']
         author = books[bid]['author']
         text   = books[bid]['clean_text']
 
+        # Trim publisher apparatus before splitting (ROADMAP #35).
+        # "Opening" is, by construction, everything before the first chapter
+        # heading — i.e. the title page, copyright page, Library of Congress
+        # record and digitisation notice — and leftover fragments of the same
+        # end up merged into "Other / Minor Sections". Those pseudo-chapters
+        # were summarised and fed to the chapter NMF, which spent one topic of
+        # eight on copyright language across 297 chapters. The book-level path
+        # already strips this at fit time (--full-text); the chapter path did
+        # not, which is the whole of the asymmetry. Measured on 60 affected
+        # books: chapters carrying boilerplate 55 -> 3 (95% removed) while
+        # total chapters fall only 3.4%, so this is surgical rather than lossy.
+        body, _front = strip_front_matter(text)
+        body, _back  = strip_back_matter(body)
+        # Guard: if trimming ate almost everything (unusual structure, or a book
+        # with no detectable headings), fall back to the untrimmed text rather
+        # than summarising a stub.
+        if len(body.split()) < 0.25 * len(text.split()):
+            body = text
+
         # Chapter summaries
-        chapters = split_into_chapters(text)
+        chapters = split_into_chapters(body)
+        # Belt and braces: drop any chapter that is still mostly publisher
+        # apparatus (e.g. an imprint page that sits after a spurious heading).
+        _before = len(chapters)
+        chapters = [c for c in chapters if boilerplate_ratio(c['text']) < 0.30]
+        for _i, _c in enumerate(chapters):
+            _c['index'] = _i + 1
+        if len(chapters) < _before:
+            _dropped_boilerplate += _before - len(chapters)
         context  = text[:60000]
         ch_sums  = []
         for ch in chapters:
@@ -246,6 +278,9 @@ def main():
     with open(str(JSON_DIR / 'summaries.json'), 'w', encoding='utf-8') as f:
         json.dump(summaries, f, ensure_ascii=False, indent=2)
     print(f"\nDone. Summaries saved for {len(summaries)} books.")
+    if _dropped_boilerplate:
+        print(f"  [#35] dropped {_dropped_boilerplate} chapter(s) that were still "
+              f"mostly publisher apparatus after front/back-matter trimming")
 
 if __name__ == '__main__':
     main()

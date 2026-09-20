@@ -135,6 +135,28 @@ Dates are AEST (UTC+11).
 
 ### Fixed
 
+- **`src/text_matter.py` (new) — publisher front matter no longer reaches the chapter model
+  (ROADMAP #35, 21 September).** The chapter NMF was spending one topic of eight on copyright
+  language across 297 chapters. Root cause was an asymmetry rather than a cleaning failure:
+  the book path strips front/back matter at fit time, but `strip_front_matter` and
+  `strip_back_matter` lived inside `03_nlp_pipeline.py`, whose module name starts with a digit
+  and so cannot be imported — `04_summarize.py` had no way to reuse them and trimmed nothing.
+  "Opening" is by construction everything before the first chapter heading, i.e. the title and
+  copyright pages; 137 of the 297 were "Other / Minor Sections" and 76 "Opening". The trimming
+  now lives in one importable module (moved verbatim, verified byte-identical on all 728
+  cleaned books before switching `03_nlp_pipeline.py` to it), and `04_summarize.py` trims
+  before splitting, with a sentence-level boilerplate backstop keyed on specific multi-word
+  phrases rather than on the topic's top words — *part*, *rights* and *information* are
+  ordinary words here and matching them would delete real text. Deliberately **not** fixed at
+  cleaning (02): that retains full text for the book path, and trimming there would invalidate
+  the clean cache and force a re-canonicalisation. Measured on 60 affected books first —
+  boilerplate-carrying chapters 55 → 3 (−95%) for a 3.4% fall in total chapters. **After
+  rebuild:** boilerplate topic gone, no copyright vocabulary in any topic, chapters
+  6,449 → 6,307, and only 1 chapter needed the backstop. **Knock-on:** the NMF elbow moved
+  k=8 → k=9 and the freed capacity resolved structure the junk topic had masked — new
+  **Brain, Nerve and Neural Systems** and **Information Theory and Communication** topics,
+  neither with a k=8 counterpart. The #33 guard refused the stale k=8 names and fell back to
+  unnamed labels until the chapter taxonomy was re-derived (now 9/9 matched by content).
 - **`src/check_fts_coverage.py` (new) — Calibre full-text coverage gaps are now visible
   (KI-14, 21 September).** `split_books_text.sh` selects every PDF row in `books_text` with no
   bound on which books it expects, so a book Calibre has not indexed — FTS not caught up, or an

@@ -456,112 +456,15 @@ def sample_book(text):
 #
 # Both functions return (stripped_text, chars_removed) for logging.
 
-FRONT_SKIP_MIN_CHARS = 3000    # Never start before this offset
-FRONT_SKIP_FRAC      = 0.05    # Fallback: skip first 5% if no body marker found
-BACK_MIN_FRAC        = 0.50    # Only truncate if back-matter marker ≥ 50% in
-
-# Body-text start markers — first occurrence past FRONT_SKIP_MIN_CHARS
-# Matches "Chapter One", "Chapter 1", "Part I", "Introduction", "Prologue",
-# or a bare chapter-number line (e.g. "1\n" or "I\n").
-_BODY_START_RE = re.compile(
-    r'^\s*(?:'
-    r'chapter\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|'
-    r'eleven|twelve|[1-9][0-9]?)\b'
-    r'|part\s+(?:one|two|three|i{1,4}|v?i{0,3}|[1-9])\b'
-    r'|introduction\b'
-    r'|prologue\b'
-    r'|[1-9][0-9]?\s*\n'     # bare chapter number on its own line
-    r')',
-    re.IGNORECASE | re.MULTILINE
-)
-
-# Back-matter section headings — we find the LAST occurrence past BACK_MIN_FRAC.
-# Matches headings that are essentially alone on their line (end-of-line anchored)
-# to avoid matching mid-paragraph phrases like "see references above".
-_BACK_START_RE = re.compile(
-    r'^\s*(?:'
-    r'references?\s*$'
-    r'|bibliography\s*$'
-    r'|works\s+cited\s*$'
-    r'|further\s+reading\s*$'
-    r'|notes?\s+and\s+references?\s*$'
-    r'|selected\s+bibliography\s*$'
-    r'|bibliographical\s+notes?\s*$'
-    r'|index\s*$'
-    r'|general\s+index\s*$'
-    r'|subject\s+index\s*$'
-    r'|author\s+index\s*$'
-    r'|name\s+index\s*$'
-    r')',
-    re.IGNORECASE | re.MULTILINE
-)
-
-
-def strip_front_matter(text: str):
-    """
-    Remove front matter from cleaned book text.
-
-    Returns (body_text, chars_skipped).
-
-    Strategy:
-      1. Scan for the first body-text marker (chapter heading, Introduction,
-         etc.) after FRONT_SKIP_MIN_CHARS. If found within the first 30% of
-         text, start there.
-      2. Otherwise fall back to skipping max(FRONT_SKIP_MIN_CHARS,
-         FRONT_SKIP_FRAC * len(text)).
-    """
-    n = len(text)
-    m = _BODY_START_RE.search(text, FRONT_SKIP_MIN_CHARS)
-    if m and m.start() < n * 0.30:
-        return text[m.start():], m.start()
-    offset = max(FRONT_SKIP_MIN_CHARS, int(n * FRONT_SKIP_FRAC))
-    return text[offset:], offset
-
-
-def strip_back_matter(text: str):
-    """
-    Remove back matter (bibliography, references, index) from cleaned book text.
-
-    Returns (body_text, chars_removed).
-
-    Strategy:
-      Find the LAST occurrence of a back-matter heading that appears at least
-      BACK_MIN_FRAC into the text. Truncate there. If none found, return text
-      unchanged.
-    """
-    n = len(text)
-    min_offset = int(n * BACK_MIN_FRAC)
-    last_match = None
-    for m in _BACK_START_RE.finditer(text):
-        if m.start() >= min_offset:
-            last_match = m
-    if last_match:
-        return text[:last_match.start()], n - last_match.start()
-    return text, 0
-
-
-def prepare_full_text(text: str):
-    """
-    Apply front- and back-matter stripping to produce a clean body text.
-
-    Returns (body_text, stats_dict).
-    stats keys: original_chars, front_stripped, back_stripped,
-                body_chars, body_pct.
-    """
-    original_chars = len(text)
-    stripped_front, front_chars = strip_front_matter(text)
-    stripped_body,  back_chars  = strip_back_matter(stripped_front)
-    body_chars = len(stripped_body)
-    stats = {
-        'original_chars': original_chars,
-        'front_stripped':  front_chars,
-        'back_stripped':   back_chars,
-        'body_chars':      body_chars,
-        'body_pct':        round(100 * body_chars / original_chars, 1)
-                           if original_chars else 0,
-    }
-    return stripped_body, stats
-
+# Front/back-matter trimming now lives in src/text_matter.py so the chapter
+# path can use the same implementation (ROADMAP #35). Previously these were
+# defined here, and since this module's name starts with a digit nothing could
+# import them — which is why 04_summarize.py trimmed nothing and fed publisher
+# front matter into the chapter model. Moved verbatim; verified byte-identical
+# output on all 728 cleaned books before the switch.
+from text_matter import (FRONT_SKIP_MIN_CHARS, FRONT_SKIP_FRAC, BACK_MIN_FRAC,
+                         strip_front_matter, strip_back_matter,
+                         prepare_full_text)
 
 # ── Apply text preparation ────────────────────────────────────────────────────
 if FULL_TEXT:

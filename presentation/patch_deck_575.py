@@ -107,7 +107,12 @@ def set_paragraph(pres, idx, marker, newtext):
 # (slide_idx, old, new)
 REPL = [
     (4,  "739 · 566", "755 · 575"),
-    (4,  "7,349", "6,449"),
+    # Chapter count: 7,349 (July) -> 6,307. Two causes, only one understood.
+    # The ROADMAP #35 front-matter fix (21 Sep) accounts for 6,449 -> 6,307 by
+    # trimming publisher pages before chapter splitting. The earlier drop from
+    # 7,349 to 6,449, which happened across the 20 Sep re-canonicalisation while
+    # the corpus GREW by 9 books, is still unexplained — see the open item.
+    (4,  "7,349", "6,307"),
     (4,  "1954–2025", "1954–2026"),
     # slide 14 — title and Diffusion-era caption carry the same end year.
     # The corpus now runs to 2026 (four 2026 imprints, incl. The Shan-Shui City
