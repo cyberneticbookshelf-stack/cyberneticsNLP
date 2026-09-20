@@ -15,7 +15,8 @@ Reads:  presentation/CyberneticsNLP_Talk_v4_566.pptx   (566 taxonomy)
 Writes: presentation/CyberneticsNLP_Talk_v5_575.pptx   (non-destructive)
 
 What it changes:
-  - slide 4  : corpus headline 739·566 -> 755·575; chapters 7,349 -> 6,449;
+  - slide 4  : corpus headline 739·566 -> 755·575; chapters 7,349 -> 6,307
+               (7,349 was a stale 675-book-era figure, not a recent count);
                end year 2025 -> 2026; footnote "566 analysed" -> "575 analysed".
   - slide 5,24: narrative "566 books" -> "575 books".
   - slide 10 : API-cost line "566 books" -> "575 books".
@@ -107,11 +108,20 @@ def set_paragraph(pres, idx, marker, newtext):
 # (slide_idx, old, new)
 REPL = [
     (4,  "739 · 566", "755 · 575"),
-    # Chapter count: 7,349 (July) -> 6,307. Two causes, only one understood.
-    # The ROADMAP #35 front-matter fix (21 Sep) accounts for 6,449 -> 6,307 by
-    # trimming publisher pages before chapter splitting. The earlier drop from
-    # 7,349 to 6,449, which happened across the 20 Sep re-canonicalisation while
-    # the corpus GREW by 9 books, is still unexplained — see the open item.
+    # Chapter count. The deck's 7,349 was never a figure for any recent run —
+    # it dates from the 675-book corpus (pre-pub-type-filter, pre-full-text
+    # refactor) and was carried unchanged through v3 -> v4 -> v4_566, because
+    # patch_deck.py (April) and patch_deck_566.py (July) both updated book
+    # counts but neither touched the chapter number. There was no drop. Actual
+    # chapter counts, from the runlogs:
+    #     2026-04-10  8,105      (675-era)
+    #     2026-04-17  6,020      (541 books, after the pub-type filter)
+    #     2026-07-17  6,061      (544)
+    #     2026-07-19  6,316      (566)
+    #     2026-09-20  6,449      (575)  <- rising with the corpus
+    #     2026-09-21  6,307      (575, after the #35 front-matter trim)
+    # Read this from the runlog ("Total chapters:") on every migration rather
+    # than carrying it forward — that is exactly how it went stale for two.
     (4,  "7,349", "6,307"),
     (4,  "1954–2025", "1954–2026"),
     # slide 14 — title and Diffusion-era caption carry the same end year.
