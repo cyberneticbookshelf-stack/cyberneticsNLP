@@ -12,10 +12,9 @@ JSON_DIR.mkdir(exist_ok=True)
 
 
 with open(str(JSON_DIR / 'nlp_results_chapters.json')) as f:  R = json.load(f)
-try:
-    with open(str(JSON_DIR / 'nlp_results.json')) as _f: _RB = json.load(_f)
-    R['topic_names'] = _RB.get('topic_names')  # carry book-level names
-except Exception: pass
+# NOTE (ROADMAP #33): book-level LDA names are deliberately NOT carried here —
+# LDA k=9 over books vs NMF k=8 over chapters are different models, so a
+# positional carry mislabels every chapter topic. See src/chapter_topic_names.py.
 with open(str(JSON_DIR / 'summaries.json')) as f:  S = json.load(f)
 
 n_topics   = R['n_topics']
@@ -28,17 +27,12 @@ keyphrases = R['keyphrases']
 top_words  = R['top_words']
 book_tc    = R['book_topic_counts']
 
-_BASE_TOPIC_NAMES = [
-    'Human & Social Experience',
-    'Mathematical & Formal Systems',
-    'General Systems Theory',
-    'History & Philosophy of Cybernetics',
-    'Management & Organisational Cybernetics',
-    'Control Theory & Engineering',
-    'Topic 7', 'Topic 8', 'Topic 9',
-]
-_carried = R.get('topic_names') or _BASE_TOPIC_NAMES
-TOPIC_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
+# Chapter-level NMF names, matched to this run by content (ROADMAP #33).
+# Shared with 06_build_report_chapters.py so the two artefacts cannot disagree.
+import sys as _sys
+_sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
+from chapter_topic_names import resolve as _resolve_chapter_names
+TOPIC_NAMES = _resolve_chapter_names(top_words, n_topics)
 
 FILLS = [
     PatternFill('solid',fgColor='DBEAFE'), PatternFill('solid',fgColor='DCFCE7'),

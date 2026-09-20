@@ -135,6 +135,26 @@ Dates are AEST (UTC+11).
 
 ### Fixed
 
+- **`src/chapter_topic_names.py` (new) — chapter topics no longer labelled with book-level
+  names (ROADMAP #33, 21 September).** `06_build_report_chapters.py` and
+  `07_build_excel_chapters.py` both carried `nlp_results.json['topic_names']` onto the
+  chapter model, crossing labels between two unrelated models — LDA k=9 over books vs NMF k=8
+  over chapters — so chapter topics were presented under book topic names by position. Each
+  script also kept its own divergent `_BASE_NAMES` fallback, so the HTML and the workbook could
+  disagree with each other as well as with the model. The carry is removed from both; chapter
+  names now live in one shared module and are matched to the run by word overlap using optimal
+  assignment, the same discipline as #32. Auditing the old fallback list while writing this
+  showed it was itself wrong for 4 of 8 — "History & Philosophy of Cybernetics" sat on the
+  machines/AI topic, "Management & Organisational Cybernetics" on the theory topic, and two
+  were unnamed placeholders. The eight chapter topics are now named from their own evidence,
+  including an explicit **"⚠ Front-matter artefact — not a topic"** label for the copyright
+  boilerplate cluster (ROADMAP #35), so readers are not invited to interpret it. Failure
+  behaviour is deliberately softer than #32's gate: these run inside report builders, so a
+  weak or ambiguous match degrades that topic to `T<n> (unnamed)` with a warning rather than
+  aborting `run_all.sh` — an unnamed topic is honest, a misnamed one is not. Verified 8/8 on
+  the current run, zero book-level names in the rebuilt HTML and Excel, and correct degradation
+  under k-mismatch, total drift and partial drift. Chapter names are provisional and
+  single-source — proposed from top words and top-loading books, not yet reviewed.
 - **`src/patch_topic_names.py` — names now match topics by content, not position
   (ROADMAP #32, 21 September).** The script applied `TAXONOMY['T1']` to topic index 0 and so
   on, which held only while topic positions were stable. They are not: when the corpus grew

@@ -51,10 +51,11 @@ import json, base64
 import numpy as np
 
 with open(str(JSON_DIR / 'nlp_results_chapters.json')) as f: R  = json.load(f)
-try:
-    with open(str(JSON_DIR / 'nlp_results.json')) as _f: _RB = json.load(_f)
-    R['topic_names'] = _RB.get('topic_names')  # carry book-level names
-except Exception: pass
+# NOTE (ROADMAP #33): book-level LDA names are deliberately NOT carried here.
+# The book model is LDA k=9, the chapter model is NMF k=8 — different models
+# over different units, so a positional carry labels chapter topics with
+# unrelated book topic names. Chapter names come from src/chapter_topic_names.py
+# and are matched to this run's topics by word overlap.
 with open(str(JSON_DIR / 'summaries.json'))            as f: S  = json.load(f)
 
 book_ids     = R['book_ids']
@@ -74,20 +75,14 @@ PALETTE = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2',
            '#be185d','#0f766e','#c2410c','#065f46','#9333ea','#0369a1',
            '#b45309','#1d4ed8','#166534','#be123c','#7e22ce','#0369a1']
 
-_BASE_NAMES = [
-    'Human & Social Experience',
-    'Mathematical & Formal Systems',
-    'General Systems Theory',
-    'History & Philosophy of Cybernetics',
-    'Management & Organisational Cybernetics',
-    'Control Theory & Engineering',
-    'Topic 7', 'Topic 8', 'Topic 9',
-]
-# Build TOPIC_NAMES for chapter-level NMF.
-# Carried book-level LDA names are used as a fallback only; NMF k may differ
-# from LDA k, so we always pad to exactly n_topics entries with generic labels.
-_carried = (R.get('topic_names') or _BASE_NAMES)[:]
-TOPIC_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
+# Chapter-level NMF topic names, matched to this run by content (ROADMAP #33).
+# Single source of truth shared with 07_build_excel_chapters.py. Degrades to
+# 'T<n> (unnamed)' with a warning if the topics have moved — an unnamed topic is
+# honest, a misnamed one is not.
+import sys as _sys
+_sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
+from chapter_topic_names import resolve as _resolve_chapter_names
+TOPIC_NAMES = _resolve_chapter_names(top_words, n_topics)
 
 def img_b64(path):
     with open(path,'rb') as f:
