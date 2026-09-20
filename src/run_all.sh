@@ -105,6 +105,19 @@ run() { echo ""; echo "── $1 ──"; python3 "$SCRIPT_DIR/$1" "${@:2}"; }
 mkdir -p data/outputs figures
 mkdir -p csv json   # pipeline expects input CSVs in csv/ and writes JSON to json/
 
+# ── Calibre full-text coverage report (KI-14) ────────────────────────────────
+# split_books_text.sh selects every PDF row in books_text with no bound on which
+# books it expects, so a book Calibre has not indexed — FTS not caught up, or an
+# image-only scan with no text layer — is absent from the shards, the corpus and
+# every count, silently. This is advisory, not a gate: some books legitimately
+# have no extractable text, and blocking the pipeline on them would be wrong.
+# The point is that the gap lands in the runlog instead of being found by hand
+# months later. Use --strict in check_fts_coverage.py if you want it to fail.
+echo ""
+echo "── check_fts_coverage.py (KI-14 — advisory) ──"
+python3 "$SCRIPT_DIR/check_fts_coverage.py" --json data/outputs/fts_coverage.json || true
+# ─────────────────────────────────────────────────────────────────────────────
+
 if [ $STREAM -eq 1 ]; then
     # ── Clean-cache staleness guard (KI-13) ──────────────────────────────────
     # parse_and_clean_stream.py skips books whose id is already in

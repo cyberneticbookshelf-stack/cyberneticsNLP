@@ -135,6 +135,22 @@ Dates are AEST (UTC+11).
 
 ### Fixed
 
+- **`src/check_fts_coverage.py` (new) — Calibre full-text coverage gaps are now visible
+  (KI-14, 21 September).** `split_books_text.sh` selects every PDF row in `books_text` with no
+  bound on which books it expects, so a book Calibre has not indexed — FTS not caught up, or an
+  image-only scan with no text layer — is absent from the shards, the corpus and every count,
+  with nothing failing. Same silent-loss shape as KI-13 and as the stale metadata export that
+  nearly dropped 12 books on 20 September. The new script cross-joins `metadata.db` against
+  `full-text-search.db`, itemises every affected book, also flags the reverse case (FTS rows
+  with no metadata row, meaning the snapshot predates the library), and writes
+  `data/outputs/fts_coverage.json`. Wired into `run_all.sh` before ingestion so the gap lands
+  in the runlog. **Advisory rather than a gate** (`--strict` to fail): some books legitimately
+  have no extractable text, and blocking the pipeline on them would be wrong — the defect being
+  fixed is the silence, not the gap. Books are split by likely cause using PDF size against the
+  ~34 MB corpus mean, which separates the current 13 cleanly: 4 image-only scans needing OCR
+  first (2239 at 210 MB, 2701 at 182 MB, 2193 at 157 MB, 2460 at 99 MB) and 9 at 1–26 MB that
+  should only need indexing to catch up, including all four recent acquisitions. The data
+  remediation itself is Calibre-library work and remains open.
 - **`src/chapter_topic_names.py` (new) — chapter topics no longer labelled with book-level
   names (ROADMAP #33, 21 September).** `06_build_report_chapters.py` and
   `07_build_excel_chapters.py` both carried `nlp_results.json['topic_names']` onto the
