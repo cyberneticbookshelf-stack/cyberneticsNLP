@@ -95,15 +95,15 @@ N          = len(BC)
 n_topics   = R['n_topics']
 
 _LDA_BASE = [
-    'History of Information Age and Cybernetics',
-    'Extensions and Exploration of Cybernetics',
-    'Biological and Ecological Regulation: Homeostasis & Allostasis',
-    'Cybernetics of Self',
+    'Residual — uninterpreted',
     'Social Systems and Second-Order Constructivism',
-    'Foundations of Cybernetics',
     'Management and Organisational Cybernetics',
-    'Control and Feedback Systems',
-    'Digital Arts, Architecture, Design and Posthumanism',
+    'Biological and Ecological Regulation: Homeostasis & Allostasis',
+    'Cybernetics and Digital Culture',
+    'Formal Foundation and Control Engineering',
+    'Cybernetics of Self and Reimagination of Self',
+    'Political Economy of Cybernetics',
+    'Cognition and Cybernetics',
 ]
 # Note: _LDA_BASE is a fallback only — live names always come from
 # R['topic_names'] in nlp_results.json via patch_topic_names.py.
@@ -528,8 +528,19 @@ if not NO_WINDOWS:
     for p_idx, (p_tl, p_v) in enumerate(top_persons):
         p_name   = p_v['term']
         p_books  = person_booksets[p_tl]
-        # Only scan books where person actually appears
-        scan_bids = list(p_books)[:30]  # cap at 30 books
+        # Only scan books where person actually appears.
+        # sorted() is load-bearing, not cosmetic: p_books is a frozenset of
+        # string book IDs, and Python randomises string hashing per process, so
+        # list(p_books) yields a different order on every invocation. Slicing an
+        # unordered iteration scanned a different arbitrary 30 books each run,
+        # making the paragraph-window edge count irreproducible from identical
+        # inputs (1,131 vs 1,226 edges on two runs of 20260920-2, which in turn
+        # moved concept nodes 763 → 777 and locations 74 → 73). Book-level edges
+        # were unaffected — they use the full booksets with no cap.
+        # Known bias, accepted for now: ordering by ID favours lower book IDs,
+        # i.e. earlier Calibre accessions. Ranking by the person's prominence in
+        # each book would be the principled cap — see ROADMAP.
+        scan_bids = sorted(p_books)[:30]  # cap at 30 books; sorted = deterministic
 
         window_counts = defaultdict(int)
         for bid in scan_bids:

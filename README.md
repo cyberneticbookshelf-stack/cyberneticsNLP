@@ -21,7 +21,7 @@ A reproducible NLP pipeline for topic modelling, clustering, keyphrase
 extraction, summarisation, controlled vocabulary analysis, and visualisation
 applied to a cybernetics book corpus extracted from a Calibre library.
 
-**Corpus:** 739 books in reconstructed collection (July 2026 rebuild) · 566 monographs and collected works analysed
+**Corpus:** 755 books in the Calibre collection (742 with PDF full text) · 575 monographs and collected works analysed (20 September 2026). Topic solution is reported as **nine topics, one residual** — the k=9 model is stated as fitted, with T1 excluded from interpretation, so reader-facing counts are 9 topics / 8 interpreted.
 
 ---
 
@@ -249,7 +249,7 @@ python3 src/generate_summaries_api.py --workers 1  # sequential, ~112 min
 ```
 
 Fully resumable — safe to interrupt and restart. Estimated cost: ~$25–35
-for 566 books from scratch (only missing books are processed on reruns —
+for 575 books from scratch (only missing books are processed on reruns —
 if most summaries already exist, the incremental cost is a few cents).
 
 ---
@@ -376,7 +376,7 @@ static table went stale. Authoritative sources:
 ## Input Data Format
 
 ### `csv/books_metadata_full.csv` (tab-separated)
-Full Calibre metadata export: 739 books, 20 columns including `id`, `title`, `pubdate`, `author_sort`, `lang_code`, `inclusion_stratum`, `archive_id`, `in_title`, `in_description`, `in_tags`, and per-field keyword flags. (Publication Type / Theme columns are resolved by Calibre column *name*, not number — see KI-13.)
+Full Calibre metadata export: 755 books, 20 columns including `id`, `title`, `pubdate`, `author_sort`, `lang_code`, `inclusion_stratum`, `archive_id`, `in_title`, `in_description`, `in_tags`, and per-field keyword flags. (Publication Type / Theme columns are resolved by Calibre column *name*, not number — see KI-13.)
 
 ### `csv/books_text_*.csv` (CSV, two columns)
 Columns: `id`, `searchable_text`

@@ -6,14 +6,21 @@ Dates are AEST (UTC+11).
 
 ---
 
-## [0.5.5] — 2026-07-16 → 07-20 (in progress)
+## [0.5.5] — 2026-07-16 → 09-20 (in progress)
 
 > Sessions: 16–19 July 2026 (Claude Code CLI) — KI-13 (stale clean cache after the July
 > Calibre reconstruction) diagnosed and guarded; the post-rebuild 28-book ingestion gap
 > audited and closed; documentation consolidated (CLAUDE.md ↔ master project doc); and the
-> pipeline **re-canonicalised (19 July)** — new canonical `run_20260719_k9_s5` (**566 books**,
-> equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`) supersedes the 541-book
-> 26 April `run_20260426_k9_s5`.
+> pipeline **re-canonicalised (19 July)** — canonical `run_20260719_k9_s5` (**566 books**,
+> equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`) superseding the 541-book
+> 26 April `run_20260426_k9_s5`. 29 July — abstractive LLM summary stage (04b) added, hardened
+> and scaled to multi-GPU.
+>
+> 20 September 2026 (CLI) — corpus grown to 755 Calibre books, pipeline **re-canonicalised
+> again**: `run_20260920_k9_s5` (**575 books**, class `3273ea3e577fdc99`, nlp_hash
+> `92b9f2d2151f0ee7`) now supersedes the July run. Topic taxonomy fully re-validated (the
+> clusters recombined rather than permuted), and a reproducibility defect fixed in the entity
+> network.
 
 ### Added
 
@@ -59,6 +66,42 @@ Dates are AEST (UTC+11).
   already launches N instances via `GPU=`/`PORT=` env vars. Offline-validated with a mocked
   two-endpoint fan-out; live two-GPU throughput not yet measured.
 
+### Corpus growth + taxonomy re-validation (20 September)
+
+- **New canonical run.** Calibre grew 739 → **755 books** (742 with PDF full text); 26 books
+  gained text since July. `run_all.sh --stream --rebuild-clean` → **575 analysed** (was 566),
+  6,449 chapters, CPU. Logged as `run_20260920_k9_s5`, equivalence class `3273ea3e577fdc99`,
+  nlp_hash `92b9f2d2151f0ee7`, 3,353 runlog lines. Mean stability **0.367** (July 0.365),
+  stable 7/9 (was 6/9), unstable 0/9 (was 1/9), dead 0/9. Of the 26 newly-texted books the 9
+  new monographs entered; the 3 new anthologies were pub-type-excluded as designed.
+- **Ingestion gap caught pre-run — a near-repeat of KI-13.** `csv/books_metadata_full.csv` was
+  still the 19 July export (739 rows) and lacked all 12 new book ids; `01_parse_books.py:191`
+  drops ids absent from it **silently**, so the run would have lost every new book without a
+  warning. Fixed by regenerating via `00_export_calibre.py` (→ 755 rows) before running. Now
+  documented as a standing pre-flight in `CLAUDE.md`.
+- **KI-13 guard fired correctly on its first real test.** `run_all.sh --stream` aborted on the
+  stale clean cache (17 of 25 shards changed); `--rebuild-clean` was required and used.
+- **Topic taxonomy re-validated — names do not survive a corpus change.** The clusters
+  **recombined** rather than permuting: July T6+T8 merged into T6, July T4+T1 merged into T7,
+  July T9 split across T8 and T5, July T2 dispersed, and T9 emerged with no July parent (yet is
+  the largest topic, 110 books). Because `patch_topic_names.py` maps `TAXONOMY` **positionally**,
+  **0 of 9** names landed on the right topic and every report initially shipped mislabelled —
+  while `check_stale_vars.py` reported "9/9 match" throughout, since it validates scripts against
+  `nlp_results.json` rather than topic content. Three names transferred (T2/T3/T4, ≥9/10
+  top-book overlap); five newly derived: **T5** *Cybernetics and Digital Culture*, **T6** *Formal
+  Foundation and Control Engineering*, **T7** *Cybernetics of Self and Reimagination of Self*,
+  **T8** *Political Economy of Cybernetics*, **T9** *Cognition and Cybernetics*. Rationale:
+  `docs/decisions.md`; root-cause fix: ROADMAP #32.
+- **T1 retained as an unnamed residual; k=9 unchanged.** Reported as **"nine topics, one
+  residual"** (9 topics / 8 interpreted). T1 is **not** a dead topic — `dead_topic()` returns
+  False for all nine (its top loadings are 1.00/0.99/0.76) — so the zero-dead-topics basis for
+  canonical k=9 in `decisions.md` is unaffected. It was set aside for incoherence between its
+  word list (Sinophone) and its book list (3 of 7 books have no China content).
+- **Standalone name rebuild.** 13 stages in ~4 min (vs ~1h15m for a full run), skipping
+  `09_extract_index`, `03_nlp_pipeline_chapters`, `05_visualize_chapters` and
+  `15_entity_classify` — none consume topic names. Eleven scripts do. The 7-stage chain
+  previously documented in `CLAUDE.md` was wrong for naming changes and has been corrected.
+
 ### Re-canonicalisation (KI-13, 19 July)
 
 - **`src/00_export_calibre.py` — bind custom columns by name, not number (`37e2138`).** The
@@ -92,6 +135,18 @@ Dates are AEST (UTC+11).
 
 ### Fixed
 
+- **`src/14_entity_network.py:532` — paragraph-window edges were irreproducible (ROADMAP #31,
+  20 September).** Two runs over byte-identical inputs produced **1,131 vs 1,226** paragraph
+  edges, moving published network figures (concept nodes 763 → 777, locations 74 → 73). Cause:
+  `scan_bids = list(p_books)[:30]` sliced an unordered `frozenset` of **string** book IDs, and
+  CPython randomises string hashing per process — so each run scanned a different arbitrary 30
+  books per person. Book-level edges were unaffected (no cap, full booksets). Now
+  `sorted(p_books)[:30]`, with a comment recording why the sort is load-bearing. **Verified:**
+  two consecutive runs agree exactly (1,168 paragraph edges, 1,657 nodes, identical node
+  membership, same density and LCC). Matters because the entity-network HTML is shared publicly
+  and `nlp_hash` covers only `nlp_results.json`, so this variance was invisible to the
+  equivalence-class machinery. Residual non-determinism in the *sampled* path statistics and in
+  output ordering is tracked as ROADMAP #34.
 - **`src/run_all.sh` + `src/check_clean_cache.py` (new)** — clean-cache staleness guard
   (KI-13). `parse_and_clean_stream.py` skips books by id, so the July 2026 Calibre DB
   reconstruction (ids reassigned, books re-added) was never re-ingested: `run_20260716-5`
@@ -109,6 +164,31 @@ Dates are AEST (UTC+11).
 
 ### Documentation
 
+- **20 September sync across the canonical logs.** `docs/decisions.md` — new top entry "Topic
+  re-validation on the 575-book equivalence class" (provenance matrix, the four naming
+  decisions, the not-dead argument for T1). `docs/ROADMAP.md` — KI-14 (Calibre FTS coverage
+  gap), a 20 September session record for the standalone rebuild, and items **#31–#35**.
+  `CLAUDE.md` — corpus/canonical figures, a new standing warning that topic names do not survive
+  a corpus change, the corrected name-rebuild chain, and an ingestion pre-flight.
+  `docs/CyberneticsNLP.md` — Overview, Current Sprint, Topic Solutions (new canonical block,
+  July demoted), Known Issues, Session Log. Working evidence retained at
+  `docs/topic_revalidation_20260920.md`.
+- **New known issues.** **KI-14** — the Calibre FTS index lags `metadata.db`: 13 of 755 books
+  have no `format='PDF'` row in `books_text` and are therefore absent from the corpus silently
+  (same mechanism as KI-13 arm (a)); four are recent acquisitions predating the snapshot.
+  Re-index + OCR before the next canonical run. Also confirmed that Calibre `lang_code` is
+  unreliable — 2138 is tagged `eng` but is French, caught only by the runtime detector.
+  **#32** — `patch_topic_names.py` positional mapping (the root cause of the mislabelling
+  above). **#33** — `06_build_report_chapters.py:56` carries book-level LDA names onto
+  chapter-level **NMF** topics, crossing labels between two unrelated models (pre-existing;
+  made conspicuous when "Residual — uninterpreted" landed on 125 chapters of the
+  *people/life/human* topic). **#35** — front-matter boilerplate survives into the chapter NMF
+  model, which spends one of eight topics on copyright-page language.
+- **KI-11 (stability bands) reconfirmed with fresh evidence.** On the 575-book run `09c`
+  reports 7 stable / 0 unstable while `log_pipeline_run.py` reports 2 stable / 5 moderate /
+  2 unstable from the same `topic_stability.json` — it classes T9, the largest topic, as
+  unstable. The DB record carries the stricter reading, so that is what the survey workflow
+  inherits.
 - **`docs/ROADMAP.md`, `CLAUDE.md`** — KI-13 added (stale clean cache after DB reconstruction;
   fix landed, re-canonicalisation open).
 - **`docs/recanonicalisation_checklist.md` (new)** — staging note: numbers to capture from the

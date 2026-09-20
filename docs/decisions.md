@@ -1,5 +1,113 @@
 # Design Decisions & Rationale
 
+## Topic re-validation on the 575-book equivalence class
+**Date:** 20 September 2026 | **Session:** CLI
+
+### Context
+The Calibre collection grew to 755 books (742 with PDF full text), and `run_all.sh --stream
+--rebuild-clean` produced **575 analysed** books — a new equivalence class, since the class key
+includes `n_books`. The 19 July taxonomy was written for the 566-book class.
+
+`patch_topic_names.py` applies names **positionally** (`TAXONOMY['T1']` → topic index 0). On this
+run that produced nine wrong labels: the Bateson/family-therapy cluster was labelled "Management
+and Organisational Cybernetics", and the Chinese-urbanism cluster "History of Information Age and
+Cybernetics". `check_stale_vars.py` reported 9/9 consistent throughout, because it validates
+scripts against `nlp_results.json` — which already held the wrong names. The mismatch was caught
+only by comparing top words and top-loading books against the 19 July runlog.
+
+Measuring where each July topic's top-10 books are now dominant gave the provenance:
+
+| July topic | Now | Relationship |
+|---|---|---|
+| T3 biological | → T4 (10/10) | clean transfer |
+| T5 social systems | → T2 (9/10) | clean transfer |
+| T7 management | → T3 (10/10) | clean transfer |
+| T6 formal/mathematical | → T6 (10/10) | **merge** with ↓ |
+| T8 control/feedback | → T6 (8/10) | **merge** — T6 now has 5 books at loading 1.000 |
+| T4 self/therapy | → T7 (10/10) | **merge** with ↓ |
+| T1 popular history | → T7 (6/10) | **merge** |
+| T9 digital/architecture | → T8 (6/10), T5 (4/10) | **split** — architecture to T8, arts/media to T5 |
+| T2 heterogeneous | dispersed | 3/10 → T1, 4/10 → T5, rest scattered |
+
+T9 has **no July parent** — no July top-10 book is dominant there — yet it is the largest topic
+in the run (110 books, 68 at loading ≥0.50). It cohered from material that sat mid-loading
+across the July solution.
+
+### Decision 1 — re-validate the names rather than re-map them
+Only three names were carried across (T2, T3, T4, on ≥9/10 clean transfers). The rest were
+re-derived from this run's evidence.
+
+**Rationale.** Two July topics merged and one split, so no permutation of the July taxonomy can
+describe this solution — a re-mapping would have had to assign one name to a merged topic and
+invent one for T9 regardless. The equivalence class changed, so the names were never entitled to
+transfer automatically; this is the same conclusion reached on 19 July against the April
+taxonomy, and it will recur on each corpus growth until #32 is fixed.
+
+### Decision 2 — T1 retained as an unnamed residual, not declared dead, and k=9 unchanged
+T1 (stability 0.159, dominant for 7 books) is excluded from interpretation and from
+reader-facing topic lists, but kept in the model under the label "Residual — uninterpreted".
+
+**Rationale.** T1 is *not* a dead topic in this project's sense. `09c_validate_topics.py`'s
+`dead_topic()` tests for degenerate loadings; T1's top-10 are 1.00, 0.99, 0.76, 0.63, 0.61 and
+it returns False, as do all nine topics. This matters beyond bookkeeping: `decisions.md`
+§"Why k=9 as the canonical LDA topic count" rests partly on "zero dead topics at k=9 confirms
+the data capacity is not exceeded", and explicitly ranks that criterion above stability scores.
+Recording T1 as dead would have undercut the k=9 rationale on a false basis.
+
+Re-running at k=8 was rejected: LDA would refit from scratch, all nine topics would re-derive
+and permute, and the entire re-validation would have to start over for a topic holding 7 books.
+
+What is wrong with T1 is incoherence, not degeneracy — its word list is Sinophone (*qian,
+chinese, xuesen, china*) while 3 of its 7 books have no China content and the 1.000 top loading
+is *A Cybernetic Study of Speaking and Singing*. For every other topic the words and the
+loadings corroborate each other. Its distinctive-word list also includes `tion`, an OCR
+hyphenation fragment, which suggests part of its coherence is shared scanning artefact rather
+than shared content.
+
+### Decision 3 — report as "nine topics, one residual"
+Reports state the k=9 model as fitted and name T1 as a residual rather than omitting it;
+reader-facing counts are 9 topics / 8 interpreted.
+
+**Rationale.** The equivalence class is keyed on k, so describing the output as an 8-topic
+solution would misrepresent the provenance of every figure derived from it. Naming the residual
+also keeps faith with the standing *all outputs are provisional* principle: a reader who can see
+that one topic was set aside, and why, is better placed to judge the other eight than one who
+sees a tidy eight.
+
+### Decision 4 — the names
+| | Name | Basis |
+|---|---|---|
+| T1 | *Residual — uninterpreted* | see Decision 2 |
+| T2 | Social Systems and Second-Order Constructivism | July T5, 9/10 |
+| T3 | Management and Organisational Cybernetics | July T7, 10/10 |
+| T4 | Biological and Ecological Regulation: Homeostasis & Allostasis | July T3, 10/10 |
+| T5 | Cybernetics and Digital Culture | arts/media half of the July T9 split |
+| T6 | Formal Foundation and Control Engineering | merge of July T6 + T8 |
+| T7 | Cybernetics of Self and Reimagination of Self | merge of July T4 + T1 |
+| T8 | Political Economy of Cybernetics | majority of July T9, incl. architecture |
+| T9 | Cognition and Cybernetics | no July parent |
+
+Names are read as **discursive registers** ("how cybernetics gets written about"), not subject
+domains — see `docs/methodology.md` §"LDA topics as discursive registers, not subject domains".
+T7 is the clearest case: its word list still reads Bateson/family-therapy, but its top loadings
+are *R.U.R.* (0.995), the Psycho-Cybernetics franchise, *The Cyberiad*, and Mead/Bateson memoir.
+What unites them is an anecdotal, second-person address, not a subject.
+
+### Status and caveats
+Single rater, single run. The multi-rater protocol (sprint item 4, ≥3 runs × ≥2 raters) remains
+outstanding, so these names are provisional on the same terms as the 19 July set. Two things to
+watch on the next run: **T9** is the largest topic but has the lowest stability of the
+interpreted eight (0.237) and holds no vocabulary exclusive to itself — a topic that big with no
+distinctive words may be cohering on something the top-words view does not expose; and **T6**'s
+merged formalism/control register should be re-checked against the PCT-dispersion worked example
+in `methodology.md`, which was written against the July split.
+
+Working evidence retained at `docs/topic_revalidation_20260920.md`. Provenance and the
+positional-mapping hazard are recorded in the `TAXONOMY` header comment in
+`src/patch_topic_names.py`; the root-cause fix is ROADMAP #32.
+
+---
+
 ## Abstractive LLM summaries — map once, style three times; JSON-only before report wiring
 **Date:** 29 July 2026 | **Session:** CLI
 

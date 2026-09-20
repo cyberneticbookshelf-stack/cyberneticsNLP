@@ -22,8 +22,10 @@ Session history, changelog, and open work live in the canonical logs — not her
 
 - **Repo:** `~/CyberneticsNLP/` on the NLP machine, accessed via the sshfs mount inside the vault
 - **Vault path:** `02 Projects/CyberneticsNLP/cybersonic/CyberneticsNLP/`
-- **Canonical corpus framing:** "566 monographs and collected works analysed" from a 739-book reconstructed Calibre collection (July 2026 rebuild — KI-13). Supersedes the 26 April "541 analysed / 695-book" framing.
-- **Canonical k:** 9 (validated April 2026; **re-established on the post-reconstruction full-text run, 19 July 2026** — `run_20260719_k9_s5`, equivalence class `88c44bece9a5a875`, nlp_hash `e3a85b79ca484636`). `run_all.sh` enforces `--topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100`; the canonical backend is **CPU** (sklearn). `--gpu` was deliberately removed from the live command 25 Apr 2026 (broken cuML/RAPIDS conda env — see `run_all.sh:197-201`) and is **not** part of canonical provenance. The 19 July run correctly ran on CPU (`gpu_used=False`) — this is by design, not a silent fallback. GPU (cuML) is a repaired-env *speed* option only; because cuML and sklearn are different LDA implementations, a GPU run would not reproduce the CPU `nlp_hash`, so it is not a route to backend "parity". Topic names finalised 19 July 2026 (single rater, single run — sprint item 4 still requires ≥3 runs × ≥2 raters before names can be considered stable). Prior canonical: `run_20260426_k9_s5` / class `23b29233a67b2938` (541 books), now historical.
+- **Canonical corpus framing:** "575 monographs and collected works analysed" from a 755-book Calibre collection (20 September 2026 growth run). Supersedes the 19 July "566 analysed / 739-book" framing, which supersedes 26 April's "541 / 695".
+- **Topic count framing:** report as **"nine topics, one residual"** — the k=9 model is stated as fitted, with T1 named "Residual — uninterpreted" rather than silently omitted. Reader-facing counts are 9 topics / 8 interpreted. T1 is **not** a dead topic (`dead_topic()` returns False for all nine; see `docs/decisions.md` §"Topic re-validation on the 575-book equivalence class"); it was set aside for incoherence between its word list and its book list, which leaves the zero-dead-topics basis for k=9 intact.
+- **Canonical k:** 9 (validated April 2026; **re-established on the 575-book growth run, 20 September 2026** — `run_20260920_k9_s5`, equivalence class `3273ea3e577fdc99`, nlp_hash `92b9f2d2151f0ee7`). `run_all.sh` enforces `--topics 9 --seeds 5 --full-text --max-features 15000 --max-iter 100`; the canonical backend is **CPU** (sklearn). `--gpu` was deliberately removed from the live command 25 Apr 2026 (broken cuML/RAPIDS conda env — see `run_all.sh:197-201`) and is **not** part of canonical provenance. The 20 September run correctly ran on CPU (`gpu_used=False`), as did 19 July — this is by design, not a silent fallback. GPU (cuML) is a repaired-env *speed* option only; because cuML and sklearn are different LDA implementations, a GPU run would not reproduce the CPU `nlp_hash`, so it is not a route to backend "parity". Topic names re-validated 20 September 2026 (single rater, single run — sprint item 4 still requires ≥3 runs × ≥2 raters before names can be considered stable). Prior canonical: `run_20260719_k9_s5` / class `88c44bece9a5a875` (566 books) and `run_20260426_k9_s5` / class `23b29233a67b2938` (541 books), both now historical.
+- **Topic names do not survive a corpus change.** Each growth mints a new equivalence class, and the clusters *recombine* rather than merely permuting — on 20 September two pairs of July topics merged, one split, one dispersed, and **0 of 9** names landed on the right topic. `patch_topic_names.py` applies `TAXONOMY` **positionally**, so it will silently mislabel every downstream report after any corpus change, and `check_stale_vars.py` will still report "9/9 match" because it validates scripts against `nlp_results.json` rather than against topic content. **After any run where `n_books` changed, re-derive the mapping before trusting a name** — compare each topic's top words and top-loading books against the previous run's, as recorded in `docs/decisions.md`. Root-cause fix (align by word overlap, fail loudly on weak matches) is ROADMAP #32.
 - **Current run record:** query `data/pipeline.db` (`pipeline_runs`, `runlog_entries`) or read the latest `data/outputs/runlogYYYYMMDD.csv`. Don't rely on hardcoded figures here — they rot.
 - **Current version:** read `docs/CHANGELOG.md` (top entry).
 
@@ -46,6 +48,25 @@ on the same day).
 
 **Rebuild from step 09** — after `09_extract_index.py` or `09b_build_index_analysis.py` changes:
 `09 → 09b → 09c → 10 → 12 → 14 → 15`. Simplest: rerun `run_all.sh`.
+
+**Rebuild after a topic-name change** — this is a *different* chain from the one above. Eleven
+scripts embed topic names; `09` and `15` do not. After editing `TAXONOMY`:
+```
+python3 src/patch_topic_names.py
+python3 src/check_stale_vars.py --fix
+python3 src/09c_validate_topics.py --top 10 --md
+# then, in run_all.sh order:
+05_visualize → 06_build_report → 07_build_excel
+06_build_report_chapters → 07_build_excel_chapters
+09b → 10 → 12 → 08 → 11 (--no-voyage) → build_embed_report → 14
+```
+Skip `09_extract_index`, `03_nlp_pipeline_chapters`, `05_visualize_chapters` and
+`15_entity_classify` — none consume topic names, and they are the expensive stages (~4 min for
+the whole name rebuild vs ~1h15m for a full run). Verify afterwards by grepping the outputs for
+any superseded name. Note `06_build_report.py` writes `books.html` (plus `clusters/cosine/
+index/keyphrases.html`), **not** `book_nlp_analysis.html` as the `run_all.sh` completion banner
+claims. Standalone reruns are not captured in a runlog — record them per the session protocol
+below.
 
 **Restore canonical k=9 after a k-sweep comparison run:**
 ```
@@ -380,9 +401,19 @@ replaced with generic descriptions here (security principle). Actual values live
 
 The canonical KI orientation index lives in the master doc: `docs/CyberneticsNLP.md`
 §"Known Issues". Per-issue resolution detail (commit hashes, file-level changes) is in
-`docs/ROADMAP.md`, with `docs/CHANGELOG.md` / `docs/contributions.md`. At last sync the active
-set was **KI-04–KI-13** — KI-11, KI-12, KI-13 open (post-presentation / re-canonicalisation);
-the rest resolved.
+`docs/ROADMAP.md`, with `docs/CHANGELOG.md` / `docs/contributions.md`. At last sync (20 Sep 2026)
+the active set was **KI-04–KI-14** — KI-11, KI-12, KI-14 open; KI-13 resolved 19 July.
+
+- **KI-14 (open):** the Calibre FTS index lags `metadata.db` — 13 of 755 books have no PDF text
+  row, so they are absent from the shards and the corpus with no warning (same mechanism as
+  KI-13 §(a)). Four are recent acquisitions that predate the FTS snapshot and should have been
+  indexed. **Re-run Calibre FTS indexing — and OCR any image-only scans — before the next
+  canonical run.** Also: Calibre `lang_code` is not trustworthy (2138 is tagged `eng` but is
+  French); only the runtime detector is reliable.
+- **Ingestion pre-flight.** Before any run following a Calibre change, regenerate the metadata
+  export first: `python3 src/00_export_calibre.py`. `01_parse_books.py:191` drops any book id
+  absent from `csv/books_metadata_full.csv` **silently**, so a stale export loses every newly
+  added book — the KI-13 failure mode. On 20 September this would have dropped all 12 new books.
 
 ---
 

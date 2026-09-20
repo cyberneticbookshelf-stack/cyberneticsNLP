@@ -161,15 +161,15 @@ chart1 = json.dumps({
 })
 
 _LDA_BASE = [
-    'History of Information Age and Cybernetics',
-    'Extensions and Exploration of Cybernetics',
-    'Biological and Ecological Regulation: Homeostasis & Allostasis',
-    'Cybernetics of Self',
+    'Residual — uninterpreted',
     'Social Systems and Second-Order Constructivism',
-    'Foundations of Cybernetics',
     'Management and Organisational Cybernetics',
-    'Control and Feedback Systems',
-    'Digital Arts, Architecture, Design and Posthumanism',
+    'Biological and Ecological Regulation: Homeostasis & Allostasis',
+    'Cybernetics and Digital Culture',
+    'Formal Foundation and Control Engineering',
+    'Cybernetics of Self and Reimagination of Self',
+    'Political Economy of Cybernetics',
+    'Cognition and Cybernetics',
 ]
 _carried = R.get('topic_names') or _LDA_BASE
 LDA_NAMES = (_carried + [f'Topic {i+1}' for i in range(len(_carried), n_topics)])[:n_topics]
